@@ -1,13 +1,13 @@
 import { test, expect } from "@playwright/test";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { abrirModulo } from "./utils.js";
 
 const FIXTURES = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures");
 
 test.describe("import de formatos de archivo", () => {
   test("Excel (.xlsx) importa collares en Modelo de Bloques", async ({ page }) => {
-    await page.goto("/");
-    await page.locator('button:has-text("Modelo de Bloques")').click();
+    await abrirModulo(page, "Modelo de Bloques");
     await page.waitForTimeout(300);
 
     await page.locator('input[type="file"]').first().setInputFiles(path.join(FIXTURES, "collares.xlsx"));
@@ -18,8 +18,7 @@ test.describe("import de formatos de archivo", () => {
   });
 
   test("KML y KMZ importan los mismos puntos (proyectados a UTM) en Topografia", async ({ page }) => {
-    await page.goto("/");
-    await page.locator('button:has-text("Topografía")').click();
+    await abrirModulo(page, "Topografía");
     await page.waitForTimeout(300);
 
     const inputPuntos = page.locator('input[type="file"]').first();
@@ -37,8 +36,7 @@ test.describe("import de formatos de archivo", () => {
   });
 
   test("LAS y LAZ del mismo levantamiento producen los mismos puntos en Topografia", async ({ page }) => {
-    await page.goto("/");
-    await page.locator('button:has-text("Topografía")').click();
+    await abrirModulo(page, "Topografía");
     await page.waitForTimeout(300);
 
     const inputPuntos = page.locator('input[type="file"]').first();

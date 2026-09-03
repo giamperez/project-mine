@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { abrirMallaTaller3D } from "./utils.js";
 
 /**
  * Regresion del editor CAD tactil (EditorPoligono2D), la pieza de UI mas compleja de la suite y la
@@ -8,7 +9,7 @@ import { test, expect } from "@playwright/test";
  */
 test.describe("editor de poligono 2D (cresta, Diseño de Malla)", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await abrirMallaTaller3D(page);
     await page.locator('.visor-modo-toggle button:has-text("Dibujar cresta 2D")').click();
     await page.waitForTimeout(200);
   });

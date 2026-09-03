@@ -11,11 +11,12 @@ test.describe("navegacion basica", () => {
     });
 
     await page.goto("/");
-    await expect(page.locator("h1")).toHaveText("Diseño de Malla");
+    await expect(page.locator("h1")).toHaveText("Suite Minera");
 
     for (const modulo of MODULOS) {
-      await page.locator(`.selector-espacio button:has-text("${modulo}")`).click();
-      await expect(page.locator("h1")).toHaveText(modulo);
+      await page.locator(`.mine-module-card:has-text("${modulo}")`).click();
+      await expect(page.locator("h1")).toContainText(modulo);
+      await page.locator('.btn-portal-back').click();
     }
 
     expect(errores, `errores de consola/pagina durante la navegacion: ${errores.join(" | ")}`).toEqual([]);

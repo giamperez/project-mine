@@ -1,9 +1,9 @@
 import { test, expect } from "@playwright/test";
+import { abrirModulo } from "./utils.js";
 
 test.describe("Modelo de Bloques: metodo de interpolacion", () => {
   test("cambiar a Kriging, auto-ajustar el variograma, y ver el toggle de varianza solo en modo Kriging", async ({ page }) => {
-    await page.goto("/");
-    await page.locator('button:has-text("Modelo de Bloques")').click();
+    await abrirModulo(page, "Modelo de Bloques");
     await page.waitForTimeout(300);
 
     const bloquesAntes = await page.locator('.dato:has-text("Bloques en la grilla") b').innerText();

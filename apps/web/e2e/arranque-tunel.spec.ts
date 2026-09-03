@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { abrirMallaTaller3D } from "./utils.js";
 
 /**
  * Regresion del modo "Tunel / galeria" de Diseno de Malla: arranque tipo Holmberg (metodo
@@ -9,7 +10,7 @@ import { test, expect } from "@playwright/test";
  */
 test.describe("Diseño de Malla — modo Túnel (arranque Holmberg)", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await abrirMallaTaller3D(page);
     await page.locator('button:has-text("Túnel / galería (subterráneo)")').click();
     await page.waitForTimeout(200);
   });

@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { abrirMallaTaller3D } from "./utils.js";
 
 test.describe("reporte PDF (Diseño de Malla)", () => {
   test("exportar reporte PDF genera un archivo real, sin errores de consola", async ({ page }) => {
@@ -8,7 +9,7 @@ test.describe("reporte PDF (Diseño de Malla)", () => {
       if (m.type() === "error") errores.push(`[console] ${m.text()}`);
     });
 
-    await page.goto("/");
+    await abrirMallaTaller3D(page);
     const descargaPromise = page.waitForEvent("download");
     await page.locator('button:has-text("📄 Exportar reporte PDF")').click();
     const descarga = await descargaPromise;
