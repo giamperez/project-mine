@@ -2318,7 +2318,13 @@ table.tabla-taladros td:first-child {
 .cad-panel-punto-exact,
 .cad-panel-linea-exact,
 .cad-panel-polilinea-exact,
-.cad-panel-arco-exact {
+.cad-panel-arco-exact,
+.cad-panel-recortar-exact,
+.cad-panel-unir-exact,
+.cad-panel-dividir-exact,
+.cad-panel-desfase-exact,
+.cad-panel-cota-exact,
+.cad-panel-taladro-exact {
   position: absolute;
   top: 14px;
   right: 64px;
@@ -2343,7 +2349,13 @@ table.tabla-taladros td:first-child {
   .cad-panel-punto-exact,
   .cad-panel-linea-exact,
   .cad-panel-polilinea-exact,
-  .cad-panel-arco-exact {
+  .cad-panel-arco-exact,
+  .cad-panel-recortar-exact,
+  .cad-panel-unir-exact,
+  .cad-panel-dividir-exact,
+  .cad-panel-desfase-exact,
+  .cad-panel-cota-exact,
+  .cad-panel-taladro-exact {
     top: auto;
     bottom: 58px;
     right: 50%;
@@ -3425,8 +3437,272 @@ table.tabla-taladros td:first-child {
   box-shadow: 0 6px 18px rgba(255, 0, 85, 0.45);
 }
 
+/* ==========================================================================
+   PANEL: RECORTAR (TRIM - EXACTO AL MOCKUP)
+   ========================================================================== */
 
+.pill-active-green {
+  background: #10b981 !important;
+  border-color: #10b981 !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.45);
+}
 
+.panel-rec-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
 
+.panel-rec-titles h2 {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  color: #ffffff;
+  margin: 0;
+  line-height: 1.2;
+}
 
+.panel-rec-titles p {
+  font-size: 11px;
+  color: #94a3b8;
+  margin: 3px 0 0 0;
+  line-height: 1.35;
+}
+
+.btn-rec-ocultar {
+  background: transparent;
+  border: none;
+  color: #e11d48;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px;
+  white-space: nowrap;
+  transition: color 0.15s;
+}
+
+.btn-rec-ocultar:hover {
+  color: #f43f5e;
+}
+
+.panel-rec-capa-box {
+  background: #0e1828;
+  border: 1px solid rgba(6, 182, 212, 0.4);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #38bdf8;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.panel-rec-instruction {
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: #94a3b8;
+  margin: 0;
+}
+
+.rec-badge-verde {
+  color: #10b981;
+  font-weight: 800;
+}
+
+.rec-badge-rojo {
+  color: #ef4444;
+  font-weight: 800;
+}
+
+.panel-rec-selection-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.panel-rec-selection-label {
+  font-size: 16px;
+  font-weight: 800;
+  color: #00f0ff;
+  letter-spacing: 0.2px;
+}
+
+.panel-rec-selection-tag {
+  background: rgba(6, 182, 212, 0.15);
+  border: 1px solid rgba(6, 182, 212, 0.35);
+  color: #38bdf8;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.panel-rec-selection-tag.cortante {
+  background: rgba(249, 115, 22, 0.15);
+  border-color: rgba(249, 115, 22, 0.35);
+  color: #fb923c;
+}
+
+.btn-rec-reset {
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #94a3b8;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-rec-reset:hover {
+  background: #334155;
+  color: #ffffff;
+}
+
+.panel-rec-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 0;
+}
+
+.panel-rec-toggle-label {
+  font-size: 12px;
+  color: #e2e8f0;
+  font-weight: 500;
+}
+
+/* Switch iOS/Material para Recortar */
+.cad-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.cad-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.cad-switch-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #334155;
+  transition: 0.2s;
+  border-radius: 24px;
+}
+
+.cad-switch-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.2s;
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+.cad-switch input:checked + .cad-switch-slider {
+  background-color: #e11d48;
+}
+
+.cad-switch input:checked + .cad-switch-slider:before {
+  transform: translateX(20px);
+}
+
+.panel-rec-infobox {
+  background: #090e17;
+  border: 1px solid rgba(6, 182, 212, 0.22);
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-size: 11px;
+  color: #94a3b8;
+  line-height: 1.4;
+}
+
+.btn-rec-confirmar {
+  width: 100%;
+  height: 44px;
+  border-radius: 14px;
+  border: none;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  transition: all 0.2s;
+  background: #1c2436;
+  color: #64748b;
+  cursor: not-allowed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-rec-confirmar.activo {
+  background: #e11d48;
+  color: #ffffff;
+  cursor: pointer;
+  box-shadow: 0 0 16px rgba(225, 29, 72, 0.6);
+}
+
+.btn-rec-confirmar.activo:hover {
+  background: #f43f5e;
+  transform: translateY(-1px);
+  box-shadow: 0 0 20px rgba(225, 29, 72, 0.8);
+}
+
+/* Acciones Panel UNIR / SEPARAR */
+.btn-uni-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.btn-uni-secundario {
+  width: 100%;
+  height: 38px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  transition: all 0.15s;
+  background: #141b29;
+  color: #94a3b8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-uni-secundario:disabled {
+  background: #0f1622;
+  color: #475569;
+  border-color: rgba(255, 255, 255, 0.05);
+  cursor: not-allowed;
+}
+
+.btn-uni-secundario:not(:disabled):hover {
+  background: #1e293b;
+  color: #f8fafc;
+  border-color: rgba(6, 182, 212, 0.4);
+  transform: translateY(-1px);
+}
 

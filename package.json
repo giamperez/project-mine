@@ -9,6 +9,8 @@
     "apps/*"
   ],
   "scripts": {
+    "dev": "npm run dev:web",
+    "start": "npm run dev:web",
     "test": "npm run test --workspace=@suite/core",
     "dev:web": "npm run dev --workspace=@suite/web",
     "build:web": "npm run build --workspace=@suite/web"

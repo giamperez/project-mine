@@ -36,5 +36,6 @@ export default defineConfig({
   ],
   server: {
     host: true, // expone en la red local para probar desde un celular real
+    port: 5180,
   },
 });

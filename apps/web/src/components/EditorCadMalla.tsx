@@ -7,7 +7,28 @@ import {
   type Punto2D,
   type Taladro,
 } from "@suite/core";
+import { usePersistedState } from "../hooks/usePersistedState.js";
 import { descargarTexto } from "../utils/descargar.js";
+import {
+  type EntidadRecortable,
+  obtenerPuntosDeEntidad,
+  calcularInterseccionesEntidades,
+  partirCurvaPorCortes,
+  type ResultadoParticion,
+} from "../utils/cadRecorte.js";
+import {
+  type RefEntidadUni,
+  unirEntidadesEnPolilinea,
+  separarPolilineaEnLineas,
+  calcularCentroideEntidades,
+} from "../utils/cadUnirSeparar.js";
+import {
+  type ModoDesfase,
+  type ResultadoDesfase,
+  desfasarLinea,
+  desfasarArco,
+  desfasarPolilinea,
+} from "../utils/cadDesfase.js";
 
 type HerramientaCad =
   | "SEL"
@@ -74,6 +95,119 @@ export interface ArcoCad3D {
   rol: RolIngenieria;
   longitud: number;
 }
+
+export type TipoCotaCad = "distancia" | "b1" | "b2" | "b3" | "b4" | "b5" | "4g";
+
+export interface CotaCad3D {
+  id: string;
+  p1: { x: number; y: number; z: number };
+  p2: { x: number; y: number; z: number };
+  desplazamiento: number;
+  texto: string;
+  tipo: TipoCotaCad;
+  capaId: string;
+}
+
+export type GrupoTaladroCad =
+  | "arranque"
+  | "alivio"
+  | "cuadrante"
+  | "produccion"
+  | "corona"
+  | "hastial"
+  | "arrastre";
+
+export interface InfoGrupoTaladro {
+  id: GrupoTaladroCad;
+  label: string;
+  abrev: string;
+  colorDefecto: string;
+  radioMmDefecto: string;
+  longitudMDefecto: string;
+  lookOutDefecto: string;
+  gradienteDefecto: string;
+  cargadoDefecto: boolean;
+}
+
+export const GRUPOS_TALADRO_CONFIG: InfoGrupoTaladro[] = [
+  {
+    id: "arranque",
+    label: "Arranque",
+    abrev: "ARR",
+    colorDefecto: "#ec4899",
+    radioMmDefecto: "22.5",
+    longitudMDefecto: "3.6",
+    lookOutDefecto: "0",
+    gradienteDefecto: "0",
+    cargadoDefecto: true,
+  },
+  {
+    id: "alivio",
+    label: "Alivio",
+    abrev: "ALIV",
+    colorDefecto: "#00f0ff",
+    radioMmDefecto: "51.0",
+    longitudMDefecto: "3.8",
+    lookOutDefecto: "0",
+    gradienteDefecto: "0",
+    cargadoDefecto: false,
+  },
+  {
+    id: "cuadrante",
+    label: "Cuadrante",
+    abrev: "CUA",
+    colorDefecto: "#f59e0b",
+    radioMmDefecto: "22.5",
+    longitudMDefecto: "3.6",
+    lookOutDefecto: "0",
+    gradienteDefecto: "0",
+    cargadoDefecto: true,
+  },
+  {
+    id: "produccion",
+    label: "Producción",
+    abrev: "PROD",
+    colorDefecto: "#8b5cf6",
+    radioMmDefecto: "22.5",
+    longitudMDefecto: "3.6",
+    lookOutDefecto: "0",
+    gradienteDefecto: "0",
+    cargadoDefecto: true,
+  },
+  {
+    id: "corona",
+    label: "Corona",
+    abrev: "COR",
+    colorDefecto: "#10b981",
+    radioMmDefecto: "22.5",
+    longitudMDefecto: "3.6",
+    lookOutDefecto: "3",
+    gradienteDefecto: "0",
+    cargadoDefecto: true,
+  },
+  {
+    id: "hastial",
+    label: "Hastial",
+    abrev: "HAS",
+    colorDefecto: "#f97316",
+    radioMmDefecto: "22.5",
+    longitudMDefecto: "3.6",
+    lookOutDefecto: "3",
+    gradienteDefecto: "0",
+    cargadoDefecto: true,
+  },
+  {
+    id: "arrastre",
+    label: "Arrastre",
+    abrev: "ARRS",
+    colorDefecto: "#eab308",
+    radioMmDefecto: "22.5",
+    longitudMDefecto: "3.6",
+    lookOutDefecto: "0",
+    gradienteDefecto: "-3",
+    cargadoDefecto: true,
+  },
+];
 
 export interface CapaCad {
   id: string;
@@ -201,89 +335,140 @@ export default function EditorCadMalla({
   onIrARender,
   onVolver,
 }: EditorCadMallaProps) {
-  const [herramienta, setHerramienta] = useState<HerramientaCad>("SEL");
-  const [bloqueadoGlobal, setBloqueadoGlobal] = useState(false);
-  const [snapActivo, setSnapActivo] = useState(true);
+  const [herramienta, setHerramienta] = usePersistedState<HerramientaCad>("cad:herramientaActiva", "SEL");
+  const [bloqueadoGlobal, setBloqueadoGlobal] = usePersistedState<boolean>("cad:bloqueadoGlobal", false);
+  const [snapActivo, setSnapActivo] = usePersistedState<boolean>("cad:snapActivo", true);
+  const [mostrarPuntoMedio, setMostrarPuntoMedio] = usePersistedState<boolean>("cad:mostrarPuntoMedio", false);
   const [notificacion, setNotificacion] = useState<string | null>(null);
 
   // Sistema de Coordenadas (con menú desplegable y jalar de archivo)
-  const [sistemaCoords, setSistemaCoords] = useState<SistemaCoordenadas>("local");
+  const [sistemaCoords, setSistemaCoords] = usePersistedState<SistemaCoordenadas>("cad:sistemaCoords", "local");
   const BASE_UTM_E = 432000;
   const BASE_UTM_N = 8765000;
 
   // Estado del Panel 'SELECCIONAR' (cerrado por defecto)
   const [panelSelVisible, setPanelSelVisible] = useState(false);
-  const [panelSelMinimizado, setPanelSelMinimizado] = useState(false);
+  const [panelSelMinimizado, setPanelSelMinimizado] = usePersistedState<boolean>("cad:panelSelMinimizado", false);
   const [indicesSeleccionados, setIndicesSeleccionados] = useState<number[]>([]);
-  const [puntosCad, setPuntosCad] = useState<PuntoCad3D[]>([]);
+  const [puntosCad, setPuntosCad] = usePersistedState<PuntoCad3D[]>("cad:puntos", []);
   const [puntosSeleccionados, setPuntosSeleccionados] = useState<string[]>([]);
 
   // Inputs de desplazamiento ΔX, ΔY, ΔZ
-  const [deltaX, setDeltaX] = useState("0");
-  const [deltaY, setDeltaY] = useState("0");
-  const [deltaZ, setDeltaZ] = useState("0");
+  const [deltaX, setDeltaX] = usePersistedState<string>("cad:deltaX", "0");
+  const [deltaY, setDeltaY] = usePersistedState<string>("cad:deltaY", "0");
+  const [deltaZ, setDeltaZ] = usePersistedState<string>("cad:deltaZ", "0");
 
   // Mover a Coordenadas Absolutas Asignadas (X, Y, Z) y Punto Base de Referencia
-  const [moverX, setMoverX] = useState("0");
-  const [moverY, setMoverY] = useState("0");
-  const [moverZ, setMoverZ] = useState("0");
+  const [moverX, setMoverX] = usePersistedState<string>("cad:moverX", "0");
+  const [moverY, setMoverY] = usePersistedState<string>("cad:moverY", "0");
+  const [moverZ, setMoverZ] = usePersistedState<string>("cad:moverZ", "0");
   const [puntoBaseIndice, setPuntoBaseIndice] = useState<number>(0);
   const [esperandoPuntoBase, setEsperandoPuntoBase] = useState(false);
   const prevSeleccionKeyRef = useRef("");
 
   // Estado del Panel 'PUNTO' (Exacto a la captura del usuario)
   const [panelPtoVisible, setPanelPtoVisible] = useState(false);
-  const [panelPtoMinimizado, setPanelPtoMinimizado] = useState(false);
-  const [ptoX, setPtoX] = useState("0");
-  const [ptoY, setPtoY] = useState("0");
-  const [ptoZ, setPtoZ] = useState("0");
-  const [tipoPunto, setTipoPunto] = useState<TipoPuntoCad>("cruz_x");
+  const [panelPtoMinimizado, setPanelPtoMinimizado] = usePersistedState<boolean>("cad:panelPtoMinimizado", false);
+  const [ptoX, setPtoX] = usePersistedState<string>("cad:ptoX", "0");
+  const [ptoY, setPtoY] = usePersistedState<string>("cad:ptoY", "0");
+  const [ptoZ, setPtoZ] = usePersistedState<string>("cad:ptoZ", "0");
+  const [tipoPunto, setTipoPunto] = usePersistedState<TipoPuntoCad>("cad:tipoPunto", "cruz_x");
 
   // Estado del Panel 'LÍNEA'
   const [panelLinVisible, setPanelLinVisible] = useState(false);
-  const [panelLinMinimizado, setPanelLinMinimizado] = useState(false);
-  const [tipoLinea, setTipoLinea] = useState<TipoLinea>("continua");
-  const [rolIngenieria, setRolIngenieria] = useState<RolIngenieria>("geometria");
-  const [distanciaLinea, setDistanciaLinea] = useState("10");
-  const [azimutLinea, setAzimutLinea] = useState("0");
-  const [lineasCad, setLineasCad] = useState<LineaCad3D[]>([]);
+  const [panelLinMinimizado, setPanelLinMinimizado] = usePersistedState<boolean>("cad:panelLinMinimizado", false);
+  const [tipoLinea, setTipoLinea] = usePersistedState<TipoLinea>("cad:tipoLinea", "continua");
+  const [rolIngenieria, setRolIngenieria] = usePersistedState<RolIngenieria>("cad:rolIngenieria", "geometria");
+  const [distanciaLinea, setDistanciaLinea] = usePersistedState<string>("cad:distanciaLinea", "10");
+  const [azimutLinea, setAzimutLinea] = usePersistedState<string>("cad:azimutLinea", "0");
+  const [lineasCad, setLineasCad] = usePersistedState<LineaCad3D[]>("cad:lineas", []);
   const [lineasSeleccionadas, setLineasSeleccionadas] = useState<string[]>([]);
   const [inicioLinea, setInicioLinea] = useState<{ x: number; y: number; z: number } | null>(null);
   const [cursorGuiaLinea, setCursorGuiaLinea] = useState<{ x: number; y: number; z: number } | null>(null);
 
   // Estado del Panel 'POLILÍNEA'
   const [panelPlVisible, setPanelPlVisible] = useState(false);
-  const [panelPlMinimizado, setPanelPlMinimizado] = useState(false);
-  const [cerrarPolilinea, setCerrarPolilinea] = useState(false);
+  const [panelPlMinimizado, setPanelPlMinimizado] = usePersistedState<boolean>("cad:panelPlMinimizado", false);
+  const [cerrarPolilinea, setCerrarPolilinea] = usePersistedState<boolean>("cad:cerrarPolilinea", false);
   const [verticesPolilinea, setVerticesPolilinea] = useState<{ x: number; y: number; z: number }[]>([]);
   const [cursorGuiaPl, setCursorGuiaPl] = useState<{ x: number; y: number; z: number } | null>(null);
-  const [polilineasCad, setPolilineasCad] = useState<PolilineaCad3D[]>([]);
+  const [polilineasCad, setPolilineasCad] = usePersistedState<PolilineaCad3D[]>("cad:polilineas", []);
   const [polilineasSeleccionadas, setPolilineasSeleccionadas] = useState<string[]>([]);
 
   // Estado del Panel 'ARCO'
   const [panelArcVisible, setPanelArcVisible] = useState(false);
-  const [panelArcMinimizado, setPanelArcMinimizado] = useState(false);
-  const [metodoArco, setMetodoArco] = useState<MetodoArco>("inicio_fin_r");
-  const [radioArco, setRadioArco] = useState("10.0");
-  const [anguloInicioArco, setAnguloInicioArco] = useState("0");
-  const [anguloFinArco, setAnguloFinArco] = useState("180");
-  const [centroIzquierdaArco, setCentroIzquierdaArco] = useState(true);
+  const [panelArcMinimizado, setPanelArcMinimizado] = usePersistedState<boolean>("cad:panelArcMinimizado", false);
+  const [metodoArco, setMetodoArco] = usePersistedState<MetodoArco>("cad:metodoArco", "inicio_fin_r");
+  const [radioArco, setRadioArco] = usePersistedState<string>("cad:radioArco", "10.0");
+  const [anguloInicioArco, setAnguloInicioArco] = usePersistedState<string>("cad:anguloInicioArco", "0");
+  const [anguloFinArco, setAnguloFinArco] = usePersistedState<string>("cad:anguloFinArco", "180");
+  const [centroIzquierdaArco, setCentroIzquierdaArco] = usePersistedState<boolean>("cad:centroIzquierdaArco", true);
   const [puntosArcoConstruccion, setPuntosArcoConstruccion] = useState<{ x: number; y: number; z: number }[]>([]);
   const [cursorGuiaArc, setCursorGuiaArc] = useState<{ x: number; y: number; z: number } | null>(null);
-  const [arcosCad, setArcosCad] = useState<ArcoCad3D[]>([]);
+  const [arcosCad, setArcosCad] = usePersistedState<ArcoCad3D[]>("cad:arcos", []);
   const [arcosSeleccionados, setArcosSeleccionados] = useState<string[]>([]);
+
+  // Estado del Panel 'RECORTAR' (Trim - Exacto al Mockup)
+  const [panelRecVisible, setPanelRecVisible] = useState(true);
+  const [panelRecMinimizado, setPanelRecMinimizado] = usePersistedState<boolean>("cad:panelRecMinimizado", false);
+  const [recObjeto, setRecObjeto] = useState<EntidadRecortable | null>(null);
+  const [recCortante, setRecCortante] = useState<EntidadRecortable | null>(null);
+  const [recConservarInicio, setRecConservarInicio] = usePersistedState<boolean>("cad:recConservarInicio", true);
+
+  // Estado del Panel 'UNIR / SEPARAR' (UNI)
+  const [panelUniVisible, setPanelUniVisible] = useState(false);
+  const [panelUniMinimizado, setPanelUniMinimizado] = usePersistedState<boolean>("cad:panelUniMinimizado", false);
+  const [forzarPolilineaCerrada, setForzarPolilineaCerrada] = usePersistedState<boolean>("cad:forzarPolilineaCerrada", true);
+  const [uniSeleccionadas, setUniSeleccionadas] = useState<RefEntidadUni[]>([]);
+
+  // Estado del Panel 'DIVIDIR' (DIV)
+  const [panelDivVisible, setPanelDivVisible] = useState(false);
+  const [panelDivMinimizado, setPanelDivMinimizado] = usePersistedState<boolean>("cad:panelDivMinimizado", false);
+  const [divPartes, setDivPartes] = usePersistedState<string>("cad:divPartes", "4");
+  const [divEntidad, setDivEntidad] = useState<EntidadRecortable | null>(null);
+
+  // Estado del Panel 'DESFASE' (OFF)
+  const [panelOffVisible, setPanelOffVisible] = useState(false);
+  const [panelOffMinimizado, setPanelOffMinimizado] = usePersistedState<boolean>("cad:panelOffMinimizado", false);
+  const [offModo, setOffModo] = usePersistedState<ModoDesfase>("cad:offModo", "exterior");
+  const [offDistancia, setOffDistancia] = usePersistedState<string>("cad:offDistancia", "0.25");
+  const [offEntidad, setOffEntidad] = useState<EntidadRecortable | null>(null);
+
+  // Estado del Panel 'COTA / B' (COT)
+  const [panelCotVisible, setPanelCotVisible] = useState(false);
+  const [panelCotMinimizado, setPanelCotMinimizado] = usePersistedState<boolean>("cad:panelCotMinimizado", false);
+  const [cotModo, setCotModo] = usePersistedState<TipoCotaCad>("cad:cotModo", "distancia");
+  const [cotSeparacion, setCotSeparacion] = usePersistedState<string>("cad:cotSeparacion", "0.18");
+  const [cotDistanciaB, setCotDistanciaB] = usePersistedState<string>("cad:cotDistanciaB", "0.50");
+  const [cotCuadradoAlineado, setCotCuadradoAlineado] = usePersistedState<boolean>("cad:cotCuadradoAlineado", true);
+  const [cotCentro, setCotCentro] = useState<{ x: number; y: number; z: number } | null>(null);
+  const [cotPuntoInicio, setCotPuntoInicio] = useState<{ x: number; y: number; z: number } | null>(null);
+  const [cotCursorGuia, setCotCursorGuia] = useState<{ x: number; y: number; z: number } | null>(null);
+  const [cotasCad, setCotasCad] = usePersistedState<CotaCad3D[]>("cad:cotas", []);
+  const [cotasSeleccionadas, setCotasSeleccionadas] = useState<string[]>([]);
+
+  // Estado del Panel 'TALADRO' (TAL)
+  const [panelTalVisible, setPanelTalVisible] = useState(false);
+  const [panelTalMinimizado, setPanelTalMinimizado] = usePersistedState<boolean>("cad:panelTalMinimizado", false);
+  const [talGrupo, setTalGrupo] = usePersistedState<GrupoTaladroCad>("cad:talGrupo", "arranque");
+  const [talRadioMm, setTalRadioMm] = usePersistedState<string>("cad:talRadioMm", "22.5");
+  const [talLongitudM, setTalLongitudM] = usePersistedState<string>("cad:talLongitudM", "3.6");
+  const [talLookOutDeg, setTalLookOutDeg] = usePersistedState<string>("cad:talLookOutDeg", "0");
+  const [talGradientePct, setTalGradientePct] = usePersistedState<string>("cad:talGradientePct", "0");
+  const [talColor, setTalColor] = usePersistedState<string>("cad:talColor", "#ec4899");
+  const [talCargado, setTalCargado] = usePersistedState<boolean>("cad:talCargado", true);
 
   // Estado del Gestor de Capas y Carpetas (Estilo AutoCAD / Civil 3D)
   const [panelCapasVisible, setPanelCapasVisible] = useState(false);
-  const [panelCapasMinimizado, setPanelCapasMinimizado] = useState(false);
-  const [capaActivaId, setCapaActivaId] = useState("capa-cresta");
+  const [panelCapasMinimizado, setPanelCapasMinimizado] = usePersistedState<boolean>("cad:panelCapasMinimizado", false);
+  const [capaActivaId, setCapaActivaId] = usePersistedState<string>("cad:capaActivaId", "capa-cresta");
 
-  const [carpetas, setCarpetas] = useState<CarpetaCad[]>([
+  const [carpetas, setCarpetas] = usePersistedState<CarpetaCad[]>("cad:carpetas", [
     { id: "carp-malla", nombre: "Malla de Perforación", abierta: true, visible: true },
     { id: "carp-topo", nombre: "Topografía y Geometría", abierta: true, visible: true },
   ]);
 
-  const [capas, setCapas] = useState<CapaCad[]>([
+  const [capas, setCapas] = usePersistedState<CapaCad[]>("cad:capas", [
     {
       id: "capa-cresta",
       nombre: "Cresta del Banco",
@@ -470,6 +655,47 @@ export default function EditorCadMalla({
       z: altZ.toFixed(2),
     };
   }, [puntoActual, sistemaCoords]);
+
+  // Cálculo de Previsualización y Partición de Recorte en Tiempo Real
+  const recParticion = useMemo<ResultadoParticion | null>(() => {
+    if (!recObjeto || !recCortante) return null;
+    const ctx = {
+      lineas: lineasCad,
+      polilineas: polilineasCad,
+      arcos: arcosCad,
+      perfil: poligonoCresta,
+    };
+    const objData = obtenerPuntosDeEntidad(recObjeto, ctx);
+    const cortData = obtenerPuntosDeEntidad(recCortante, ctx);
+    if (!objData || !cortData) return null;
+
+    const intersecciones = calcularInterseccionesEntidades(
+      objData.puntos,
+      objData.cerrada,
+      cortData.puntos,
+      cortData.cerrada
+    );
+    if (intersecciones.length === 0) return null;
+
+    return partirCurvaPorCortes(
+      objData.puntos,
+      objData.cerrada,
+      intersecciones,
+      recConservarInicio
+    );
+  }, [
+    recObjeto,
+    recCortante,
+    recConservarInicio,
+    lineasCad,
+    polilineasCad,
+    arcosCad,
+    poligonoCresta,
+  ]);
+
+  const puedeConfirmarRecorte = Boolean(
+    recObjeto && recCortante && recParticion && recParticion.tramosQueda.length > 0
+  );
 
   // Sincronizar automáticamente los inputs de mover SOLO cuando cambia la entidad seleccionada o el sistema
   const seleccionKey = `${puntosSeleccionados.join(",")}|${indicesSeleccionados.join(",")}|${puntoBaseIndice}|${sistemaCoords}`;
@@ -1021,26 +1247,207 @@ export default function EditorCadMalla({
       });
     }
 
-    // 2. Taladros en 3D
-    if (capaTaladros?.visible) {
+    // 2. Taladros en 3D con Simbología Especializada por Grupo (AutoCAD Minero)
+    if (capaTaladros?.visible && taladros.length > 0) {
       taladros.forEach((t) => {
-        const drillGeo = new THREE.CylinderGeometry(0.12, 0.12, 5, 8);
-        const drillMat = new THREE.MeshBasicMaterial({
-          color: new THREE.Color(capaTaladros.color).getHex(),
-          wireframe: true,
-          transparent: true,
-          opacity: 0.8,
-        });
-        const drillMesh = new THREE.Mesh(drillGeo, drillMat);
-        drillMesh.position.set(t.collar.x, -2.5, t.collar.y);
-        group.add(drillMesh);
+        const zonaTal = ((t as any).zona || "arranque") as GrupoTaladroCad;
+        const infoG = GRUPOS_TALADRO_CONFIG.find((g) => g.id === zonaTal);
+        const colTal = infoG?.colorDefecto || capaTaladros.color;
+        const colorHex = new THREE.Color(colTal).getHex();
+        const esCargado = (t as any).estado !== "vacio";
 
-        const ringGeo = new THREE.TorusGeometry(0.25, 0.06, 6, 16);
-        const ringMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(capaTaladros.color).getHex() });
-        const ring = new THREE.Mesh(ringGeo, ringMat);
-        ring.rotation.x = Math.PI / 2;
-        ring.position.set(t.collar.x, 0.05, t.collar.y);
-        group.add(ring);
+        const cx = t.collar.x;
+        const cy = (t.collar.z || 0) + 0.08;
+        const cz = t.collar.y;
+
+        const talGroupObj = new THREE.Group();
+        talGroupObj.position.set(cx, cy, cz);
+
+        const matColor = new THREE.LineBasicMaterial({ color: colorHex, linewidth: 2.5 });
+        const matFill = new THREE.MeshBasicMaterial({ color: colorHex, side: THREE.DoubleSide });
+
+        switch (zonaTal) {
+          case "alivio": {
+            // 1. ALIVIO: Doble anillo concéntrico grande (Hueco de alivio vacío)
+            const rExt = 0.36;
+            const rInt = 0.20;
+            const ring1 = new THREE.Mesh(new THREE.TorusGeometry(rExt, 0.03, 6, 24), matFill);
+            ring1.rotation.x = Math.PI / 2;
+            talGroupObj.add(ring1);
+
+            const ring2 = new THREE.Mesh(new THREE.TorusGeometry(rInt, 0.02, 6, 20), matFill);
+            ring2.rotation.x = Math.PI / 2;
+            talGroupObj.add(ring2);
+
+            const cruzGeo = new THREE.BufferGeometry().setFromPoints([
+              new THREE.Vector3(-rInt, 0, -rInt),
+              new THREE.Vector3(rInt, 0, rInt),
+              new THREE.Vector3(-rInt, 0, rInt),
+              new THREE.Vector3(rInt, 0, -rInt),
+            ]);
+            talGroupObj.add(new THREE.LineSegments(cruzGeo, matColor));
+            break;
+          }
+
+          case "arranque": {
+            // 2. ARRANQUE: Círculo exterior con ROMBO concéntrico inscrito y núcleo
+            const r = 0.22;
+            const ring = new THREE.Mesh(new THREE.TorusGeometry(r, 0.03, 6, 20), matFill);
+            ring.rotation.x = Math.PI / 2;
+            talGroupObj.add(ring);
+
+            const romboGeo = new THREE.BufferGeometry().setFromPoints([
+              new THREE.Vector3(0, 0, r),
+              new THREE.Vector3(r, 0, 0),
+              new THREE.Vector3(0, 0, -r),
+              new THREE.Vector3(-r, 0, 0),
+              new THREE.Vector3(0, 0, r),
+            ]);
+            talGroupObj.add(new THREE.Line(romboGeo, matColor));
+
+            if (esCargado) {
+              const dot = new THREE.Mesh(new THREE.CircleGeometry(0.08, 12), matFill);
+              dot.rotation.x = -Math.PI / 2;
+              talGroupObj.add(dot);
+            }
+            break;
+          }
+
+          case "cuadrante": {
+            // 3. CUADRANTE: Rombo rotado a 45° con cruz central en 'X'
+            const r = 0.24;
+            const romboGeo = new THREE.BufferGeometry().setFromPoints([
+              new THREE.Vector3(0, 0, r),
+              new THREE.Vector3(r, 0, 0),
+              new THREE.Vector3(0, 0, -r),
+              new THREE.Vector3(-r, 0, 0),
+              new THREE.Vector3(0, 0, r),
+            ]);
+            talGroupObj.add(new THREE.Line(romboGeo, matColor));
+
+            const cruzGeo = new THREE.BufferGeometry().setFromPoints([
+              new THREE.Vector3(-r * 0.7, 0, -r * 0.7),
+              new THREE.Vector3(r * 0.7, 0, r * 0.7),
+              new THREE.Vector3(-r * 0.7, 0, r * 0.7),
+              new THREE.Vector3(r * 0.7, 0, -r * 0.7),
+            ]);
+            talGroupObj.add(new THREE.LineSegments(cruzGeo, matColor));
+
+            if (esCargado) {
+              const dot = new THREE.Mesh(new THREE.CircleGeometry(0.07, 10), matFill);
+              dot.rotation.x = -Math.PI / 2;
+              talGroupObj.add(dot);
+            }
+            break;
+          }
+
+          case "produccion": {
+            // 4. PRODUCCIÓN: Círculo con mira ortogonal '+' completa
+            const r = 0.20;
+            const ring = new THREE.Mesh(new THREE.TorusGeometry(r, 0.03, 6, 20), matFill);
+            ring.rotation.x = Math.PI / 2;
+            talGroupObj.add(ring);
+
+            const cruzGeo = new THREE.BufferGeometry().setFromPoints([
+              new THREE.Vector3(-r * 1.35, 0, 0),
+              new THREE.Vector3(r * 1.35, 0, 0),
+              new THREE.Vector3(0, 0, -r * 1.35),
+              new THREE.Vector3(0, 0, r * 1.35),
+            ]);
+            talGroupObj.add(new THREE.LineSegments(cruzGeo, matColor));
+
+            if (esCargado) {
+              const dot = new THREE.Mesh(new THREE.CircleGeometry(0.08, 12), matFill);
+              dot.rotation.x = -Math.PI / 2;
+              talGroupObj.add(dot);
+            }
+            break;
+          }
+
+          case "corona": {
+            // 5. CORONA: Círculo con flecha/espiga apuntando hacia el TECHO (+Y en CAD)
+            const r = 0.20;
+            const ring = new THREE.Mesh(new THREE.TorusGeometry(r, 0.03, 6, 20), matFill);
+            ring.rotation.x = Math.PI / 2;
+            talGroupObj.add(ring);
+
+            const espigaGeo = new THREE.BufferGeometry().setFromPoints([
+              new THREE.Vector3(0, 0, r),
+              new THREE.Vector3(0, 0, r + 0.28),
+              new THREE.Vector3(-0.08, 0, r + 0.18),
+              new THREE.Vector3(0, 0, r + 0.28),
+              new THREE.Vector3(0.08, 0, r + 0.18),
+            ]);
+            talGroupObj.add(new THREE.Line(espigaGeo, matColor));
+
+            if (esCargado) {
+              const dot = new THREE.Mesh(new THREE.CircleGeometry(0.07, 10), matFill);
+              dot.rotation.x = -Math.PI / 2;
+              talGroupObj.add(dot);
+            }
+            break;
+          }
+
+          case "hastial": {
+            // 6. HASTIAL: Círculo con espiga lateral horizontal hacia la pared
+            const r = 0.20;
+            const ring = new THREE.Mesh(new THREE.TorusGeometry(r, 0.03, 6, 20), matFill);
+            ring.rotation.x = Math.PI / 2;
+            talGroupObj.add(ring);
+
+            const dirX = cx >= 0 ? 1 : -1;
+            const espigaGeo = new THREE.BufferGeometry().setFromPoints([
+              new THREE.Vector3(dirX * r, 0, 0),
+              new THREE.Vector3(dirX * (r + 0.28), 0, 0),
+              new THREE.Vector3(dirX * (r + 0.18), 0, 0.08),
+              new THREE.Vector3(dirX * (r + 0.28), 0, 0),
+              new THREE.Vector3(dirX * (r + 0.18), 0, -0.08),
+            ]);
+            talGroupObj.add(new THREE.Line(espigaGeo, matColor));
+
+            if (esCargado) {
+              const dot = new THREE.Mesh(new THREE.CircleGeometry(0.07, 10), matFill);
+              dot.rotation.x = -Math.PI / 2;
+              talGroupObj.add(dot);
+            }
+            break;
+          }
+
+          case "arrastre": {
+            // 7. ARRASTRE: Disco macizo con pin/espiga diagonal hacia el piso (Zapatera)
+            const r = 0.20;
+            const dot = new THREE.Mesh(new THREE.CircleGeometry(r, 16), matFill);
+            dot.rotation.x = -Math.PI / 2;
+            talGroupObj.add(dot);
+
+            const espigaGeo = new THREE.BufferGeometry().setFromPoints([
+              new THREE.Vector3(r * 0.4, 0, -r * 0.4),
+              new THREE.Vector3(r * 0.4 + 0.25, 0, -r * 0.4 - 0.25),
+            ]);
+            talGroupObj.add(new THREE.Line(espigaGeo, matColor));
+            break;
+          }
+        }
+
+        group.add(talGroupObj);
+
+        // Barreno 3D proyectado hacia el fondo (look-out / gradiente real)
+        if (t.fondo) {
+          const pCollar = new THREE.Vector3(t.collar.x, cy, t.collar.y);
+          const pFondo = new THREE.Vector3(t.fondo.x, (t.fondo.z || 0) + 0.08, t.fondo.y);
+          const stickGeo = new THREE.BufferGeometry().setFromPoints([pCollar, pFondo]);
+          const stickMat = new THREE.LineDashedMaterial({
+            color: colorHex,
+            dashSize: 0.2,
+            gapSize: 0.1,
+            linewidth: 2,
+            transparent: true,
+            opacity: 0.85,
+          });
+          const stickLine = new THREE.Line(stickGeo, stickMat);
+          stickLine.computeLineDistances();
+          group.add(stickLine);
+        }
       });
     }
 
@@ -1488,6 +1895,578 @@ export default function EditorCadMalla({
         }
       }
     }
+
+    // 10. Previsualización en Tiempo Real de RECORTAR (VERDE = queda · ROJO = se elimina)
+    if (herramienta === "REC" && recParticion) {
+      // 10.1 Tramos que quedan (VERDE brillante)
+      recParticion.tramosQueda.forEach((tramo) => {
+        if (tramo.length > 1) {
+          const pts = tramo.map((p) => new THREE.Vector3(p.x, (p.z || 0) + 0.14, p.y));
+          const geo = new THREE.BufferGeometry().setFromPoints(pts);
+          const mat = new THREE.LineBasicMaterial({
+            color: 0x00ff66,
+            linewidth: 4,
+          });
+          const line = new THREE.Line(geo, mat);
+          group.add(line);
+
+          // Nodos esféricos verdes en los extremos del tramo conservado
+          [pts[0], pts[pts.length - 1]].forEach((pt) => {
+            const nodeGeo = new THREE.SphereGeometry(0.35, 12, 12);
+            const nodeMat = new THREE.MeshBasicMaterial({ color: 0x00ff66 });
+            const node = new THREE.Mesh(nodeGeo, nodeMat);
+            node.position.copy(pt);
+            group.add(node);
+          });
+        }
+      });
+
+      // 10.2 Tramos que se eliminan (ROJO discontinuo)
+      recParticion.tramosElimina.forEach((tramo) => {
+        if (tramo.length > 1) {
+          const pts = tramo.map((p) => new THREE.Vector3(p.x, (p.z || 0) + 0.14, p.y));
+          const geo = new THREE.BufferGeometry().setFromPoints(pts);
+          const mat = new THREE.LineDashedMaterial({
+            color: 0xff0055,
+            linewidth: 3,
+            dashSize: 0.7,
+            gapSize: 0.4,
+          });
+          const line = new THREE.Line(geo, mat);
+          line.computeLineDistances();
+          group.add(line);
+        }
+      });
+
+      // 10.3 Marcadores en puntos de corte (Anillos cian con núcleo blanco)
+      recParticion.puntosCorte.forEach((pc) => {
+        const ringGeo = new THREE.RingGeometry(0.45, 0.72, 16);
+        const ringMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff, side: THREE.DoubleSide });
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        ring.rotation.x = Math.PI / 2;
+        ring.position.set(pc.x, (pc.z || 0) + 0.18, pc.y);
+        group.add(ring);
+
+        const dotGeo = new THREE.SphereGeometry(0.22, 10, 10);
+        const dotMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        const dot = new THREE.Mesh(dotGeo, dotMat);
+        dot.position.set(pc.x, (pc.z || 0) + 0.18, pc.y);
+        group.add(dot);
+      });
+    }
+
+    // 10.4 Resaltado de la entidad cortante seleccionada (Línea ámbar/dorada)
+    if (herramienta === "REC" && recCortante) {
+      const ctx = {
+        lineas: lineasCad,
+        polilineas: polilineasCad,
+        arcos: arcosCad,
+        perfil: poligonoCresta,
+      };
+      const cortData = obtenerPuntosDeEntidad(recCortante, ctx);
+      if (cortData && cortData.puntos.length > 1) {
+        const pts = cortData.puntos.map((p) => new THREE.Vector3(p.x, (p.z || 0) + 0.11, p.y));
+        if (cortData.cerrada) pts.push(pts[0]);
+        const geo = new THREE.BufferGeometry().setFromPoints(pts);
+        const mat = new THREE.LineDashedMaterial({
+          color: 0xf59e0b,
+          linewidth: 2.5,
+          dashSize: 0.9,
+          gapSize: 0.5,
+        });
+        const line = new THREE.Line(geo, mat);
+        line.computeLineDistances();
+        group.add(line);
+      }
+    }
+
+    // 11. Resaltado de Selección para UNIR / SEPARAR (Cian brillante con nodos en extremos)
+    if (herramienta === "UNI" && uniSeleccionadas.length > 0) {
+      uniSeleccionadas.forEach((ref) => {
+        let pts: THREE.Vector3[] = [];
+        if (ref.tipo === "linea") {
+          const l = lineasCad.find((item) => item.id === ref.id);
+          if (l) {
+            pts = [
+              new THREE.Vector3(l.p1.x, (l.p1.z || 0) + 0.12, l.p1.y),
+              new THREE.Vector3(l.p2.x, (l.p2.z || 0) + 0.12, l.p2.y),
+            ];
+          }
+        } else if (ref.tipo === "polilinea") {
+          const pl = polilineasCad.find((item) => item.id === ref.id);
+          if (pl) {
+            pts = pl.puntos.map((p) => new THREE.Vector3(p.x, (p.z || 0) + 0.12, p.y));
+            if (pl.cerrada) pts.push(pts[0]);
+          }
+        } else if (ref.tipo === "arco") {
+          const arc = arcosCad.find((item) => item.id === ref.id);
+          if (arc) {
+            pts = arc.puntos.map((p) => new THREE.Vector3(p.x, (p.z || 0) + 0.12, p.y));
+          }
+        }
+
+        if (pts.length > 1) {
+          const geo = new THREE.BufferGeometry().setFromPoints(pts);
+          const mat = new THREE.LineBasicMaterial({
+            color: 0x00f0ff,
+            linewidth: 4,
+          });
+          const line = new THREE.Line(geo, mat);
+          group.add(line);
+
+          // Nodos esféricos cian en los extremos
+          [pts[0], pts[pts.length - 1]].forEach((pt) => {
+            const nGeo = new THREE.SphereGeometry(0.35, 10, 10);
+            const nMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
+            const node = new THREE.Mesh(nGeo, nMat);
+            node.position.copy(pt);
+            group.add(node);
+          });
+        }
+      });
+    }
+
+    // 12. Visualización y Snap de Punto Medio (Midpoint ▲) en todas las líneas y polilíneas
+    if (mostrarPuntoMedio) {
+      const midpoints: THREE.Vector3[] = [];
+
+      lineasCad.forEach((l) => {
+        midpoints.push(
+          new THREE.Vector3(
+            (l.p1.x + l.p2.x) / 2,
+            ((l.p1.z || 0) + (l.p2.z || 0)) / 2 + 0.16,
+            (l.p1.y + l.p2.y) / 2
+          )
+        );
+      });
+
+      polilineasCad.forEach((pl) => {
+        const n = pl.puntos.length;
+        const nSeg = pl.cerrada ? n : n - 1;
+        for (let i = 0; i < nSeg; i++) {
+          const p1 = pl.puntos[i];
+          const p2 = pl.puntos[(i + 1) % n];
+          midpoints.push(
+            new THREE.Vector3(
+              (p1.x + p2.x) / 2,
+              ((p1.z || 0) + (p2.z || 0)) / 2 + 0.16,
+              (p1.y + p2.y) / 2
+            )
+          );
+        }
+      });
+
+      midpoints.forEach((m) => {
+        // Marcador triangular clásico de AutoCAD para Punto Medio (▲)
+        const tam = 0.42;
+        const triPts = [
+          new THREE.Vector3(m.x, m.y, m.z + tam),
+          new THREE.Vector3(m.x + tam * 0.866, m.y, m.z - tam * 0.5),
+          new THREE.Vector3(m.x - tam * 0.866, m.y, m.z - tam * 0.5),
+          new THREE.Vector3(m.x, m.y, m.z + tam),
+        ];
+        const triGeo = new THREE.BufferGeometry().setFromPoints(triPts);
+        const triMat = new THREE.LineBasicMaterial({ color: 0x06b6d4, linewidth: 2.5 });
+        const triLine = new THREE.Line(triGeo, triMat);
+        group.add(triLine);
+
+        // Nodo esférico cian brillante en el centro exacto
+        const dotGeo = new THREE.SphereGeometry(0.18, 8, 8);
+        const dotMat = new THREE.MeshBasicMaterial({ color: 0x06b6d4 });
+        const dot = new THREE.Mesh(dotGeo, dotMat);
+        dot.position.copy(m);
+        group.add(dot);
+      });
+    }
+
+    // 13. Previsualización de Puntos de DIVISIÓN (DIV)
+    if (herramienta === "DIV" && divEntidad) {
+      const nPartes = parseInt(divPartes, 10) || 4;
+      const ptsDiv = calcularPuntosDivision(divEntidad, nPartes);
+
+      // Resaltar la entidad seleccionada en fucsia neón
+      const ctxDiv = {
+        lineas: lineasCad,
+        polilineas: polilineasCad,
+        arcos: arcosCad,
+        perfil: poligonoCresta,
+      };
+      const entData = obtenerPuntosDeEntidad(divEntidad, ctxDiv);
+      if (entData && entData.puntos.length >= 2) {
+        const lineGeo = new THREE.BufferGeometry().setFromPoints(
+          entData.puntos.map((p) => new THREE.Vector3(p.x, (p.z || 0) + 0.12, p.y))
+        );
+        const lineMat = new THREE.LineBasicMaterial({ color: 0xe11d48, linewidth: 3.5 });
+        group.add(new THREE.Line(lineGeo, lineMat));
+      }
+
+      // Dibujar los N-1 puntos SNAP calculados con esferas ámbar y cruces cian
+      ptsDiv.forEach((pt) => {
+        const pos = new THREE.Vector3(pt.x, (pt.z || 0) + 0.18, pt.y);
+
+        const dotGeo = new THREE.SphereGeometry(0.24, 10, 10);
+        const dotMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b });
+        const dot = new THREE.Mesh(dotGeo, dotMat);
+        dot.position.copy(pos);
+        group.add(dot);
+
+        const tickGeo = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(pos.x - 0.28, pos.y, pos.z),
+          new THREE.Vector3(pos.x + 0.28, pos.y, pos.z),
+          new THREE.Vector3(pos.x, pos.y, pos.z - 0.28),
+          new THREE.Vector3(pos.x, pos.y, pos.z + 0.28),
+        ]);
+        const tickMat = new THREE.LineBasicMaterial({ color: 0x00f0ff, linewidth: 2.5 });
+        group.add(new THREE.LineSegments(tickGeo, tickMat));
+      });
+    }
+
+    // 14. Previsualización de DESFASE (OFF)
+    if (herramienta === "OFF" && offEntidad) {
+      const dVal = parseFloat(offDistancia) || 0.25;
+      const ctxOff = {
+        lineas: lineasCad,
+        polilineas: polilineasCad,
+        arcos: arcosCad,
+        perfil: poligonoCresta,
+      };
+
+      // Resaltar la entidad base original en fucsia neón
+      const entData = obtenerPuntosDeEntidad(offEntidad, ctxOff);
+      if (entData && entData.puntos.length >= 2) {
+        const lineGeo = new THREE.BufferGeometry().setFromPoints(
+          entData.puntos.map((p) => new THREE.Vector3(p.x, (p.z || 0) + 0.12, p.y))
+        );
+        const lineMat = new THREE.LineBasicMaterial({ color: 0xe11d48, linewidth: 3.5 });
+        group.add(new THREE.Line(lineGeo, lineMat));
+      }
+
+      // Calcular y dibujar la silueta desfasada en cian brillante
+      const resOff = calcularDesfaseEntidad(offEntidad, offModo, dVal);
+      if (resOff) {
+        if (resOff.tipo === "linea") {
+          const lGeo = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(resOff.p1.x, (resOff.p1.z || 0) + 0.18, resOff.p1.y),
+            new THREE.Vector3(resOff.p2.x, (resOff.p2.z || 0) + 0.18, resOff.p2.y),
+          ]);
+          const lMat = new THREE.LineDashedMaterial({
+            color: 0x00f0ff,
+            linewidth: 3,
+            dashSize: 0.8,
+            gapSize: 0.4,
+          });
+          const lLine = new THREE.Line(lGeo, lMat);
+          lLine.computeLineDistances();
+          group.add(lLine);
+        } else if (resOff.tipo === "arco") {
+          const ptsArc: THREE.Vector3[] = [];
+          const segs = 32;
+          let aIni = resOff.anguloInicio;
+          let aFin = resOff.anguloFin;
+          if (aFin < aIni) aFin += Math.PI * 2;
+          for (let i = 0; i <= segs; i++) {
+            const a = aIni + (i / segs) * (aFin - aIni);
+            ptsArc.push(
+              new THREE.Vector3(
+                resOff.centro.x + resOff.radio * Math.cos(a),
+                (resOff.centro.z || 0) + 0.18,
+                resOff.centro.y + resOff.radio * Math.sin(a)
+              )
+            );
+          }
+          const aGeo = new THREE.BufferGeometry().setFromPoints(ptsArc);
+          const aMat = new THREE.LineBasicMaterial({ color: 0x00f0ff, linewidth: 3 });
+          group.add(new THREE.Line(aGeo, aMat));
+        } else if (resOff.tipo === "polilinea") {
+          const ptsPl = resOff.puntos.map(
+            (p) => new THREE.Vector3(p.x, (p.z || 0) + 0.18, p.y)
+          );
+          if (resOff.cerrada && ptsPl.length > 0) {
+            ptsPl.push(ptsPl[0].clone());
+          }
+          const plGeo = new THREE.BufferGeometry().setFromPoints(ptsPl);
+          const plMat = new THREE.LineBasicMaterial({ color: 0x00f0ff, linewidth: 3 });
+          group.add(new THREE.Line(plGeo, plMat));
+        }
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // RENDERIZADO DE COTAS CAD (Líneas testigo, línea de cota, ticks y texto métrico)
+    // -------------------------------------------------------------------------
+    function crearSpriteTextoCotaLocal(texto: string, color: string = "#00f0ff"): THREE.Sprite {
+      const canvas = document.createElement("canvas");
+      canvas.width = 256;
+      canvas.height = 64;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.clearRect(0, 0, 256, 64);
+
+        // Texto estilo AutoCAD limpio, sin cápsula invasiva
+        ctx.font = "bold 26px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+
+        ctx.strokeStyle = "rgba(0, 0, 0, 0.95)";
+        ctx.lineWidth = 4;
+        ctx.strokeText(texto, 128, 32);
+
+        ctx.fillStyle = "#ffffff";
+        ctx.fillText(texto, 128, 32);
+      }
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.needsUpdate = true;
+      texture.minFilter = THREE.LinearFilter;
+      const spriteMat = new THREE.SpriteMaterial({
+        map: texture,
+        depthTest: false,
+        depthWrite: false,
+        transparent: true,
+      });
+      const sprite = new THREE.Sprite(spriteMat);
+      sprite.renderOrder = 99999;
+
+      // Tamaño fijo AutoCAD en metros (altura estándar DIMTXT = 0.35 m, ancho 1.4 m)
+      const altoCad = 0.35;
+      const anchoCad = altoCad * (256 / 64);
+      sprite.scale.set(anchoCad, altoCad, 1);
+      return sprite;
+    }
+
+    cotasCad.forEach((c) => {
+      const capa = capas.find((cp) => cp.id === c.capaId);
+      if (capa && !capa.visible) return;
+
+      if (c.tipo !== "distancia") {
+        // COTA RADIAL DE ARRANQUE (Desde el centro hacia afuera, idéntico a la captura)
+        const pCentro = c.p1;
+        const pVertice = c.p2;
+        const z1 = (pCentro.z || 0) + 0.18;
+        const z2 = (pVertice.z || 0) + 0.18;
+
+        // 1. Marcador rombo cian en el centro
+        const sc = 0.08;
+        const cPts = [
+          new THREE.Vector3(pCentro.x, z1, pCentro.y + sc),
+          new THREE.Vector3(pCentro.x + sc, z1, pCentro.y),
+          new THREE.Vector3(pCentro.x, z1, pCentro.y - sc),
+          new THREE.Vector3(pCentro.x - sc, z1, pCentro.y),
+          new THREE.Vector3(pCentro.x, z1, pCentro.y + sc),
+        ];
+        const cGeo = new THREE.BufferGeometry().setFromPoints(cPts);
+        const cMat = new THREE.LineBasicMaterial({ color: 0x00f0ff, linewidth: 2 });
+        group.add(new THREE.Line(cGeo, cMat));
+
+        // 2. Línea radial desde el centro hacia el vértice exterior
+        const radGeo = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(pCentro.x, z1, pCentro.y),
+          new THREE.Vector3(pVertice.x, z2, pVertice.y),
+        ]);
+        const radMat = new THREE.LineBasicMaterial({ color: 0x00f0ff, linewidth: 2 });
+        group.add(new THREE.Line(radGeo, radMat));
+
+        // 3. Etiqueta con el texto de cota en posición correcta 3D (X, Z-alt, Y-cad)
+        const sp = crearSpriteTextoCotaLocal(c.texto, "#00f0ff");
+        sp.position.set(
+          (pCentro.x + pVertice.x) / 2 + 0.15,
+          Math.max(z1, z2) + 0.12,
+          (pCentro.y + pVertice.y) / 2
+        );
+        group.add(sp);
+        return;
+      }
+
+      // MODO DISTANCIA LINEAL
+      const p1 = c.p1;
+      const p2 = c.p2;
+      const dx = p2.x - p1.x;
+      const dy = p2.y - p1.y;
+      const len = Math.hypot(dx, dy);
+      if (len < 0.001) return;
+
+      const desp = c.desplazamiento || 0.18;
+      const nx = (-dy / len) * desp;
+      const ny = (dx / len) * desp;
+
+      const z1 = (p1.z || 0) + 0.18;
+      const z2 = (p2.z || 0) + 0.18;
+
+      const o1 = new THREE.Vector3(p1.x + nx, z1, p1.y + ny);
+      const o2 = new THREE.Vector3(p2.x + nx, z2, p2.y + ny);
+
+      // Líneas testigo
+      const extMat = new THREE.LineBasicMaterial({ color: 0x64748b, transparent: true, opacity: 0.8 });
+      const ext1Geo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(p1.x, z1, p1.y),
+        new THREE.Vector3(p1.x + nx * 1.15, z1, p1.y + ny * 1.15),
+      ]);
+      group.add(new THREE.Line(ext1Geo, extMat));
+
+      const ext2Geo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(p2.x, z2, p2.y),
+        new THREE.Vector3(p2.x + nx * 1.15, z2, p2.y + ny * 1.15),
+      ]);
+      group.add(new THREE.Line(ext2Geo, extMat));
+
+      // Línea principal de cota
+      const cotaMat = new THREE.LineBasicMaterial({ color: 0x00f0ff, linewidth: 2 });
+      const cotaGeo = new THREE.BufferGeometry().setFromPoints([o1, o2]);
+      group.add(new THREE.Line(cotaGeo, cotaMat));
+
+      // Ticks diagonales
+      const tickL = 0.08;
+      const tx = (dx / len) * tickL;
+      const ty = (dy / len) * tickL;
+      const tnx = (nx / desp) * tickL;
+      const tny = (ny / desp) * tickL;
+
+      const tick1Geo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(o1.x - tx - tnx, z1, o1.z - ty - tny),
+        new THREE.Vector3(o1.x + tx + tnx, z1, o1.z + ty + tny),
+      ]);
+      group.add(new THREE.Line(tick1Geo, cotaMat));
+
+      const tick2Geo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(o2.x - tx - tnx, z2, o2.z - ty - tny),
+        new THREE.Vector3(o2.x + tx + tnx, z2, o2.z + ty + tny),
+      ]);
+      group.add(new THREE.Line(tick2Geo, cotaMat));
+
+      // Texto de Cota centrado sobre la línea (CAD X, CAD Z-alt, CAD Y)
+      const sp = crearSpriteTextoCotaLocal(c.texto, "#00f0ff");
+      sp.position.set(
+        (o1.x + o2.x) / 2,
+        Math.max(o1.y, o2.y) + 0.12,
+        (o1.z + o2.z) / 2
+      );
+      group.add(sp);
+    });
+
+    // -------------------------------------------------------------------------
+    // PREVISUALIZACIÓN INTERACTIVA DE COTA / ARRANQUE
+    // -------------------------------------------------------------------------
+    if (herramienta === "COT") {
+      // Caso 1: Previsualización en modo Distancia Lineal
+      if (cotModo === "distancia" && cotPuntoInicio && cotCursorGuia) {
+        const p1 = cotPuntoInicio;
+        const p2 = cotCursorGuia;
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        const len = Math.hypot(dx, dy);
+        if (len > 0.05) {
+          const desp = parseFloat(cotSeparacion) || 0.18;
+          const nx = (-dy / len) * desp;
+          const ny = (dx / len) * desp;
+          const z1 = (p1.z || 0) + 0.18;
+          const z2 = (p2.z || 0) + 0.18;
+          const o1 = new THREE.Vector3(p1.x + nx, z1, p1.y + ny);
+          const o2 = new THREE.Vector3(p2.x + nx, z2, p2.y + ny);
+
+          const prevMat = new THREE.LineDashedMaterial({ color: 0xec4899, dashSize: 0.2, gapSize: 0.1 });
+          const cotaGeo = new THREE.BufferGeometry().setFromPoints([o1, o2]);
+          const linePrev = new THREE.Line(cotaGeo, prevMat);
+          linePrev.computeLineDistances();
+          group.add(linePrev);
+
+          const sp = crearSpriteTextoCotaLocal(`${len.toFixed(2)} m`, "#ec4899");
+          sp.position.set(
+            (o1.x + o2.x) / 2,
+            Math.max(o1.y, o2.y) + 0.12,
+            (o1.z + o2.z) / 2
+          );
+          group.add(sp);
+        }
+      }
+
+      // Caso 2: Previsualización en modo Arranque (B1-B5 / 4G) desde el centro tocado
+      if (cotModo !== "distancia" && cotCentro) {
+        const centro = cotCentro;
+        const zC = (centro.z || 0) + 0.18;
+
+        // 1. Nodo central de rombo cian
+        const sc = 0.09;
+        const cPts = [
+          new THREE.Vector3(centro.x, zC, centro.y + sc),
+          new THREE.Vector3(centro.x + sc, zC, centro.y),
+          new THREE.Vector3(centro.x, zC, centro.y - sc),
+          new THREE.Vector3(centro.x - sc, zC, centro.y),
+          new THREE.Vector3(centro.x, zC, centro.y + sc),
+        ];
+        const cGeo = new THREE.BufferGeometry().setFromPoints(cPts);
+        group.add(new THREE.Line(cGeo, new THREE.LineBasicMaterial({ color: 0x00f0ff, linewidth: 2 })));
+
+        // Calcular distancia hacia afuera (por cursor o por input)
+        let distB = parseFloat(cotDistanciaB) || 0.50;
+        if (cotCursorGuia) {
+          const dCur = Math.hypot(cotCursorGuia.x - centro.x, cotCursorGuia.y - centro.y);
+          if (dCur > 0.05) distB = Math.round(dCur * 100) / 100;
+        }
+
+        const mitad = distB / 2;
+        let ptsCuad: { x: number; y: number }[] = [];
+
+        if (!cotCuadradoAlineado) {
+          // Rombo girado 45°
+          ptsCuad = [
+            { x: centro.x, y: centro.y + mitad },
+            { x: centro.x + mitad, y: centro.y },
+            { x: centro.x, y: centro.y - mitad },
+            { x: centro.x - mitad, y: centro.y },
+          ];
+        } else {
+          // Cuadrado alineado
+          ptsCuad = [
+            { x: centro.x - mitad, y: centro.y + mitad },
+            { x: centro.x + mitad, y: centro.y + mitad },
+            { x: centro.x + mitad, y: centro.y - mitad },
+            { x: centro.x - mitad, y: centro.y - mitad },
+          ];
+        }
+
+        // Línea radial desde el centro hacia afuera (hacia el vértice superior)
+        const radPts = [
+          new THREE.Vector3(centro.x, zC, centro.y),
+          new THREE.Vector3(ptsCuad[0].x, zC, ptsCuad[0].y),
+        ];
+        group.add(new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints(radPts),
+          new THREE.LineBasicMaterial({ color: 0xec4899, linewidth: 2.5 })
+        ));
+
+        // Etiqueta al lado de la línea radial (centrado en X, Z-alt, Y-cad)
+        const sp = crearSpriteTextoCotaLocal(`${cotModo.toUpperCase()} = ${distB.toFixed(2)} m`, "#ec4899");
+        sp.position.set(
+          (centro.x + ptsCuad[0].x) / 2 + 0.15,
+          zC + 0.12,
+          (centro.y + ptsCuad[0].y) / 2
+        );
+        group.add(sp);
+
+        // Perímetro discontinuo del cuadrante
+        const perimPts = ptsCuad.map((p) => new THREE.Vector3(p.x, zC, p.y));
+        perimPts.push(perimPts[0].clone());
+        const perimMat = new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 0.15, gapSize: 0.08, linewidth: 2 });
+        const perimLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(perimPts), perimMat);
+        perimLine.computeLineDistances();
+        group.add(perimLine);
+
+        // 4 Marcadores de rombo amarillo con cruz cian en las esquinas
+        ptsCuad.forEach((p) => {
+          const s = 0.07;
+          const romboPts = [
+            new THREE.Vector3(p.x, zC, p.y + s),
+            new THREE.Vector3(p.x + s, zC, p.y),
+            new THREE.Vector3(p.x, zC, p.y - s),
+            new THREE.Vector3(p.x - s, zC, p.y),
+            new THREE.Vector3(p.x, zC, p.y + s),
+          ];
+          group.add(new THREE.Line(
+            new THREE.BufferGeometry().setFromPoints(romboPts),
+            new THREE.LineBasicMaterial({ color: 0xfbbf24, linewidth: 2 })
+          ));
+        });
+      }
+    }
   }, [
     poligonoCresta,
     taladros,
@@ -1513,6 +2492,24 @@ export default function EditorCadMalla({
     radioArco,
     centroIzquierdaArco,
     metodoArco,
+    herramienta,
+    recParticion,
+    recCortante,
+    uniSeleccionadas,
+    mostrarPuntoMedio,
+    divEntidad,
+    divPartes,
+    offEntidad,
+    offModo,
+    offDistancia,
+    cotasCad,
+    cotPuntoInicio,
+    cotCursorGuia,
+    cotSeparacion,
+    cotModo,
+    cotCentro,
+    cotDistanciaB,
+    cotCuadradoAlineado,
   ]);
 
   // Manejo de Interacción 3D: Arrastre manual de punto individual + Órbita 360° libre de la cámara
@@ -1577,9 +2574,11 @@ export default function EditorCadMalla({
   function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
     // Si la herramienta LÍNEA tiene un punto de inicio fijado, actualizar la guía interactiva
     if (herramienta === "LIN" && inicioLinea && !orbitRef.current.isDragging) {
-      const pMundo = obtenerCoordenadasPlano(e.clientX, e.clientY);
+      const snapMed = mostrarPuntoMedio ? verificarToquePuntoMedio(e.clientX, e.clientY, 24) : null;
+      const pMundo = snapMed || obtenerCoordenadasPlano(e.clientX, e.clientY);
       if (pMundo) {
-        setCursorGuiaLinea({ x: pMundo.x, y: pMundo.y, z: 0 });
+        const pz = ("z" in pMundo && typeof pMundo.z === "number") ? pMundo.z : 0;
+        setCursorGuiaLinea({ x: pMundo.x, y: pMundo.y, z: pz });
         const dx = pMundo.x - inicioLinea.x;
         const dy = pMundo.y - inicioLinea.y;
         const long = Math.hypot(dx, dy);
@@ -1591,17 +2590,35 @@ export default function EditorCadMalla({
 
     // Si la herramienta POLILÍNEA tiene vértices fijados, actualizar la guía interactiva hacia el cursor
     if (herramienta === "PL" && verticesPolilinea.length > 0 && !orbitRef.current.isDragging) {
-      const pMundo = obtenerCoordenadasPlano(e.clientX, e.clientY);
+      const snapMed = mostrarPuntoMedio ? verificarToquePuntoMedio(e.clientX, e.clientY, 24) : null;
+      const pMundo = snapMed || obtenerCoordenadasPlano(e.clientX, e.clientY);
       if (pMundo) {
-        setCursorGuiaPl({ x: pMundo.x, y: pMundo.y, z: 0 });
+        const pz = ("z" in pMundo && typeof pMundo.z === "number") ? pMundo.z : 0;
+        setCursorGuiaPl({ x: pMundo.x, y: pMundo.y, z: pz });
       }
     }
 
     // Si la herramienta ARCO tiene puntos fijados, actualizar la guía interactiva hacia el cursor
     if (herramienta === "ARC" && puntosArcoConstruccion.length > 0 && !orbitRef.current.isDragging) {
-      const pMundo = obtenerCoordenadasPlano(e.clientX, e.clientY);
+      const snapMed = mostrarPuntoMedio ? verificarToquePuntoMedio(e.clientX, e.clientY, 24) : null;
+      const pMundo = snapMed || obtenerCoordenadasPlano(e.clientX, e.clientY);
       if (pMundo) {
-        setCursorGuiaArc({ x: pMundo.x, y: pMundo.y, z: 0 });
+        const pz = ("z" in pMundo && typeof pMundo.z === "number") ? pMundo.z : 0;
+        setCursorGuiaArc({ x: pMundo.x, y: pMundo.y, z: pz });
+      }
+    }
+
+    // Si la herramienta COTA tiene un punto inicial o un centro de arranque fijado, actualizar la guía interactiva hacia el cursor
+    if (herramienta === "COT" && (cotPuntoInicio || cotCentro) && !orbitRef.current.isDragging) {
+      const snapMed = mostrarPuntoMedio ? verificarToquePuntoMedio(e.clientX, e.clientY, 24) : null;
+      const pMundo = snapMed || obtenerCoordenadasPlano(e.clientX, e.clientY);
+      if (pMundo) {
+        const pz = ("z" in pMundo && typeof pMundo.z === "number") ? pMundo.z : 0;
+        setCotCursorGuia({ x: pMundo.x, y: pMundo.y, z: pz });
+        if (cotCentro && cotModo !== "distancia") {
+          const d = Math.hypot(pMundo.x - cotCentro.x, pMundo.y - cotCentro.y);
+          if (d > 0.02) setCotDistanciaB(d.toFixed(2));
+        }
       }
     }
 
@@ -1741,6 +2758,24 @@ export default function EditorCadMalla({
       } else if (herramienta === "ARC") {
         setPanelArcVisible(true);
         handleInteractuarArco(e.clientX, e.clientY);
+      } else if (herramienta === "REC") {
+        setPanelRecVisible(true);
+        handleInteractuarRecorte(e.clientX, e.clientY);
+      } else if (herramienta === "UNI") {
+        setPanelUniVisible(true);
+        handleInteractuarUni(e.clientX, e.clientY);
+      } else if (herramienta === "DIV") {
+        setPanelDivVisible(true);
+        handleInteractuarDividir(e.clientX, e.clientY);
+      } else if (herramienta === "OFF") {
+        setPanelOffVisible(true);
+        handleInteractuarDesfase(e.clientX, e.clientY);
+      } else if (herramienta === "COT") {
+        setPanelCotVisible(true);
+        handleInteractuarCota(e.clientX, e.clientY);
+      } else if (herramienta === "TAL") {
+        setPanelTalVisible(true);
+        handleInsertarTaladroSnap(e.clientX, e.clientY);
       }
     }
   }
@@ -1871,6 +2906,49 @@ export default function EditorCadMalla({
     return masCercano;
   }
 
+  function verificarToquePuntoMedio(clientX: number, clientY: number, tolPx = 24): { x: number; y: number; z: number } | null {
+    let masCercano: { x: number; y: number; z: number } | null = null;
+    let minDist = tolPx;
+
+    // 1. Líneas individuales
+    lineasCad.forEach((l) => {
+      const mx = (l.p1.x + l.p2.x) / 2;
+      const my = (l.p1.y + l.p2.y) / 2;
+      const mz = ((l.p1.z || 0) + (l.p2.z || 0)) / 2;
+      const scr = proyectarAPantalla(new THREE.Vector3(mx, mz + 0.16, my));
+      if (scr && scr.delante) {
+        const d = Math.hypot(clientX - scr.x, clientY - scr.y);
+        if (d < minDist) {
+          minDist = d;
+          masCercano = { x: Math.round(mx * 100) / 100, y: Math.round(my * 100) / 100, z: Math.round(mz * 100) / 100 };
+        }
+      }
+    });
+
+    // 2. Tramos de polilíneas
+    polilineasCad.forEach((pl) => {
+      const n = pl.puntos.length;
+      const nSeg = pl.cerrada ? n : n - 1;
+      for (let i = 0; i < nSeg; i++) {
+        const p1 = pl.puntos[i];
+        const p2 = pl.puntos[(i + 1) % n];
+        const mx = (p1.x + p2.x) / 2;
+        const my = (p1.y + p2.y) / 2;
+        const mz = ((p1.z || 0) + (p2.z || 0)) / 2;
+        const scr = proyectarAPantalla(new THREE.Vector3(mx, mz + 0.16, my));
+        if (scr && scr.delante) {
+          const d = Math.hypot(clientX - scr.x, clientY - scr.y);
+          if (d < minDist) {
+            minDist = d;
+            masCercano = { x: Math.round(mx * 100) / 100, y: Math.round(my * 100) / 100, z: Math.round(mz * 100) / 100 };
+          }
+        }
+      }
+    });
+
+    return masCercano;
+  }
+
   function distPuntoASegmento2D(px: number, py: number, x1: number, y1: number, x2: number, y2: number) {
     const dx = x2 - x1;
     const dy = y2 - y1;
@@ -1939,18 +3017,28 @@ export default function EditorCadMalla({
   }
 
   function raycastPunto(clientX: number, clientY: number) {
-    const pt = obtenerCoordenadasPlano(clientX, clientY);
+    let pt: { x: number; y: number; z?: number } | null = null;
+    if (mostrarPuntoMedio) {
+      const ptoMed = verificarToquePuntoMedio(clientX, clientY, 24);
+      if (ptoMed) {
+        pt = ptoMed;
+        mostrarAviso(`▲ Punto CAD fijado en Punto Medio (${ptoMed.x}, ${ptoMed.y})`);
+      }
+    }
+    if (!pt) {
+      pt = obtenerCoordenadasPlano(clientX, clientY);
+    }
     if (pt) {
       setPtoX(pt.x.toString());
       setPtoY(pt.y.toString());
-      setPtoZ("0");
+      setPtoZ((pt.z || 0).toString());
 
       registrarHistorial();
       const nuevoPunto: PuntoCad3D = {
         id: `pto-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
         x: pt.x,
         y: pt.y,
-        z: 0,
+        z: pt.z || 0,
         capaId: capaActivaId === "capa-cresta" ? "capa-puntos" : capaActivaId,
         tipo: tipoPunto,
       };
@@ -1968,7 +3056,7 @@ export default function EditorCadMalla({
         )
       );
 
-      mostrarAviso(`Punto normal SNAP (${pt.x}, ${pt.y}, 0) insertado`);
+      mostrarAviso(`Punto normal (${pt.x}, ${pt.y}, ${pt.z || 0}) insertado`);
 
       const scene = sceneRef.current;
       const cross = scene?.getObjectByName("crosshair");
@@ -1993,7 +3081,7 @@ export default function EditorCadMalla({
 
   // Interacción de Línea: 1er toque fija el INICIO, 2do toque fija el FINAL y crea la línea
   function handleInteractuarLinea(clientX: number, clientY: number) {
-    // Buscar SNAP prioritario a vértice de polígono o punto CAD
+    // Buscar SNAP prioritario a vértice de polígono, punto CAD o Punto Medio
     let p3D: { x: number; y: number; z: number } | null = null;
 
     const vIdx = verificarToqueVertice(clientX, clientY, 22);
@@ -2008,6 +3096,14 @@ export default function EditorCadMalla({
         if (ptoObj) {
           p3D = { x: ptoObj.x, y: ptoObj.y, z: ptoObj.z || 0 };
         }
+      }
+    }
+
+    if (!p3D && mostrarPuntoMedio) {
+      const ptoMed = verificarToquePuntoMedio(clientX, clientY, 24);
+      if (ptoMed) {
+        p3D = ptoMed;
+        mostrarAviso(`▲ Snap: Punto Medio (${ptoMed.x}, ${ptoMed.y})`);
       }
     }
 
@@ -2159,6 +3255,14 @@ export default function EditorCadMalla({
       }
     }
 
+    if (!p3D && mostrarPuntoMedio) {
+      const ptoMed = verificarToquePuntoMedio(clientX, clientY, 24);
+      if (ptoMed) {
+        p3D = ptoMed;
+        mostrarAviso(`▲ Snap: Punto Medio (${ptoMed.x}, ${ptoMed.y})`);
+      }
+    }
+
     if (!p3D) {
       const ptPlano = obtenerCoordenadasPlano(clientX, clientY);
       if (ptPlano) {
@@ -2270,6 +3374,14 @@ export default function EditorCadMalla({
         if (ptoObj) {
           p3D = { x: ptoObj.x, y: ptoObj.y, z: ptoObj.z || 0 };
         }
+      }
+    }
+
+    if (!p3D && mostrarPuntoMedio) {
+      const ptoMed = verificarToquePuntoMedio(clientX, clientY, 24);
+      if (ptoMed) {
+        p3D = ptoMed;
+        mostrarAviso(`▲ Snap: Punto Medio (${ptoMed.x}, ${ptoMed.y})`);
       }
     }
 
@@ -2530,6 +3642,836 @@ export default function EditorCadMalla({
     mostrarAviso(`✓ Arco Centro+R creado: Centro (${c.x}, ${c.y}), Radio ${rInput}m`);
   }
 
+  // =========================================================================
+  // FUNCIONES DE SOPORTE: HERRAMIENTA RECORTAR (TRIM)
+  // =========================================================================
+
+  function detectarEntidadBajoCursor(clientX: number, clientY: number): EntidadRecortable | null {
+    let mejorCandidato: EntidadRecortable | null = null;
+    let minDistPx = 28;
+
+    // 1. Líneas CAD
+    lineasCad.forEach((l) => {
+      const s1 = proyectarAPantalla(new THREE.Vector3(l.p1.x, (l.p1.z || 0) + 0.08, l.p1.y));
+      const s2 = proyectarAPantalla(new THREE.Vector3(l.p2.x, (l.p2.z || 0) + 0.08, l.p2.y));
+      if (s1?.delante && s2?.delante) {
+        const d = distPuntoASegmento2D(clientX, clientY, s1.x, s1.y, s2.x, s2.y);
+        if (d < minDistPx) {
+          minDistPx = d;
+          mejorCandidato = { tipo: "linea", id: l.id, nombre: `Línea (${l.longitud}m)` };
+        }
+      }
+    });
+
+    // 2. Polilíneas CAD
+    polilineasCad.forEach((pl) => {
+      const n = pl.puntos.length;
+      const nSeg = pl.cerrada ? n : n - 1;
+      for (let i = 0; i < nSeg; i++) {
+        const pA = pl.puntos[i];
+        const pB = pl.puntos[(i + 1) % n];
+        const s1 = proyectarAPantalla(new THREE.Vector3(pA.x, (pA.z || 0) + 0.08, pA.y));
+        const s2 = proyectarAPantalla(new THREE.Vector3(pB.x, (pB.z || 0) + 0.08, pB.y));
+        if (s1?.delante && s2?.delante) {
+          const d = distPuntoASegmento2D(clientX, clientY, s1.x, s1.y, s2.x, s2.y);
+          if (d < minDistPx) {
+            minDistPx = d;
+            mejorCandidato = {
+              tipo: "polilinea",
+              id: pl.id,
+              nombre: `Polilínea ${pl.cerrada ? "cerrada" : "abierta"} (${pl.longitud}m)`,
+            };
+          }
+        }
+      }
+    });
+
+    // 3. Arcos CAD
+    arcosCad.forEach((arc) => {
+      for (let i = 0; i < arc.puntos.length - 1; i++) {
+        const pA = arc.puntos[i];
+        const pB = arc.puntos[i + 1];
+        const s1 = proyectarAPantalla(new THREE.Vector3(pA.x, (pA.z || 0) + 0.08, pA.y));
+        const s2 = proyectarAPantalla(new THREE.Vector3(pB.x, (pB.z || 0) + 0.08, pB.y));
+        if (s1?.delante && s2?.delante) {
+          const d = distPuntoASegmento2D(clientX, clientY, s1.x, s1.y, s2.x, s2.y);
+          if (d < minDistPx) {
+            minDistPx = d;
+            mejorCandidato = { tipo: "arco", id: arc.id, nombre: `Arco R=${arc.radio}m` };
+          }
+        }
+      }
+    });
+
+    // 4. Perfil de Cresta
+    if (poligonoCresta.length >= 2) {
+      for (let i = 0; i < poligonoCresta.length; i++) {
+        const pA = poligonoCresta[i];
+        const pB = poligonoCresta[(i + 1) % poligonoCresta.length];
+        const s1 = proyectarAPantalla(new THREE.Vector3(pA.x, 0.08, pA.y));
+        const s2 = proyectarAPantalla(new THREE.Vector3(pB.x, 0.08, pB.y));
+        if (s1?.delante && s2?.delante) {
+          const d = distPuntoASegmento2D(clientX, clientY, s1.x, s1.y, s2.x, s2.y);
+          if (d < minDistPx) {
+            minDistPx = d;
+            mejorCandidato = { tipo: "perfil", nombre: "Perfil Cresta" };
+          }
+        }
+      }
+    }
+
+    return mejorCandidato;
+  }
+
+  function handleInteractuarRecorte(clientX: number, clientY: number) {
+    // Si ya existe una previsualización activa con cortes, comprobar si el usuario tocó
+    // directamente el tramo ROJO o VERDE para alternar cuál se conserva
+    if (recParticion) {
+      let minDistVerde = 30;
+      let tocoVerde = false;
+      recParticion.tramosQueda.forEach((tramo) => {
+        for (let i = 0; i < tramo.length - 1; i++) {
+          const s1 = proyectarAPantalla(new THREE.Vector3(tramo[i].x, (tramo[i].z || 0) + 0.14, tramo[i].y));
+          const s2 = proyectarAPantalla(new THREE.Vector3(tramo[i + 1].x, (tramo[i + 1].z || 0) + 0.14, tramo[i + 1].y));
+          if (s1?.delante && s2?.delante) {
+            const d = distPuntoASegmento2D(clientX, clientY, s1.x, s1.y, s2.x, s2.y);
+            if (d < minDistVerde) {
+              minDistVerde = d;
+              tocoVerde = true;
+            }
+          }
+        }
+      });
+
+      let minDistRojo = 30;
+      let tocoRojo = false;
+      recParticion.tramosElimina.forEach((tramo) => {
+        for (let i = 0; i < tramo.length - 1; i++) {
+          const s1 = proyectarAPantalla(new THREE.Vector3(tramo[i].x, (tramo[i].z || 0) + 0.14, tramo[i].y));
+          const s2 = proyectarAPantalla(new THREE.Vector3(tramo[i + 1].x, (tramo[i + 1].z || 0) + 0.14, tramo[i + 1].y));
+          if (s1?.delante && s2?.delante) {
+            const d = distPuntoASegmento2D(clientX, clientY, s1.x, s1.y, s2.x, s2.y);
+            if (d < minDistRojo) {
+              minDistRojo = d;
+              tocoRojo = true;
+            }
+          }
+        }
+      });
+
+      if (tocoRojo && minDistRojo <= minDistVerde) {
+        setRecConservarInicio((prev) => !prev);
+        mostrarAviso("✓ Tramo tocado fijado como CONSERVAR (VERDE)");
+        return;
+      } else if (tocoVerde && minDistVerde < 30) {
+        setRecConservarInicio((prev) => !prev);
+        mostrarAviso("✓ Tramo alternado");
+        return;
+      }
+    }
+
+    const ent = detectarEntidadBajoCursor(clientX, clientY);
+    if (!ent) return;
+
+    if (!recObjeto) {
+      setRecObjeto(ent);
+      mostrarAviso(`Objeto (${ent.nombre}) seleccionado. Ahora toca la CORTANTE.`);
+    } else if (!recCortante) {
+      if (ent.tipo === recObjeto.tipo && ent.id === recObjeto.id) {
+        mostrarAviso("La cortante debe ser una entidad distinta al objeto a recortar.");
+        return;
+      }
+      setRecCortante(ent);
+      mostrarAviso(`Cortante (${ent.nombre}) fijada. Revisa la vista previa y confirma.`);
+    } else {
+      if (ent.tipo === recObjeto.tipo && ent.id === recObjeto.id) {
+        mostrarAviso("La cortante debe ser distinta al objeto a recortar.");
+        return;
+      }
+      setRecCortante(ent);
+      mostrarAviso(`Nueva cortante (${ent.nombre}) seleccionada.`);
+    }
+  }
+
+  function handleConfirmarRecorte() {
+    if (!recObjeto || !recParticion || recParticion.tramosQueda.length === 0) {
+      mostrarAviso("No hay corte válido para confirmar.");
+      return;
+    }
+
+    registrarHistorial();
+    const tramoConservado = recParticion.tramosQueda[0];
+
+    if (recObjeto.tipo === "linea") {
+      if (tramoConservado.length >= 2) {
+        const p1 = tramoConservado[0];
+        const p2 = tramoConservado[tramoConservado.length - 1];
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        const long = Math.hypot(dx, dy);
+        const az = (Math.atan2(dx, dy) * (180 / Math.PI) + 360) % 360;
+
+        setLineasCad((prev) =>
+          prev.map((l) =>
+            l.id === recObjeto.id
+              ? {
+                  ...l,
+                  p1: { x: p1.x, y: p1.y, z: p1.z || 0 },
+                  p2: { x: p2.x, y: p2.y, z: p2.z || 0 },
+                  longitud: Math.round(long * 100) / 100,
+                  azimut: Math.round(az * 10) / 10,
+                }
+              : l
+          )
+        );
+      }
+    } else if (recObjeto.tipo === "polilinea") {
+      if (tramoConservado.length >= 2) {
+        let long = 0;
+        for (let i = 0; i < tramoConservado.length - 1; i++) {
+          long += Math.hypot(
+            tramoConservado[i + 1].x - tramoConservado[i].x,
+            tramoConservado[i + 1].y - tramoConservado[i].y
+          );
+        }
+        setPolilineasCad((prev) =>
+          prev.map((pl) =>
+            pl.id === recObjeto.id
+              ? {
+                  ...pl,
+                  puntos: tramoConservado.map((p) => ({ x: p.x, y: p.y, z: p.z || 0 })),
+                  cerrada: false,
+                  longitud: Math.round(long * 100) / 100,
+                }
+              : pl
+          )
+        );
+      }
+    } else if (recObjeto.tipo === "arco") {
+      if (tramoConservado.length >= 2) {
+        let long = 0;
+        for (let i = 0; i < tramoConservado.length - 1; i++) {
+          long += Math.hypot(
+            tramoConservado[i + 1].x - tramoConservado[i].x,
+            tramoConservado[i + 1].y - tramoConservado[i].y
+          );
+        }
+        setArcosCad((prev) =>
+          prev.map((a) =>
+            a.id === recObjeto.id
+              ? {
+                  ...a,
+                  puntos: tramoConservado.map((p) => ({ x: p.x, y: p.y, z: p.z || 0 })),
+                  longitud: Math.round(long * 100) / 100,
+                }
+              : a
+          )
+        );
+      }
+    } else if (recObjeto.tipo === "perfil") {
+      if (tramoConservado.length >= 3) {
+        onCambiarPoligono(tramoConservado.map((p) => ({ x: p.x, y: p.y })));
+      }
+    }
+
+    mostrarAviso("Recorte confirmado con éxito.");
+    setRecObjeto(null);
+    setRecCortante(null);
+  }
+
+  // =========================================================================
+  // FUNCIONES DE SOPORTE: HERRAMIENTA UNIR / SEPARAR (UNI)
+  // =========================================================================
+
+  function handleInteractuarUni(clientX: number, clientY: number) {
+    const ent = detectarEntidadBajoCursor(clientX, clientY);
+    if (!ent || ent.tipo === "perfil" || !ent.id) return;
+
+    const ref: RefEntidadUni = { tipo: ent.tipo, id: ent.id };
+    setUniSeleccionadas((prev) => {
+      const existe = prev.some((s) => s.id === ref.id);
+      if (existe) {
+        mostrarAviso(`Deseleccionado: ${ent.nombre}`);
+        return prev.filter((s) => s.id !== ref.id);
+      } else {
+        mostrarAviso(`Seleccionado: ${ent.nombre}`);
+        return [...prev, ref];
+      }
+    });
+  }
+
+  function handleUnirEnPolilinea() {
+    if (uniSeleccionadas.length < 2) {
+      mostrarAviso("Selecciona al menos 2 entidades (líneas, arcos o polilíneas) para unir.");
+      return;
+    }
+
+    const ctx = {
+      lineas: lineasCad,
+      polilineas: polilineasCad,
+      arcos: arcosCad,
+      capaActivaId,
+    };
+
+    const res = unirEntidadesEnPolilinea(uniSeleccionadas, ctx, forzarPolilineaCerrada);
+    if (!res) {
+      mostrarAviso("No fue posible unir las entidades seleccionadas. Asegúrate de que sus extremos se conecten.");
+      return;
+    }
+
+    registrarHistorial();
+
+    // Eliminar las entidades consumidas y agregar la nueva polilínea
+    setLineasCad((prev) => prev.filter((l) => !res.lineasConsumidas.includes(l.id)));
+    setPolilineasCad((prev) => [
+      ...prev.filter((pl) => !res.polilineasConsumidas.includes(pl.id)),
+      res.nuevaPolilinea,
+    ]);
+    setArcosCad((prev) => prev.filter((a) => !res.arcosConsumidos.includes(a.id)));
+
+    setUniSeleccionadas([]);
+    mostrarAviso(`✓ Polilínea unida creada (${res.nuevaPolilinea.longitud}m, ${res.nuevaPolilinea.cerrada ? "cerrada" : "abierta"}).`);
+  }
+
+  function handleSepararPolilinea() {
+    const polilineasIds = uniSeleccionadas.filter((s) => s.tipo === "polilinea").map((s) => s.id);
+    if (polilineasIds.length === 0) {
+      mostrarAviso("Selecciona al menos una polilínea para separar en líneas.");
+      return;
+    }
+
+    registrarHistorial();
+    const res = separarPolilineaEnLineas(polilineasCad, polilineasIds);
+
+    setPolilineasCad((prev) => prev.filter((pl) => !res.polilineasEliminadas.includes(pl.id)));
+    setLineasCad((prev) => [...prev, ...res.nuevasLineas]);
+
+    setUniSeleccionadas([]);
+    mostrarAviso(`✓ Polilínea separada en ${res.nuevasLineas.length} líneas independientes.`);
+  }
+
+  function handleCrearPuntoCentro() {
+    if (uniSeleccionadas.length === 0) {
+      mostrarAviso("Selecciona al menos una entidad para calcular su centro.");
+      return;
+    }
+
+    const ctx = {
+      lineas: lineasCad,
+      polilineas: polilineasCad,
+      arcos: arcosCad,
+      capaActivaId,
+    };
+
+    const centroide = calcularCentroideEntidades(uniSeleccionadas, ctx);
+    if (!centroide) {
+      mostrarAviso("No fue posible calcular el centro de las entidades seleccionadas.");
+      return;
+    }
+
+    registrarHistorial();
+    const nuevoPto: PuntoCad3D = {
+      id: `pto-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      x: centroide.x,
+      y: centroide.y,
+      z: centroide.z,
+      capaId: capaActivaId === "capa-cresta" ? "capa-puntos" : capaActivaId,
+      tipo: "cruz_mas",
+    };
+
+    setPuntosCad((prev) => [...prev, nuevoPto]);
+    mostrarAviso(`✓ Punto creado: (${centroide.x}, ${centroide.y}, ${centroide.z}) · ${centroide.descripcion}`);
+  }
+
+  // =========================================================================
+  // FUNCIONES DE SOPORTE: HERRAMIENTA DIVIDIR (DIV)
+  // =========================================================================
+
+  function calcularPuntosDivision(
+    ent: EntidadRecortable,
+    partes: number
+  ): { x: number; y: number; z: number }[] {
+    const N = Math.max(2, Math.min(100, Math.round(partes)));
+    const ptsResultado: { x: number; y: number; z: number }[] = [];
+
+    if (ent.tipo === "linea") {
+      const l = lineasCad.find((item) => item.id === ent.id);
+      if (l) {
+        for (let k = 1; k < N; k++) {
+          const t = k / N;
+          ptsResultado.push({
+            x: Math.round((l.p1.x + t * (l.p2.x - l.p1.x)) * 100) / 100,
+            y: Math.round((l.p1.y + t * (l.p2.y - l.p1.y)) * 100) / 100,
+            z: Math.round(((l.p1.z || 0) + t * ((l.p2.z || 0) - (l.p1.z || 0))) * 100) / 100,
+          });
+        }
+      }
+    } else if (ent.tipo === "arco") {
+      const a = arcosCad.find((item) => item.id === ent.id);
+      if (a) {
+        let aIni = a.anguloInicio;
+        let aFin = a.anguloFin;
+        if (aFin < aIni) aFin += Math.PI * 2;
+        for (let k = 1; k < N; k++) {
+          const t = k / N;
+          const ang = aIni + t * (aFin - aIni);
+          ptsResultado.push({
+            x: Math.round((a.centro.x + a.radio * Math.cos(ang)) * 100) / 100,
+            y: Math.round((a.centro.y + a.radio * Math.sin(ang)) * 100) / 100,
+            z: Math.round((a.centro.z || 0) * 100) / 100,
+          });
+        }
+      }
+    } else if (ent.tipo === "polilinea") {
+      const pl = polilineasCad.find((item) => item.id === ent.id);
+      if (pl && pl.puntos.length >= 2) {
+        const segLens: number[] = [];
+        let totalL = 0;
+        const nSeg = pl.cerrada ? pl.puntos.length : pl.puntos.length - 1;
+        for (let i = 0; i < nSeg; i++) {
+          const p1 = pl.puntos[i];
+          const p2 = pl.puntos[(i + 1) % pl.puntos.length];
+          const l = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+          segLens.push(l);
+          totalL += l;
+        }
+
+        for (let k = 1; k < N; k++) {
+          const targetDist = (k / N) * totalL;
+          let acc = 0;
+          for (let i = 0; i < nSeg; i++) {
+            const segL = segLens[i];
+            if (acc + segL >= targetDist || i === nSeg - 1) {
+              const localT = segL > 0 ? (targetDist - acc) / segL : 0;
+              const p1 = pl.puntos[i];
+              const p2 = pl.puntos[(i + 1) % pl.puntos.length];
+              ptsResultado.push({
+                x: Math.round((p1.x + localT * (p2.x - p1.x)) * 100) / 100,
+                y: Math.round((p1.y + localT * (p2.y - p1.y)) * 100) / 100,
+                z: Math.round(((p1.z || 0) + localT * ((p2.z || 0) - (p1.z || 0))) * 100) / 100,
+              });
+              break;
+            }
+            acc += segL;
+          }
+        }
+      }
+    }
+
+    return ptsResultado;
+  }
+
+  function handleInteractuarDividir(clientX: number, clientY: number) {
+    const ent = detectarEntidadBajoCursor(clientX, clientY);
+    if (!ent || ent.tipo === "perfil" || !ent.id) return;
+
+    setDivEntidad(ent);
+    mostrarAviso(`Entidad seleccionada: ${ent.nombre}. Ajusta partes y pulsa DIVIDIR.`);
+  }
+
+  function handleEjecutarDividir() {
+    if (!divEntidad) {
+      mostrarAviso("Selecciona primero una línea, polilínea o arco para dividir.");
+      return;
+    }
+
+    const nPartes = parseInt(divPartes, 10);
+    if (isNaN(nPartes) || nPartes < 2) {
+      mostrarAviso("El número de partes debe ser al menos 2.");
+      return;
+    }
+
+    const puntosGenerados = calcularPuntosDivision(divEntidad, nPartes);
+    if (puntosGenerados.length === 0) {
+      mostrarAviso("No fue posible generar las divisiones de la entidad.");
+      return;
+    }
+
+    registrarHistorial();
+
+    const nuevosPuntos: PuntoCad3D[] = puntosGenerados.map((pt, idx) => ({
+      id: `pto-div-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 6)}`,
+      x: pt.x,
+      y: pt.y,
+      z: pt.z,
+      capaId: capaActivaId === "capa-cresta" ? "capa-puntos" : capaActivaId,
+      tipo: "cruz_mas",
+    }));
+
+    setPuntosCad((prev) => [...prev, ...nuevosPuntos]);
+    mostrarAviso(`✓ Se crearon ${nuevosPuntos.length} puntos SNAP equidistantes sobre ${divEntidad.nombre}`);
+    setDivEntidad(null);
+  }
+
+  // =========================================================================
+  // FUNCIONES DE SOPORTE: HERRAMIENTA DESFASE (OFF)
+  // =========================================================================
+
+  function calcularDesfaseEntidad(
+    ent: EntidadRecortable,
+    modo: ModoDesfase,
+    distancia: number
+  ): ResultadoDesfase | null {
+    if (ent.tipo === "linea") {
+      const l = lineasCad.find((item) => item.id === ent.id);
+      if (!l) return null;
+      return desfasarLinea(l.p1, l.p2, distancia, modo);
+    }
+    if (ent.tipo === "arco") {
+      const a = arcosCad.find((item) => item.id === ent.id);
+      if (!a) return null;
+      return desfasarArco(a.centro, a.radio, a.anguloInicio, a.anguloFin, distancia, modo);
+    }
+    if (ent.tipo === "polilinea") {
+      const pl = polilineasCad.find((item) => item.id === ent.id);
+      if (!pl) return null;
+      return desfasarPolilinea(pl.puntos, pl.cerrada, distancia, modo);
+    }
+    if (ent.tipo === "perfil") {
+      if (poligonoCresta.length < 3) return null;
+      return desfasarPolilinea(
+        poligonoCresta.map((p) => ({ x: p.x, y: p.y, z: 0 })),
+        true,
+        distancia,
+        modo
+      );
+    }
+    return null;
+  }
+
+  function handleInteractuarDesfase(clientX: number, clientY: number) {
+    const ent = detectarEntidadBajoCursor(clientX, clientY);
+    if (!ent || !ent.id) return;
+
+    setOffEntidad(ent);
+    mostrarAviso(`Entidad seleccionada: ${ent.nombre}. Ajusta modo/distancia y pulsa CREAR DESFASE.`);
+  }
+
+  function handleEjecutarDesfase() {
+    if (!offEntidad) {
+      mostrarAviso("Selecciona primero una entidad para desfasar.");
+      return;
+    }
+
+    const dVal = parseFloat(offDistancia);
+    if (isNaN(dVal) || (offModo !== "profundidad" && dVal <= 0)) {
+      mostrarAviso("Ingresa una distancia de desfase válida mayor a 0.");
+      return;
+    }
+
+    const res = calcularDesfaseEntidad(offEntidad, offModo, dVal);
+    if (!res) {
+      mostrarAviso("No fue posible calcular el desfase de la entidad seleccionada.");
+      return;
+    }
+
+    registrarHistorial();
+
+    const capaDestino =
+      capaActivaId === "capa-puntos" || capaActivaId === "capa-cresta"
+        ? "capa-lineas"
+        : capaActivaId;
+
+    if (res.tipo === "linea") {
+      const nuevaLin: LineaCad3D = {
+        id: `lin-off-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        p1: res.p1,
+        p2: res.p2,
+        longitud: res.longitud,
+        azimut: res.azimut,
+        capaId: capaDestino,
+        tipo: tipoLinea,
+        rol: rolIngenieria || "geometria",
+      };
+      setLineasCad((prev) => [...prev, nuevaLin]);
+      mostrarAviso(`✓ Línea desfasada (${res.longitud}m) creada`);
+    } else if (res.tipo === "arco") {
+      const segs = 32;
+      const ptsArc: { x: number; y: number; z: number }[] = [];
+      let aIni = res.anguloInicio;
+      let aFin = res.anguloFin;
+      if (aFin < aIni) aFin += Math.PI * 2;
+      for (let i = 0; i <= segs; i++) {
+        const a = aIni + (i / segs) * (aFin - aIni);
+        ptsArc.push({
+          x: Math.round((res.centro.x + res.radio * Math.cos(a)) * 100) / 100,
+          y: Math.round((res.centro.y + res.radio * Math.sin(a)) * 100) / 100,
+          z: res.centro.z,
+        });
+      }
+      const deltaAng = aFin - aIni;
+      const longArco = Math.round(res.radio * deltaAng * 100) / 100;
+      const nuevoArc: ArcoCad3D = {
+        id: `arc-off-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        metodo: "centro_r",
+        centro: res.centro,
+        radio: res.radio,
+        anguloInicio: res.anguloInicio,
+        anguloFin: res.anguloFin,
+        puntos: ptsArc,
+        capaId: capaDestino,
+        tipo: tipoLinea,
+        rol: rolIngenieria || "geometria",
+        longitud: longArco,
+      };
+      setArcosCad((prev) => [...prev, nuevoArc]);
+      mostrarAviso(`✓ Arco desfasado (R=${res.radio}m) creado`);
+    } else if (res.tipo === "polilinea") {
+      const nuevaPl: PolilineaCad3D = {
+        id: `pl-off-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        puntos: res.puntos,
+        cerrada: res.cerrada,
+        longitud: res.longitud,
+        capaId: capaDestino,
+        tipo: tipoLinea,
+        rol: rolIngenieria || "geometria",
+      };
+      setPolilineasCad((prev) => [...prev, nuevaPl]);
+      mostrarAviso(`✓ Polilínea desfasada (${res.longitud}m, ${res.cerrada ? "cerrada" : "abierta"}) creada`);
+    }
+
+    setOffEntidad(null);
+  }
+
+  function handleInteractuarCota(clientX: number, clientY: number) {
+    let p3D: { x: number; y: number; z: number } | null = null;
+
+    // 1. Buscar snap magnético a vértice de polígono de banco
+    const vIdx = verificarToqueVertice(clientX, clientY, 22);
+    if (vIdx !== null && poligonoCresta[vIdx]) {
+      p3D = { x: poligonoCresta[vIdx].x, y: poligonoCresta[vIdx].y, z: 0 };
+    }
+
+    // 2. Buscar snap magnético a punto CAD independiente
+    if (!p3D) {
+      const ptoId = verificarToquePuntoCad(clientX, clientY, 22);
+      if (ptoId) {
+        const ptoObj = puntosCad.find((p) => p.id === ptoId);
+        if (ptoObj) {
+          p3D = { x: ptoObj.x, y: ptoObj.y, z: ptoObj.z || 0 };
+        }
+      }
+    }
+
+    // 3. Buscar snap magnético a punto medio (▲) si está activo
+    if (!p3D && mostrarPuntoMedio) {
+      const ptoMed = verificarToquePuntoMedio(clientX, clientY, 24);
+      if (ptoMed) p3D = ptoMed;
+    }
+
+    // 4. Toque libre en el plano de trabajo
+    if (!p3D) {
+      const ptPlano = obtenerCoordenadasPlano(clientX, clientY);
+      if (ptPlano) p3D = { x: ptPlano.x, y: ptPlano.y, z: 0 };
+    }
+
+    if (!p3D) return;
+
+    // CASO 1: Modo "distancia" (cota métrica entre 2 puntos con líneas testigo)
+    if (cotModo === "distancia") {
+      if (!cotPuntoInicio) {
+        setCotPuntoInicio(p3D);
+        mostrarAviso(`📍 Punto 1 fijado en (${p3D.x.toFixed(2)}, ${p3D.y.toFixed(2)}). Toca el punto final.`);
+      } else {
+        const p1 = cotPuntoInicio;
+        const p2 = p3D;
+        const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+        if (dist < 0.05) {
+          mostrarAviso("Los dos puntos de la cota deben ser diferentes.");
+          return;
+        }
+
+        const separacion = parseFloat(cotSeparacion) || 0.18;
+        const nuevaCota: CotaCad3D = {
+          id: `cot-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          p1,
+          p2,
+          desplazamiento: separacion,
+          texto: `${dist.toFixed(2)} m`,
+          tipo: "distancia",
+          capaId: capaActivaId,
+        };
+
+        registrarHistorial();
+        setCotasCad((prev) => [...prev, nuevaCota]);
+        setCotPuntoInicio(null);
+        setCotCursorGuia(null);
+        mostrarAviso(`✓ Cota creada: ${nuevaCota.texto}`);
+      }
+      return;
+    }
+
+    // CASO 2: Modos de Arranque Minero (B1, B2, B3, B4, B5, 4G)
+    if (!cotCentro) {
+      setCotCentro(p3D);
+      mostrarAviso(`📍 Centro de arranque fijado en (${p3D.x.toFixed(2)}, ${p3D.y.toFixed(2)}). Toca un taladro o pulsa GENERAR ${cotModo.toUpperCase()}.`);
+    } else {
+      const dRef = Math.hypot(p3D.x - cotCentro.x, p3D.y - cotCentro.y) * 2;
+      const dFinal = Math.max(0.05, Math.round(dRef * 100) / 100);
+      setCotDistanciaB(dFinal.toFixed(2));
+      generarCuadranteB(cotCentro, cotModo, dFinal, cotCuadradoAlineado);
+    }
+  }
+
+  function generarCuadranteB(centro: { x: number; y: number; z: number }, modoB: TipoCotaCad, distB: number, alineado: boolean) {
+    const mitad = distB / 2;
+    let ptsCuad: { x: number; y: number; z: number }[] = [];
+
+    if (!alineado) {
+      // Rombo (girado 45°)
+      ptsCuad = [
+        { x: centro.x, y: centro.y + mitad, z: centro.z },
+        { x: centro.x + mitad, y: centro.y, z: centro.z },
+        { x: centro.x, y: centro.y - mitad, z: centro.z },
+        { x: centro.x - mitad, y: centro.y, z: centro.z },
+      ];
+    } else {
+      // Cuadrado alineado
+      ptsCuad = [
+        { x: centro.x - mitad, y: centro.y + mitad, z: centro.z },
+        { x: centro.x + mitad, y: centro.y + mitad, z: centro.z },
+        { x: centro.x + mitad, y: centro.y - mitad, z: centro.z },
+        { x: centro.x - mitad, y: centro.y - mitad, z: centro.z },
+      ];
+    }
+
+    registrarHistorial();
+
+    // Crear la polilínea cerrada del cuadrante de arranque con trazo discontinuo
+    const nuevaPlArranque: PolilineaCad3D = {
+      id: `pl-arr-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      puntos: ptsCuad,
+      cerrada: true,
+      longitud: Math.round(distB * 4 * 100) / 100,
+      capaId: capaActivaId,
+      tipo: "discontinua",
+      rol: "galeria",
+    };
+    setPolilineasCad((prev) => [...prev, nuevaPlArranque]);
+
+    // Crear 4 puntos CAD en las esquinas para facilitar el SNAP
+    const nuevosPuntos: PuntoCad3D[] = ptsCuad.map((p, idx) => ({
+      id: `pto-arr-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 5)}`,
+      x: Math.round(p.x * 100) / 100,
+      y: Math.round(p.y * 100) / 100,
+      z: Math.round(p.z * 100) / 100,
+      capaId: capaActivaId,
+      tipo: "cruz_x",
+    }));
+    setPuntosCad((prev) => [...prev, ...nuevosPuntos]);
+
+    // Crear cota testigo del ancho B con el texto exacto (ej. B5 = 0.50 m)
+    const sep = parseFloat(cotSeparacion) || 0.18;
+    const cotaArranque: CotaCad3D = {
+      id: `cot-b-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      p1: ptsCuad[0],
+      p2: ptsCuad[1],
+      desplazamiento: sep,
+      texto: `${modoB.toUpperCase()} = ${distB.toFixed(2)} m`,
+      tipo: modoB,
+      capaId: capaActivaId,
+    };
+    setCotasCad((prev) => [...prev, cotaArranque]);
+
+    mostrarAviso(`Guía ${modoB.toUpperCase()} creada desde el centro · ${distB.toFixed(2)} m.`);
+  }
+
+  function handleEjecutarGenerarB() {
+    let centro = cotCentro;
+    if (!centro) {
+      if (puntosCad.length > 0) {
+        centro = { x: puntosCad[puntosCad.length - 1].x, y: puntosCad[puntosCad.length - 1].y, z: puntosCad[puntosCad.length - 1].z || 0 };
+      } else if (poligonoCresta.length >= 3) {
+        const cx = poligonoCresta.reduce((s, p) => s + p.x, 0) / poligonoCresta.length;
+        const cy = poligonoCresta.reduce((s, p) => s + p.y, 0) / poligonoCresta.length;
+        centro = { x: Math.round(cx * 100) / 100, y: Math.round(cy * 100) / 100, z: 0 };
+      } else {
+        centro = { x: 0, y: 0, z: 0 };
+      }
+    }
+
+    const distB = parseFloat(cotDistanciaB) || 0.50;
+    generarCuadranteB(centro, cotModo, distB, cotCuadradoAlineado);
+  }
+
+  function handleInsertarTaladroSnap(clientX: number, clientY: number) {
+    // 1. Priorizar SNAP a Punto CAD
+    const ptoCadId = verificarToquePuntoCad(clientX, clientY, 26);
+    let pSnap: { x: number; y: number; z?: number } | null = null;
+
+    if (ptoCadId) {
+      const p = puntosCad.find((pt) => pt.id === ptoCadId);
+      if (p) pSnap = { x: p.x, y: p.y, z: p.z || 0 };
+    }
+
+    // 2. SNAP a Punto Medio
+    if (!pSnap && mostrarPuntoMedio) {
+      const pMed = verificarToquePuntoMedio(clientX, clientY, 26);
+      if (pMed) pSnap = pMed;
+    }
+
+    // 3. SNAP a Vértice de Cresta / Polígono
+    if (!pSnap) {
+      const idxVert = verificarToqueVertice(clientX, clientY, 26);
+      if (idxVert !== null && poligonoCresta[idxVert]) {
+        pSnap = { x: poligonoCresta[idxVert].x, y: poligonoCresta[idxVert].y, z: 0 };
+      }
+    }
+
+    // 4. Coordenadas libres del plano de labor si no tocó un SNAP directo
+    if (!pSnap) {
+      const pMundo = obtenerCoordenadasPlano(clientX, clientY);
+      if (pMundo) {
+        const pz = ("z" in pMundo && typeof pMundo.z === "number") ? pMundo.z : 0;
+        pSnap = { x: pMundo.x, y: pMundo.y, z: pz };
+      }
+    }
+
+    if (!pSnap) return;
+
+    registrarHistorial();
+
+    const radMm = parseFloat(talRadioMm) || 22.5;
+    const longM = parseFloat(talLongitudM) || 3.6;
+    const lookOut = parseFloat(talLookOutDeg) || 0;
+    const grad = parseFloat(talGradientePct) || 0;
+
+    const thetaRad = (lookOut * Math.PI) / 180;
+    const phiRad = Math.atan(grad / 100);
+
+    // Collar en plano de labor; la perforación entra al macizo en -Z con look-out horizontal y gradiente vertical
+    const xToe = pSnap.x + longM * Math.sin(thetaRad);
+    const yToe = pSnap.y + longM * Math.sin(phiRad);
+    const zToe = (pSnap.z || 0) - longM * Math.cos(thetaRad) * Math.cos(phiRad);
+
+    const nuevoTal: Taladro = {
+      id: `tal-${talGrupo}-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      fila: 0,
+      columna: 0,
+      collar: {
+        x: Math.round(pSnap.x * 1000) / 1000,
+        y: Math.round(pSnap.y * 1000) / 1000,
+        z: Math.round((pSnap.z || 0) * 1000) / 1000,
+      },
+      fondo: {
+        x: Math.round(xToe * 1000) / 1000,
+        y: Math.round(yToe * 1000) / 1000,
+        z: Math.round(zToe * 1000) / 1000,
+      },
+      diametroMm: radMm * 2,
+      profundidad_m: longM,
+      taco_m: talCargado ? 1.0 : 0,
+      longitudCarga_m: talCargado ? Math.max(0, longM - 1.0) : 0,
+    };
+    (nuevoTal as any).zona = talGrupo;
+
+    if (onCambiarTaladros) {
+      onCambiarTaladros([...taladros, nuevoTal]);
+    }
+    const infoG = GRUPOS_TALADRO_CONFIG.find((g) => g.id === talGrupo);
+    mostrarAviso(`✓ Taladro ${infoG?.label || talGrupo} insertado en (${pSnap.x.toFixed(2)}, ${pSnap.y.toFixed(2)})`);
+  }
+
   return (
     <div className="cad-screen-wrapper">
       {notificacion && <div className="cad-toast">{notificacion}</div>}
@@ -2680,6 +4622,12 @@ export default function EditorCadMalla({
                     else if (h === "LIN") setPanelLinVisible((prev) => !prev);
                     else if (h === "PL") setPanelPlVisible((prev) => !prev);
                     else if (h === "ARC") setPanelArcVisible((prev) => !prev);
+                    else if (h === "REC") setPanelRecVisible((prev) => !prev);
+                    else if (h === "UNI") setPanelUniVisible((prev) => !prev);
+                    else if (h === "DIV") setPanelDivVisible((prev) => !prev);
+                    else if (h === "OFF") setPanelOffVisible((prev) => !prev);
+                    else if (h === "COT") setPanelCotVisible((prev) => !prev);
+                    else if (h === "TAL") setPanelTalVisible((prev) => !prev);
                   } else {
                     setHerramienta(h);
                     setPanelSelVisible(h === "SEL");
@@ -2687,8 +4635,13 @@ export default function EditorCadMalla({
                     setPanelPtoVisible(h === "PTO");
                     setPanelPlVisible(h === "PL");
                     setPanelArcVisible(h === "ARC");
+                    setPanelRecVisible(h === "REC");
+                    setPanelUniVisible(h === "UNI");
+                    setPanelDivVisible(h === "DIV");
+                    setPanelOffVisible(h === "OFF");
+                    setPanelCotVisible(h === "COT");
+                    setPanelTalVisible(h === "TAL");
                   }
-                  if (h === "REC") handleCrearRectangulo();
                   if (h === "SOL") onIrARender();
                 }}
                 title={`Herramienta ${h}`}
@@ -2733,6 +4686,20 @@ export default function EditorCadMalla({
             ES
           </button>
 
+          {/* Botón PM: Snap y Visualización de Punto Medio */}
+          <button
+            type="button"
+            className={`btn-dock-circle-exact ${mostrarPuntoMedio ? "tool-active-pink" : ""}`}
+            onClick={() => {
+              setMostrarPuntoMedio(!mostrarPuntoMedio);
+              mostrarAviso(!mostrarPuntoMedio ? "▲ Puntos medios de líneas activados (marcadores en pantalla)" : "Puntos medios desactivados");
+            }}
+            title={mostrarPuntoMedio ? "Desactivar Punto Medio (PM)" : "Mostrar y Encajar Punto Medio (PM)"}
+            style={mostrarPuntoMedio ? { borderColor: "#06b6d4", color: "#06b6d4", boxShadow: "0 0 14px rgba(6, 182, 212, 0.6)" } : {}}
+          >
+            PM
+          </button>
+
           <button type="button" className="btn-dock-circle-exact" onClick={onIrARender} title="Confirmar (✓)">
             ✓
           </button>
@@ -2773,7 +4740,21 @@ export default function EditorCadMalla({
           </svg>
 
           <div className="cad-badge-listo">
-            <span>Listo para dibujar</span>
+            <span>
+              {herramienta === "REC"
+                ? "Selecciona objeto y cortante; se muestra preview antes de confirm..."
+                : herramienta === "UNI"
+                ? "Une líneas en polilínea, cierra perfiles o separa una polilínea."
+                : herramienta === "DIV"
+                ? "Selecciona una línea y crea N referencias equidistantes."
+                : herramienta === "OFF"
+                ? "Desfase interior/exterior o Z para líneas, polilíneas, arcos y perfiles."
+                : herramienta === "COT"
+                ? "Cotas normales o guías B1–B5 / 4G para el arranque."
+                : herramienta === "TAL"
+                ? "Inserta taladros por grupo usando la configuración activa."
+                : "Listo para dibujar"}
+            </span>
           </div>
         </div>
 
@@ -3016,6 +4997,21 @@ export default function EditorCadMalla({
                   </span>
                 </div>
 
+                {/* Conmutador de Punto Medio */}
+                <div className="panel-toggle-row">
+                  <span className="toggle-label">Mostrar punto medio (▲)</span>
+                  <div
+                    className={`toggle-switch-track ${mostrarPuntoMedio ? "active" : ""}`}
+                    onClick={() => {
+                      setMostrarPuntoMedio(!mostrarPuntoMedio);
+                      mostrarAviso(!mostrarPuntoMedio ? "▲ Puntos medios activados en pantalla" : "Puntos medios desactivados");
+                    }}
+                    title="Muestra los puntos medios de las líneas en pantalla y permite encajar en ellos"
+                  >
+                    <div className="toggle-switch-thumb" />
+                  </div>
+                </div>
+
                 {/* Caja de paso interactivo (Inicio -> Final) */}
                 {!inicioLinea ? (
                   <div className="panel-linea-paso-box">
@@ -3220,6 +5216,21 @@ export default function EditorCadMalla({
                   <span className="panel-sel-counter-badge">
                     {verticesPolilinea.length > 0 ? `${verticesPolilinea.length} vtx` : `PL: ${polilineasCad.length}`}
                   </span>
+                </div>
+
+                {/* Conmutador de Punto Medio */}
+                <div className="panel-toggle-row">
+                  <span className="toggle-label">Mostrar punto medio (▲)</span>
+                  <div
+                    className={`toggle-switch-track ${mostrarPuntoMedio ? "active" : ""}`}
+                    onClick={() => {
+                      setMostrarPuntoMedio(!mostrarPuntoMedio);
+                      mostrarAviso(!mostrarPuntoMedio ? "▲ Puntos medios activados en pantalla" : "Puntos medios desactivados");
+                    }}
+                    title="Muestra los puntos medios de los tramos de polilínea y permite encajar en ellos"
+                  >
+                    <div className="toggle-switch-thumb" />
+                  </div>
                 </div>
 
                 {/* Selector de Tipo de Línea (4 pills compactos) */}
@@ -3968,6 +5979,1166 @@ export default function EditorCadMalla({
                     );
                   })}
                 </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* =========================================================================
+            PANEL: RECORTAR (TRIM - EXACTO AL MOCKUP DE REFERENCIA)
+           ========================================================================= */}
+        {herramienta === "REC" && panelRecVisible && (
+          <div
+            className={`cad-panel-recortar-exact ${panelRecMinimizado ? "panel-comprimido" : ""}`}
+            onPointerDown={(e) => e.stopPropagation()}
+            onPointerUp={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {panelRecMinimizado ? (
+              <div className="panel-mini-strip">
+                <div className="mini-coords-info">
+                  <strong>Recorte:</strong> {recObjeto && recCortante ? "2/2 Listo" : recObjeto ? "1/2 Cortante" : "0/2 Selección"}
+                </div>
+                <div className="mini-actions">
+                  <button type="button" className="btn-mini-expand" onClick={() => setPanelRecMinimizado(false)}>
+                    ⤢ Expandir
+                  </button>
+                  <button type="button" className="btn-header-round-close" onClick={() => setPanelRecVisible(false)}>
+                    ✕
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Header compacto con título, botón '−' para minimizar y '✕' para cerrar */}
+                <div className="panel-sel-header">
+                  <div className="panel-sel-titles">
+                    <h2>RECORTAR</h2>
+                    <p>Selecciona objeto y cortante; se muestra preview antes de confirm...</p>
+                  </div>
+                  <div className="panel-header-buttons">
+                    <button
+                      type="button"
+                      className="btn-header-round-min"
+                      onClick={() => setPanelRecMinimizado(true)}
+                      title="Minimizar panel"
+                    >
+                      −
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-header-round-close"
+                      onClick={() => setPanelRecVisible(false)}
+                      title="Cerrar panel"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Barra de estado compacta: Capa Activa y Contador */}
+                <div className="panel-sel-status-row">
+                  <span className="panel-sel-capa-badge">
+                    CAPA · {capas.find((c) => c.id === capaActivaId)?.nombre || "Dibujo CAD"}
+                  </span>
+                  <span className="panel-sel-counter-badge">
+                    {recObjeto && recCortante ? "Rec: 2/2" : recObjeto ? "Rec: 1/2" : "Rec: 0/2"}
+                  </span>
+                </div>
+
+                {/* Selector de Tramo a Conservar (Pills compactos estilo ARCO) */}
+                <div className="panel-section-group compact">
+                  <span className="section-label-exact-compact">Tramo que se conserva:</span>
+                  <div className="panel-pills-row-compact-2" style={{ display: "flex", gap: "6px" }}>
+                    <button
+                      type="button"
+                      className={`btn-pill-choice-compact ${recConservarInicio ? "pill-active-purple" : ""}`}
+                      onClick={() => {
+                        setRecConservarInicio(true);
+                        mostrarAviso("Fijado: Tramo A (Inicio) queda en VERDE");
+                      }}
+                      style={{ flex: 1 }}
+                      title="Conservar el tramo inicial"
+                    >
+                      {recConservarInicio ? "● " : ""}Inicio (Verde)
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn-pill-choice-compact ${!recConservarInicio ? "pill-active-purple" : ""}`}
+                      onClick={() => {
+                        setRecConservarInicio(false);
+                        mostrarAviso("Fijado: Tramo B (Fin) queda en VERDE");
+                      }}
+                      style={{ flex: 1 }}
+                      title="Conservar el tramo final"
+                    >
+                      {!recConservarInicio ? "● " : ""}Final (Verde)
+                    </button>
+                  </div>
+                </div>
+
+                {/* Switch estilo ARCO */}
+                <div className="panel-toggle-row">
+                  <span className="toggle-label">Conservar desde el inicio</span>
+                  <div
+                    className={`toggle-switch-track ${recConservarInicio ? "active" : ""}`}
+                    onClick={() => setRecConservarInicio(!recConservarInicio)}
+                    title={recConservarInicio ? "Conservando tramo inicial" : "Conservando tramo final"}
+                  >
+                    <div className="toggle-switch-thumb" />
+                  </div>
+                </div>
+
+                {/* Caja de paso interactivo (Estilo PASO 1 / PASO 2 / PASO 3) */}
+                {!recObjeto ? (
+                  <div className="panel-linea-paso-box">
+                    <span className="paso-num">PASO 1: TOCA EL OBJETO A RECORTAR</span>
+                    <span className="paso-desc">Toca en la escena la línea, polilínea o arco</span>
+                  </div>
+                ) : !recCortante ? (
+                  <div className="panel-linea-paso-box active">
+                    <div className="paso-active-header">
+                      <span className="paso-num">PASO 2: TOCA LA CORTANTE</span>
+                      <button
+                        type="button"
+                        className="btn-cancelar-inicio"
+                        onClick={() => {
+                          setRecObjeto(null);
+                          setRecCortante(null);
+                          mostrarAviso("Selección reiniciada");
+                        }}
+                        title="Reiniciar selección"
+                      >
+                        ✕ Reiniciar
+                      </button>
+                    </div>
+                    <span className="paso-desc">
+                      Objeto: <strong>{recObjeto.nombre}</strong>
+                    </span>
+                    <span className="paso-instruccion">
+                      Toca la entidad que servirá como corte o límite.
+                    </span>
+                  </div>
+                ) : (
+                  <div className="panel-linea-paso-box active">
+                    <div className="paso-active-header">
+                      <span className="paso-num">PASO 3: CONFIRMA EL RECORTE</span>
+                      <button
+                        type="button"
+                        className="btn-cancelar-inicio"
+                        onClick={() => {
+                          setRecObjeto(null);
+                          setRecCortante(null);
+                          mostrarAviso("Selección reiniciada");
+                        }}
+                        title="Reiniciar selección"
+                      >
+                        ✕ Reiniciar
+                      </button>
+                    </div>
+                    <span className="paso-desc">
+                      <span className="rec-badge-verde">VERDE</span> = queda · <span className="rec-badge-rojo">ROJO</span> = elimina
+                    </span>
+                    <span className="paso-instruccion">
+                      💡 Toca la línea roja en el 3D para alternar qué tramo conservar.
+                    </span>
+                  </div>
+                )}
+
+                {/* Botón Principal Fucsia Compacto 'CONFIRMAR RECORTE' */}
+                <button
+                  type="button"
+                  className="btn-pink-finalizar-pl"
+                  onClick={handleConfirmarRecorte}
+                  disabled={!puedeConfirmarRecorte}
+                  style={{ width: "100%", marginTop: "4px" }}
+                  title={
+                    puedeConfirmarRecorte
+                      ? "Confirmar recorte y actualizar geometría"
+                      : "Selecciona objeto y cortante que se intersecten para habilitar"
+                  }
+                >
+                  CONFIRMAR RECORTE
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* =========================================================================
+            PANEL: UNIR / SEPARAR (UNI - COMPACTO, RESPONSIVO Y ACOPLADO)
+           ========================================================================= */}
+        {herramienta === "UNI" && panelUniVisible && (
+          <div
+            className={`cad-panel-unir-exact ${panelUniMinimizado ? "panel-comprimido" : ""}`}
+            onPointerDown={(e) => e.stopPropagation()}
+            onPointerUp={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {panelUniMinimizado ? (
+              <div className="panel-mini-strip">
+                <div className="mini-coords-info">
+                  <strong>Unir:</strong> {uniSeleccionadas.length} seleccionadas
+                </div>
+                <div className="mini-actions">
+                  <button type="button" className="btn-mini-expand" onClick={() => setPanelUniMinimizado(false)}>
+                    ⤢ Expandir
+                  </button>
+                  <button type="button" className="btn-header-round-close" onClick={() => setPanelUniVisible(false)}>
+                    ✕
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Header compacto con botón '−' para minimizar y '✕' para cerrar */}
+                <div className="panel-sel-header">
+                  <div className="panel-sel-titles">
+                    <h2>UNIR / SEPARAR</h2>
+                    <p>Une líneas en polilínea, cierra o separa.</p>
+                  </div>
+                  <div className="panel-header-buttons">
+                    <button
+                      type="button"
+                      className="btn-header-round-min"
+                      onClick={() => setPanelUniMinimizado(true)}
+                      title="Minimizar panel"
+                    >
+                      −
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-header-round-close"
+                      onClick={() => setPanelUniVisible(false)}
+                      title="Cerrar panel"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Barra de estado compacta: Capa Activa y Contador */}
+                <div className="panel-sel-status-row">
+                  <span className="panel-sel-capa-badge">
+                    CAPA · {capas.find((c) => c.id === capaActivaId)?.nombre || "Dibujo CAD"}
+                  </span>
+                  <span className="panel-sel-counter-badge">
+                    Sel: {uniSeleccionadas.length}
+                  </span>
+                </div>
+
+                {/* Instrucciones de Selección */}
+                <p className="panel-rec-instruction">
+                  Selecciona líneas, arcos o polilíneas conectadas. UNI las ordena por sus extremos y puede cerrar el perfil de galería.
+                </p>
+
+                {/* Contador con Reset */}
+                <div className="panel-rec-selection-row">
+                  <span className="panel-rec-selection-label">
+                    Seleccionadas: <strong style={{ color: "#00f0ff" }}>{uniSeleccionadas.length}</strong>
+                  </span>
+                  {uniSeleccionadas.length > 0 && (
+                    <button
+                      type="button"
+                      className="btn-rec-reset"
+                      onClick={() => {
+                        setUniSeleccionadas([]);
+                        mostrarAviso("Selección reiniciada");
+                      }}
+                      title="Reiniciar selección"
+                    >
+                      ↺ Reset
+                    </button>
+                  )}
+                </div>
+
+                {/* Switch Forzar polilínea cerrada */}
+                <div className="panel-toggle-row">
+                  <span className="toggle-label">Forzar polilínea cerrada</span>
+                  <div
+                    className={`toggle-switch-track ${forzarPolilineaCerrada ? "active" : ""}`}
+                    onClick={() => setForzarPolilineaCerrada(!forzarPolilineaCerrada)}
+                    title={forzarPolilineaCerrada ? "Cerrará el extremo final con el inicial" : "Polilínea abierta"}
+                  >
+                    <div className="toggle-switch-thumb" />
+                  </div>
+                </div>
+
+                {/* Switch Mostrar punto medio */}
+                <div className="panel-toggle-row">
+                  <span className="toggle-label">Mostrar punto medio (▲)</span>
+                  <div
+                    className={`toggle-switch-track ${mostrarPuntoMedio ? "active" : ""}`}
+                    onClick={() => {
+                      setMostrarPuntoMedio(!mostrarPuntoMedio);
+                      mostrarAviso(!mostrarPuntoMedio ? "▲ Puntos medios activados en pantalla" : "Puntos medios desactivados");
+                    }}
+                    title="Muestra los puntos medios de las líneas en pantalla"
+                  >
+                    <div className="toggle-switch-thumb" />
+                  </div>
+                </div>
+
+                {/* Tres Botones de Acción Apilados */}
+                <div className="btn-uni-stack">
+                  {/* 1. UNIR EN POLILÍNEA */}
+                  <button
+                    type="button"
+                    className={`btn-rec-confirmar ${uniSeleccionadas.length >= 2 ? "activo" : ""}`}
+                    disabled={uniSeleccionadas.length < 2}
+                    onClick={handleUnirEnPolilinea}
+                    title={
+                      uniSeleccionadas.length >= 2
+                        ? "Unir entidades en polilínea continua"
+                        : "Selecciona al menos 2 entidades para unir"
+                    }
+                  >
+                    UNIR EN POLILÍNEA
+                  </button>
+
+                  {/* 2. SEPARAR POLILÍNEA */}
+                  <button
+                    type="button"
+                    className="btn-uni-secundario"
+                    disabled={!uniSeleccionadas.some((s) => s.tipo === "polilinea")}
+                    onClick={handleSepararPolilinea}
+                    title={
+                      uniSeleccionadas.some((s) => s.tipo === "polilinea")
+                        ? "Descomponer polilínea en líneas individuales"
+                        : "Selecciona al menos una polilínea para separar"
+                    }
+                  >
+                    SEPARAR POLILÍNEA
+                  </button>
+
+                  {/* 3. CREAR PUNTO EN CENTRO */}
+                  <button
+                    type="button"
+                    className="btn-uni-secundario"
+                    disabled={uniSeleccionadas.length === 0}
+                    onClick={handleCrearPuntoCentro}
+                    title={
+                      uniSeleccionadas.length > 0
+                        ? "Calcular centroide e insertar punto CAD"
+                        : "Selecciona al menos una entidad para crear punto en centro"
+                    }
+                  >
+                    CREAR PUNTO EN CENTRO
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* =========================================================================
+            PANEL 7: DIVIDIR (DIV - EXACTO AL MOCKUP COMPACTO)
+           ========================================================================= */}
+        {herramienta === "DIV" && panelDivVisible && (
+          <div
+            className={`cad-panel-dividir-exact ${panelDivMinimizado ? "panel-comprimido" : ""}`}
+            onPointerDown={(e) => e.stopPropagation()}
+            onPointerUp={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {panelDivMinimizado ? (
+              <div className="panel-mini-strip">
+                <div className="mini-coords-info">
+                  <strong>Dividir:</strong> {divEntidad ? divEntidad.nombre : "0 selec."} · N={divPartes}
+                </div>
+                <div className="mini-actions">
+                  <button type="button" className="btn-mini-expand" onClick={() => setPanelDivMinimizado(false)}>
+                    ⤢ Expandir
+                  </button>
+                  <button type="button" className="btn-header-round-close" onClick={() => setPanelDivVisible(false)}>
+                    ✕
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Header compacto con botón '−' para minimizar y '✕' para cerrar */}
+                <div className="panel-sel-header">
+                  <div className="panel-sel-titles">
+                    <h2>DIVIDIR</h2>
+                    <p>Selecciona una línea y crea N referencias equidistantes.</p>
+                  </div>
+                  <div className="panel-header-buttons">
+                    <button
+                      type="button"
+                      className="btn-header-round-min"
+                      onClick={() => setPanelDivMinimizado(true)}
+                      title="Minimizar panel"
+                    >
+                      −
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-header-round-close"
+                      onClick={() => setPanelDivVisible(false)}
+                      title="Cerrar panel"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Barra de estado compacta: Capa Activa y Contador */}
+                <div className="panel-sel-status-row">
+                  <span className="panel-sel-capa-badge">
+                    CAPA · {capas.find((c) => c.id === capaActivaId)?.nombre || "Dibujo CAD"}
+                  </span>
+                  <span className="panel-sel-counter-badge">
+                    {divEntidad ? "1 sel" : "0 sel"}
+                  </span>
+                </div>
+
+                {/* Instrucciones de Selección */}
+                <p className="panel-rec-instruction">
+                  Selecciona una línea; se crearán puntos SNAP equidistantes sobre ella.
+                </p>
+
+                {/* Objeto seleccionado con botón Reset */}
+                {divEntidad && (
+                  <div className="panel-rec-selection-row" style={{ marginTop: "-2px", marginBottom: "2px" }}>
+                    <span className="panel-rec-selection-tag" title="Entidad a dividir">
+                      ✂ {divEntidad.nombre}
+                    </span>
+                    <button
+                      type="button"
+                      className="btn-rec-reset"
+                      onClick={() => {
+                        setDivEntidad(null);
+                        mostrarAviso("Selección reiniciada");
+                      }}
+                      title="Quitar selección"
+                    >
+                      ↺ Reset
+                    </button>
+                  </div>
+                )}
+
+                {/* Input de Número de Partes */}
+                <div className="panel-coord-box-compact">
+                  <div className="panel-coord-head">
+                    <span>Número de partes</span>
+                    <span className="unit-pink">N</span>
+                  </div>
+                  <input
+                    type="number"
+                    min="2"
+                    max="100"
+                    step="1"
+                    value={divPartes}
+                    onChange={(e) => setDivPartes(e.target.value)}
+                    className="panel-coord-num-input-compact"
+                    style={{ fontSize: "16px", fontWeight: "800", textAlign: "left", paddingLeft: "10px" }}
+                  />
+                </div>
+
+                {/* Botón Principal Fucsia 'DIVIDIR' */}
+                <button
+                  type="button"
+                  className={`btn-rec-confirmar ${divEntidad ? "activo" : ""}`}
+                  disabled={!divEntidad}
+                  onClick={handleEjecutarDividir}
+                  style={{ width: "100%", marginTop: "6px" }}
+                  title={
+                    divEntidad
+                      ? "Crear puntos SNAP equidistantes sobre la entidad"
+                      : "Toca una línea, arco o polilínea en la escena para habilitar"
+                  }
+                >
+                  DIVIDIR
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* =========================================================================
+            PANEL 8: DESFASE (OFF - EXACTO AL MOCKUP COMPACTO)
+           ========================================================================= */}
+        {herramienta === "OFF" && panelOffVisible && (
+          <div
+            className={`cad-panel-desfase-exact ${panelOffMinimizado ? "panel-comprimido" : ""}`}
+            onPointerDown={(e) => e.stopPropagation()}
+            onPointerUp={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {panelOffMinimizado ? (
+              <div className="panel-mini-strip">
+                <div className="mini-coords-info">
+                  <strong>Desfase:</strong> {offEntidad ? offEntidad.nombre : "0 selec."} · {offModo} · {offDistancia}m
+                </div>
+                <div className="mini-actions">
+                  <button type="button" className="btn-mini-expand" onClick={() => setPanelOffMinimizado(false)}>
+                    ⤢ Expandir
+                  </button>
+                  <button type="button" className="btn-header-round-close" onClick={() => setPanelOffVisible(false)}>
+                    ✕
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Header compacto con botón '−' para minimizar y '✕' para cerrar */}
+                <div className="panel-sel-header">
+                  <div className="panel-sel-titles">
+                    <h2>DESFASE</h2>
+                    <p>Desfase interior/exterior o Z para líneas, polilíneas, arcos y perfiles.</p>
+                  </div>
+                  <div className="panel-header-buttons">
+                    <button
+                      type="button"
+                      className="btn-header-round-min"
+                      onClick={() => setPanelOffMinimizado(true)}
+                      title="Minimizar panel"
+                    >
+                      −
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-header-round-close"
+                      onClick={() => setPanelOffVisible(false)}
+                      title="Cerrar panel"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Barra de estado compacta: Capa Activa */}
+                <div className="panel-sel-status-row">
+                  <span className="panel-sel-capa-badge">
+                    CAPA ACTIVA · {capas.find((c) => c.id === capaActivaId)?.nombre || "Dibujo CAD"}
+                  </span>
+                  <span className="panel-sel-counter-badge">
+                    {offEntidad ? "1 sel" : "0 sel"}
+                  </span>
+                </div>
+
+                {/* Texto Descriptivo */}
+                <p className="panel-rec-instruction">
+                  Desfase paralelo real. Selecciona una polilínea cerrada o varias piezas conectadas. Exterior/Interior conserva la silueta a distancia constante; Z duplica a otra profundidad.
+                </p>
+
+                {/* Objeto seleccionado con botón Reset */}
+                {offEntidad && (
+                  <div className="panel-rec-selection-row" style={{ marginTop: "-2px", marginBottom: "2px" }}>
+                    <span className="panel-rec-selection-tag" title="Entidad seleccionada">
+                      📏 {offEntidad.nombre}
+                    </span>
+                    <button
+                      type="button"
+                      className="btn-rec-reset"
+                      onClick={() => {
+                        setOffEntidad(null);
+                        mostrarAviso("Selección reiniciada");
+                      }}
+                      title="Quitar selección"
+                    >
+                      ↺ Reset
+                    </button>
+                  </div>
+                )}
+
+                {/* Selector de Modo (4 Pills horizontales: Exterior / Izq, Interior / Der, Z matemático, Profundidad) */}
+                <div className="panel-section-group compact">
+                  <div
+                    className="panel-pills-scroll-row"
+                    style={{
+                      display: "flex",
+                      gap: "5px",
+                      overflowX: "auto",
+                      paddingBottom: "2px",
+                      scrollbarWidth: "none",
+                    }}
+                  >
+                    <button
+                      type="button"
+                      className={`btn-pill-choice-compact ${offModo === "exterior" ? "pill-active-purple" : ""}`}
+                      onClick={() => setOffModo("exterior")}
+                      style={{ whiteSpace: "nowrap", flexShrink: 0, padding: "5px 9px" }}
+                      title="Desfase hacia afuera / izquierda"
+                    >
+                      Exterior / Izq
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn-pill-choice-compact ${offModo === "interior" ? "pill-active-purple" : ""}`}
+                      onClick={() => setOffModo("interior")}
+                      style={{ whiteSpace: "nowrap", flexShrink: 0, padding: "5px 9px" }}
+                      title="Desfase hacia adentro / derecha"
+                    >
+                      Interior / Der
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn-pill-choice-compact ${offModo === "z_matematico" ? "pill-active-purple" : ""}`}
+                      onClick={() => setOffModo("z_matematico")}
+                      style={{ whiteSpace: "nowrap", flexShrink: 0, padding: "5px 9px" }}
+                      title="Mover en +Z matemático"
+                    >
+                      Z matemático
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn-pill-choice-compact ${offModo === "profundidad" ? "pill-active-purple" : ""}`}
+                      onClick={() => setOffModo("profundidad")}
+                      style={{ whiteSpace: "nowrap", flexShrink: 0, padding: "5px 9px" }}
+                      title="Profundidad minera (-Z hacia dentro del macizo)"
+                    >
+                      Profundidad
+                    </button>
+                  </div>
+                </div>
+
+                {/* Input de Desfase / Profundidad */}
+                <div className="panel-coord-box-compact">
+                  <div className="panel-coord-head">
+                    <span>
+                      {offModo === "profundidad"
+                        ? "Profundidad"
+                        : offModo === "z_matematico"
+                        ? "Z matemático"
+                        : "Desfase"}
+                    </span>
+                    <span className="unit-pink">m</span>
+                  </div>
+                  <input
+                    type="number"
+                    step="0.05"
+                    value={offDistancia}
+                    onChange={(e) => setOffDistancia(e.target.value)}
+                    className="panel-coord-num-input-compact"
+                    style={{ fontSize: "16px", fontWeight: "800", textAlign: "left", paddingLeft: "10px" }}
+                  />
+                </div>
+
+                {/* Caja de Ayuda Contextual (Exacta a la captura para Profundidad minera) */}
+                <div className="panel-linea-paso-box" style={{ padding: "8px 10px" }}>
+                  <span className="paso-desc" style={{ fontSize: "11.5px", lineHeight: "1.35", color: "#94a3b8" }}>
+                    {offModo === "profundidad" ? (
+                      <>
+                        Profundidad minera: un valor positivo mueve hacia<br />
+                        dentro del macizo, es decir -Z.
+                      </>
+                    ) : offModo === "z_matematico" ? (
+                      <>
+                        Z matemático: un valor positivo mueve en dirección +Z (hacia arriba o hacia el observador).
+                      </>
+                    ) : (
+                      <>
+                        Puedes seleccionar una polilínea unida o varias líneas/arcos conectados. OFF crea la misma silueta paralela hacia afuera o hacia adentro.
+                      </>
+                    )}
+                  </span>
+                </div>
+
+                {/* Botón Principal Fucsia 'CREAR DESFASE' */}
+                <button
+                  type="button"
+                  className={`btn-rec-confirmar ${offEntidad ? "activo" : ""}`}
+                  disabled={!offEntidad}
+                  onClick={handleEjecutarDesfase}
+                  style={{ width: "100%", marginTop: "4px" }}
+                  title={
+                    offEntidad
+                      ? "Generar nueva entidad desfasada en la escena"
+                      : "Toca una línea, arco o polilínea en la escena para habilitar"
+                  }
+                >
+                  CREAR DESFASE
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* =========================================================================
+            PANEL 9: COTA / B (COT - EXACTO AL MOCKUP COMPACTO)
+           ========================================================================= */}
+        {herramienta === "COT" && panelCotVisible && (
+          <div
+            className={`cad-panel-cota-exact ${panelCotMinimizado ? "panel-comprimido" : ""}`}
+            onPointerDown={(e) => e.stopPropagation()}
+            onPointerUp={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {panelCotMinimizado ? (
+              <div className="panel-mini-strip">
+                <div className="mini-coords-info">
+                  <strong>COTA / B:</strong> {cotModo.toUpperCase()} · {cotSeparacion}m
+                </div>
+                <div className="mini-actions">
+                  <button type="button" className="btn-mini-expand" onClick={() => setPanelCotMinimizado(false)}>
+                    ⤢ Expandir
+                  </button>
+                  <button type="button" className="btn-header-round-close" onClick={() => setPanelCotVisible(false)}>
+                    ✕
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Header compacto con botón '−' para minimizar y '✕' para cerrar */}
+                <div className="panel-sel-header">
+                  <div className="panel-sel-titles">
+                    <h2>COTA / B</h2>
+                    <p>Cotas normales o guías B1–B5 / 4G para el arranque.</p>
+                  </div>
+                  <div className="panel-header-buttons">
+                    <button
+                      type="button"
+                      className="btn-header-round-min"
+                      onClick={() => setPanelCotMinimizado(true)}
+                      title="Minimizar panel"
+                    >
+                      −
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-header-round-close"
+                      onClick={() => setPanelCotVisible(false)}
+                      title="Cerrar panel"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Barra de estado compacta: Capa Activa */}
+                <div className="panel-sel-status-row">
+                  <span className="panel-sel-capa-badge">
+                    CAPA ACTIVA · {capas.find((c) => c.id === capaActivaId)?.nombre || "Dibujo CAD"}
+                  </span>
+                  <span className="panel-sel-counter-badge">
+                    {cotasCad.length} cotas
+                  </span>
+                </div>
+
+                {/* Texto Descriptivo */}
+                <p className="panel-rec-instruction">
+                  Cota normal o guías métricas para construir el arranque desde un centro.
+                </p>
+
+                {/* Selector de Modo (Pills horizontales: Distancia, B1, B2, B3, B4, B5, 4G) */}
+                <div className="panel-section-group compact">
+                  <div
+                    className="panel-pills-scroll-row"
+                    style={{
+                      display: "flex",
+                      gap: "5px",
+                      overflowX: "auto",
+                      paddingBottom: "2px",
+                      scrollbarWidth: "none",
+                    }}
+                  >
+                    {(["distancia", "b1", "b2", "b3", "b4", "b5", "4g"] as TipoCotaCad[]).map((m) => (
+                      <button
+                        key={m}
+                        type="button"
+                        className={`btn-pill-choice-compact ${cotModo === m ? "pill-active-purple" : ""}`}
+                        onClick={() => {
+                          setCotModo(m);
+                          setCotPuntoInicio(null);
+                          setCotCursorGuia(null);
+                          if (m === "b1") {
+                            setCotDistanciaB("0.18");
+                            setCotCuadradoAlineado(false);
+                          } else if (m === "b2") {
+                            setCotDistanciaB("0.35");
+                            setCotCuadradoAlineado(true);
+                          } else if (m === "b3") {
+                            setCotDistanciaB("0.70");
+                            setCotCuadradoAlineado(false);
+                          } else if (m === "b4") {
+                            setCotDistanciaB("1.20");
+                            setCotCuadradoAlineado(true);
+                          } else if (m === "b5") {
+                            setCotDistanciaB("0.50");
+                            setCotCuadradoAlineado(true);
+                          } else if (m === "4g") {
+                            setCotDistanciaB("0.50");
+                            setCotCuadradoAlineado(true);
+                          }
+                        }}
+                        style={{ whiteSpace: "nowrap", flexShrink: 0, padding: "5px 11px" }}
+                        title={m === "distancia" ? "Cota lineal métrica" : `Guía de arranque ${m.toUpperCase()}`}
+                      >
+                        {m === "distancia" ? "Distancia" : m.toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Input 1: Separación de cota */}
+                <div className="panel-coord-box-compact">
+                  <div className="panel-coord-head">
+                    <span>Separación de cota</span>
+                    <span className="unit-pink">m</span>
+                  </div>
+                  <input
+                    type="number"
+                    step="0.02"
+                    value={cotSeparacion}
+                    onChange={(e) => setCotSeparacion(e.target.value)}
+                    className="panel-coord-num-input-compact"
+                    style={{ fontSize: "16px", fontWeight: "800", textAlign: "left", paddingLeft: "10px" }}
+                  />
+                </div>
+
+                {/* Si está en modo B1-B5 / 4G: Campo de Distancia B, Switch y Botón de Generar */}
+                {cotModo !== "distancia" && (
+                  <>
+                    {/* Input 2: Distancia B */}
+                    <div className="panel-coord-box-compact">
+                      <div className="panel-coord-head">
+                        <span>{`Distancia ${cotModo.toUpperCase()}`}</span>
+                        <span className="unit-pink">m</span>
+                      </div>
+                      <input
+                        type="number"
+                        step="0.05"
+                        value={cotDistanciaB}
+                        onChange={(e) => setCotDistanciaB(e.target.value)}
+                        className="panel-coord-num-input-compact"
+                        style={{ fontSize: "16px", fontWeight: "800", textAlign: "left", paddingLeft: "10px" }}
+                      />
+                    </div>
+
+                    {/* Switch: Cuadrado alineado (apagado = rombo) */}
+                    <div className="panel-toggle-row" style={{ marginTop: "2px", marginBottom: "2px" }}>
+                      <span className="toggle-label" style={{ fontSize: "11px" }}>
+                        Cuadrado alineado (apagado = rombo)
+                      </span>
+                      <div
+                        className={`toggle-switch-track ${cotCuadradoAlineado ? "active" : ""}`}
+                        onClick={() => setCotCuadradoAlineado(!cotCuadradoAlineado)}
+                        title={cotCuadradoAlineado ? "Cuadrado ortogonal" : "Rombo girado 45°"}
+                      >
+                        <div className="toggle-switch-thumb" />
+                      </div>
+                    </div>
+
+                    {/* Texto Descriptivo Exacto del Mockup */}
+                    <p className="panel-rec-instruction" style={{ margin: "2px 0", fontSize: "11px", lineHeight: "1.35" }}>
+                      Toca el centro y luego un taladro/referencia.<br />
+                      También puedes tocar solo el centro y usar el botón de abajo con la distancia escrita.
+                    </p>
+
+                    {/* Botón Principal: GENERAR [B] DESDE CENTRO */}
+                    <button
+                      type="button"
+                      className={`btn-rec-confirmar ${cotCentro ? "activo" : ""}`}
+                      onClick={handleEjecutarGenerarB}
+                      style={{ width: "100%", marginTop: "4px" }}
+                      title={
+                        cotCentro
+                          ? `Generar cuadrante ${cotModo.toUpperCase()} en (${cotCentro.x.toFixed(2)}, ${cotCentro.y.toFixed(2)})`
+                          : "Toca un punto en la escena como centro para ubicarlo con precisión"
+                      }
+                    >
+                      {`GENERAR ${cotModo.toUpperCase()} DESDE CENTRO`}
+                    </button>
+                  </>
+                )}
+
+                {/* Si está en modo 'distancia': Caja informativa de pasos y botón de reset */}
+                {cotModo === "distancia" && (
+                  <>
+                    <div className="panel-linea-paso-box" style={{ padding: "8px 10px" }}>
+                      <span className="paso-desc" style={{ fontSize: "11.5px", lineHeight: "1.35", color: "#94a3b8" }}>
+                        {cotPuntoInicio ? (
+                          <span style={{ color: "#00f0ff" }}>
+                            📍 Punto 1 fijado ({cotPuntoInicio.x.toFixed(2)}, {cotPuntoInicio.y.toFixed(2)}). Toca el punto final en la escena.
+                          </span>
+                        ) : (
+                          "Toca el punto inicial en la escena (aplica SNAP a vértices o puntos medios ▲) para comenzar la cota."
+                        )}
+                      </span>
+                    </div>
+
+                    {cotPuntoInicio && (
+                      <button
+                        type="button"
+                        className="btn-rec-reset"
+                        onClick={() => {
+                          setCotPuntoInicio(null);
+                          setCotCursorGuia(null);
+                          mostrarAviso("Punto inicial cancelado");
+                        }}
+                        style={{ width: "100%", height: "30px", fontSize: "11.5px", marginTop: "4px" }}
+                      >
+                        ↺ Cancelar Punto 1
+                      </button>
+                    )}
+                  </>
+                )}
+
+                {/* Botón de Borrar última cota si existen cotas */}
+                {cotasCad.length > 0 && (
+                  <button
+                    type="button"
+                    className="btn-rec-reset"
+                    onClick={() => {
+                      registrarHistorial();
+                      setCotasCad((prev) => prev.slice(0, -1));
+                      mostrarAviso("Última cota eliminada");
+                    }}
+                    style={{ width: "100%", height: "28px", fontSize: "11px", marginTop: "4px" }}
+                    title="Eliminar la última cota dibujada"
+                  >
+                    ✕ Borrar última cota
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* =========================================================================
+            PANEL 11: TALADRO (TAL) - INSERCIÓN POR GRUPO CON LOOK-OUT Y COLOR
+           ========================================================================= */}
+        {herramienta === "TAL" && panelTalVisible && (
+          <div
+            className="cad-panel-taladro-exact"
+            onPointerDown={(e) => e.stopPropagation()}
+            onPointerUp={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="panel-exact-header">
+              <div className="panel-exact-title-row">
+                <span className="panel-exact-title">TALADRO</span>
+                <button
+                  type="button"
+                  className="btn-panel-ocultar"
+                  onClick={() => setPanelTalVisible(false)}
+                  title="Ocultar panel"
+                  style={{ color: "#ec4899", fontWeight: "700", fontSize: "11px", background: "none", border: "none", cursor: "pointer" }}
+                >
+                  ‹ OCULTAR
+                </button>
+              </div>
+              <p className="panel-exact-subtitle" style={{ margin: "2px 0 0", fontSize: "11.5px", color: "#94a3b8" }}>
+                Inserta taladros por grupo usando la configuración activa.
+              </p>
+            </div>
+
+            {!panelTalMinimizado && (
+              <>
+                {/* 1. Selector de Grupo de taladro con scroll horizontal fluido y todos los 7 grupos */}
+                <div style={{ marginTop: "4px" }}>
+                  <div style={{ fontSize: "11px", fontWeight: "700", color: "#94a3b8", marginBottom: "4px" }}>
+                    Grupo de taladro
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "5px",
+                      overflowX: "auto",
+                      paddingBottom: "3px",
+                      scrollbarWidth: "none",
+                    }}
+                  >
+                    {GRUPOS_TALADRO_CONFIG.map((g) => {
+                      const activo = talGrupo === g.id;
+                      return (
+                        <button
+                          key={g.id}
+                          type="button"
+                          className={`btn-pill-choice-compact ${activo ? "pill-active-purple" : ""}`}
+                          onClick={() => {
+                            setTalGrupo(g.id);
+                            setTalRadioMm(g.radioMmDefecto);
+                            setTalLongitudM(g.longitudMDefecto);
+                            setTalLookOutDeg(g.lookOutDefecto);
+                            setTalGradientePct(g.gradienteDefecto);
+                            setTalColor(g.colorDefecto);
+                            setTalCargado(g.cargadoDefecto);
+                          }}
+                          style={{ whiteSpace: "nowrap", flexShrink: 0, padding: "5px 11px", fontSize: "11.5px" }}
+                          title={`Grupo ${g.label}`}
+                        >
+                          {g.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 2. Radio del taladro (mm) */}
+                <div className="panel-coord-box-compact">
+                  <div className="panel-coord-head">
+                    <span>Radio del taladro</span>
+                    <span className="unit-pink">mm</span>
+                  </div>
+                  <input
+                    type="number"
+                    step="0.5"
+                    value={talRadioMm}
+                    onChange={(e) => setTalRadioMm(e.target.value)}
+                    className="panel-coord-num-input-compact"
+                    style={{ fontSize: "16px", fontWeight: "800", textAlign: "left", paddingLeft: "10px" }}
+                  />
+                </div>
+                <span style={{ fontSize: "10.5px", color: "#64748b", marginTop: "-3px" }}>
+                  Diámetro resultante: {(parseFloat(talRadioMm) * 2 || 0).toFixed(0)} mm
+                </span>
+
+                {/* 3. Longitud de barreno (m) */}
+                <div className="panel-coord-box-compact">
+                  <div className="panel-coord-head">
+                    <span>Longitud de barreno</span>
+                    <span className="unit-pink">m</span>
+                  </div>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={talLongitudM}
+                    onChange={(e) => setTalLongitudM(e.target.value)}
+                    className="panel-coord-num-input-compact"
+                    style={{ fontSize: "16px", fontWeight: "800", textAlign: "left", paddingLeft: "10px" }}
+                  />
+                </div>
+
+                {/* 4. Look-out horizontal (°) */}
+                <div className="panel-coord-box-compact">
+                  <div className="panel-coord-head">
+                    <span>Look-out horizontal</span>
+                    <span className="unit-pink">°</span>
+                  </div>
+                  <input
+                    type="number"
+                    step="0.5"
+                    value={talLookOutDeg}
+                    onChange={(e) => setTalLookOutDeg(e.target.value)}
+                    className="panel-coord-num-input-compact"
+                    style={{ fontSize: "16px", fontWeight: "800", textAlign: "left", paddingLeft: "10px" }}
+                  />
+                </div>
+
+                {/* 5. Gradiente vertical (%) */}
+                <div className="panel-coord-box-compact">
+                  <div className="panel-coord-head">
+                    <span>Gradiente vertical</span>
+                    <span className="unit-pink">%</span>
+                  </div>
+                  <input
+                    type="number"
+                    step="0.5"
+                    value={talGradientePct}
+                    onChange={(e) => setTalGradientePct(e.target.value)}
+                    className="panel-coord-num-input-compact"
+                    style={{ fontSize: "16px", fontWeight: "800", textAlign: "left", paddingLeft: "10px" }}
+                  />
+                </div>
+                <span style={{ fontSize: "10.5px", color: "#64748b", marginTop: "-3px", lineHeight: "1.3" }}>
+                  0° / 0% = paralelo. El barreno guarda COLLAR + TOE reales; la longitud 3D se conserva.
+                </span>
+
+                {/* 6. Color (Paleta de 7 colores exacta) */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginTop: "2px" }}>
+                  <span style={{ fontSize: "11px", fontWeight: "700", color: "#94a3b8" }}>Color</span>
+                  <div style={{ display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap" }}>
+                    {["#ec4899", "#00f0ff", "#10b981", "#f59e0b", "#8b5cf6", "#f97316", "#eab308"].map((col) => (
+                      <button
+                        key={col}
+                        type="button"
+                        onClick={() => setTalColor(col)}
+                        style={{
+                          width: "28px",
+                          height: "28px",
+                          borderRadius: "8px",
+                          backgroundColor: col,
+                          border: talColor === col ? "2.5px solid #ffffff" : "1.5px solid rgba(255,255,255,0.2)",
+                          cursor: "pointer",
+                          boxShadow: talColor === col ? "0 0 10px " + col : "none",
+                          transition: "all 0.15s ease",
+                        }}
+                        title={`Elegir color ${col}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* 7. Toggle switch: Taladro cargado */}
+                <div className="panel-toggle-row" style={{ marginTop: "3px" }}>
+                  <span className="toggle-label" style={{ fontSize: "11px" }}>
+                    Taladro cargado
+                  </span>
+                  <div
+                    className={`toggle-switch-track ${talCargado ? "active" : ""}`}
+                    onClick={() => setTalCargado(!talCargado)}
+                    title={talCargado ? "Taladro cargado con explosivo" : "Taladro vacío (alivio)"}
+                  >
+                    <div className="toggle-switch-thumb" />
+                  </div>
+                </div>
+
+                {/* 8. Copiar configuración de */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginTop: "2px" }}>
+                  <span style={{ fontSize: "11px", fontWeight: "700", color: "#94a3b8" }}>
+                    Copiar configuración de
+                  </span>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "5px",
+                      overflowX: "auto",
+                      paddingBottom: "3px",
+                      scrollbarWidth: "none",
+                    }}
+                  >
+                    {GRUPOS_TALADRO_CONFIG.map((g) => (
+                      <button
+                        key={g.id}
+                        type="button"
+                        className="btn-pill-choice-compact"
+                        onClick={() => {
+                          setTalRadioMm(g.radioMmDefecto);
+                          setTalLongitudM(g.longitudMDefecto);
+                          setTalLookOutDeg(g.lookOutDefecto);
+                          setTalGradientePct(g.gradienteDefecto);
+                          setTalColor(g.colorDefecto);
+                          setTalCargado(g.cargadoDefecto);
+                          mostrarAviso(`Configuración copiada de ${g.label}`);
+                        }}
+                        style={{ whiteSpace: "nowrap", flexShrink: 0, padding: "4px 8px", fontSize: "10.5px" }}
+                        title={`Copiar configuración de ${g.label}`}
+                      >
+                        {g.abrev}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 9. Caja informativa / paso */}
+                <div className="panel-linea-paso-box" style={{ padding: "8px 10px", marginTop: "3px" }}>
+                  <span className="paso-desc" style={{ fontSize: "11px", lineHeight: "1.35", color: "#94a3b8" }}>
+                    Cada toque inserta un {GRUPOS_TALADRO_CONFIG.find((g) => g.id === talGrupo)?.label.toLowerCase()} en el SNAP seleccionado.
+                  </span>
+                </div>
+
+                {/* 10. Botón de borrado/deshacer de taladros si existen */}
+                {taladros.length > 0 && (
+                  <button
+                    type="button"
+                    className="btn-rec-reset"
+                    onClick={() => {
+                      registrarHistorial();
+                      if (onCambiarTaladros) {
+                        onCambiarTaladros(taladros.slice(0, -1));
+                      }
+                      mostrarAviso("Último taladro eliminado");
+                    }}
+                    style={{ width: "100%", height: "28px", fontSize: "11px", marginTop: "4px" }}
+                    title="Eliminar el último taladro insertado"
+                  >
+                    ✕ Borrar último taladro ({taladros.length})
+                  </button>
+                )}
               </>
             )}
           </div>
