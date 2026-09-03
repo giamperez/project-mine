@@ -1,0 +1,17 @@
+{
+  "name": "@suite/mining-block-model",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Modulo mining.block-model — Modelo de Bloques: sondajes, compositacion, IDW y ley-tonelaje",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "dependencies": {
+    "@suite/core": "*",
+    "@suite/engine": "*",
+    "three": "^0.169.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}

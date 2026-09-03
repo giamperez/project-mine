@@ -1,0 +1,16 @@
+{
+  "name": "@suite/mining-stereonet",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Modulo mining.stereonet — Proyección Estereográfica: polos, círculos máximos y análisis cinemático",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "dependencies": {
+    "@suite/core": "*",
+    "@suite/engine": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}

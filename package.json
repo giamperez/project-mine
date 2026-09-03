@@ -1,0 +1,16 @@
+{
+  "name": "suite-ingenieria",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Suite de ingenieria 3D por capas — nucleo compartido y apps verticales (mineria / construccion)",
+  "workspaces": [
+    "packages/*",
+    "packages/modules/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "test": "npm run test --workspace=@suite/core",
+    "dev:web": "npm run dev --workspace=@suite/web",
+    "build:web": "npm run build --workspace=@suite/web"
+  }
+}

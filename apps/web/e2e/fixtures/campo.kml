@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <Placemark><name>Punto GPS 1</name><Point><coordinates>-74.00597,40.71435,12</coordinates></Point></Placemark>
+    <Placemark><name>Punto GPS 2</name><Point><coordinates>-74.006,40.7146,14</coordinates></Point></Placemark>
+    <Placemark><name>Punto GPS 3</name><Point><coordinates>-74.0055,40.7148,11.5</coordinates></Point></Placemark>
+  </Document>
+</kml>

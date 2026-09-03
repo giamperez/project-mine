@@ -1,0 +1,395 @@
+import { useEffect, useMemo, useState } from "react";
+import {
+  DEFAULTS_VOLADURA,
+  calcularArranqueHolmberg,
+  calcularGeometriaFrente,
+  disenarMallaPerforacion,
+  disenarVoladura,
+  type EntradaArranqueHolmberg,
+  type EntradaMallaPerforacion,
+  type GeometriaFrenteTunel,
+  type Taladro,
+  type TaladroTunel,
+} from "@suite/core";
+import { exportarTaladrosCSV, exportarTaladrosDXF, importarCrestaBancoDesdeDXF } from "@suite/mining-blast-pattern";
+import { exportarSecuenciaCSV } from "@suite/mining-blasting";
+import type { EstadoCapa } from "@suite/engine";
+import EditorCadMalla from "./components/EditorCadMalla.js";
+import Visor3D from "./components/Visor3D.js";
+import EditorPoligono2D from "./components/EditorPoligono2D.js";
+import EditorTaladros from "./components/EditorTaladros.js";
+import EditorFrenteTunel from "./components/EditorFrenteTunel.js";
+import PanelDisenoMalla from "./components/PanelDisenoMalla.js";
+import PanelDisenoTunel from "./components/PanelDisenoTunel.js";
+import PanelDerecho, { type SubPestanaDerecha } from "./components/PanelDerecho.js";
+import PanelDerechoTunel from "./components/PanelDerechoTunel.js";
+import type { EntradaVoladuraUI } from "./components/PanelVoladura.js";
+import { descargarTexto } from "./utils/descargar.js";
+import { EXPLOSIVOS_PRESET } from "./data/presets.js";
+import { usePersistedState } from "./hooks/usePersistedState.js";
+
+type Pestana = "diseno" | "3d" | "tabla" | "voladura";
+type ModoVisor = "3d" | "editarCresta" | "editarTaladros";
+type ModoDiseno = "banco" | "tunel";
+
+const DURACION_VISUAL_ANIMACION_MS = 5000;
+
+function rectangulo(largo: number, ancho: number) {
+  return [
+    { x: 0, y: 0 },
+    { x: largo, y: 0 },
+    { x: largo, y: ancho },
+    { x: 0, y: ancho },
+  ];
+}
+
+interface EspacioMallaProps {
+  onVolverAlPortal?: () => void;
+}
+
+export default function EspacioMalla({ onVolverAlPortal }: EspacioMallaProps = {}) {
+  const [vistaActual, setVistaActual] = useState<"cad" | "taller3d">("cad");
+  const [modoDiseno, setModoDiseno] = usePersistedState<ModoDiseno>("malla.modoDiseno", "banco");
+
+  const [geometriaTunel, setGeometriaTunel] = usePersistedState<GeometriaFrenteTunel>("malla.tunel.geometria", {
+    tipo: "herradura",
+    ancho_m: 4.5,
+    alto_m: 4.5,
+  });
+  const [entradaArranqueTunel, setEntradaArranqueTunel] = usePersistedState<EntradaArranqueHolmberg>("malla.tunel.arranque", {
+    diametroIndividualAlivio_mm: 102,
+    numeroTaladrosAlivio: 4,
+    avance_m: 3.2,
+  });
+  const [taladrosTunel, setTaladrosTunel] = usePersistedState<TaladroTunel[]>("malla.tunel.taladros", []);
+  const resultadoGeometriaTunel = useMemo(() => calcularGeometriaFrente(geometriaTunel), [geometriaTunel]);
+  const resultadoArranqueTunel = useMemo(() => calcularArranqueHolmberg(entradaArranqueTunel), [entradaArranqueTunel]);
+
+  const [largoRectangulo, setLargoRectangulo] = usePersistedState("malla.largoRectangulo", 24);
+  const [anchoRectangulo, setAnchoRectangulo] = usePersistedState("malla.anchoRectangulo", 16);
+  const [pestana, setPestana] = useState<Pestana>("diseno");
+  const [modoVisor, setModoVisor] = useState<ModoVisor>("3d");
+  const [subPestanaDerecha, setSubPestanaDerecha] = useState<SubPestanaDerecha>("tabla");
+  const [capas, setCapas] = useState<EstadoCapa[]>([]);
+  const [mensaje, setMensaje] = useState<string | null>(null);
+
+  const [entrada, setEntrada] = usePersistedState<EntradaMallaPerforacion>("malla.entrada", {
+    poligonoCresta: rectangulo(24, 16),
+    cotaCresta: 4500,
+    alturaBanco_m: 10,
+    diametroMm: 89,
+    densidadRocaGcm3: 2.7,
+    tipoRoca: "media",
+    explosivo: EXPLOSIVOS_PRESET[0],
+  });
+
+  const [entradaVoladura, setEntradaVoladura] = usePersistedState<EntradaVoladuraUI>("malla.entradaVoladura", {
+    patronIniciacion: "echelon",
+    msPorMetroBurden: DEFAULTS_VOLADURA.msPorMetroBurden,
+    msPorMetroEspaciamiento: DEFAULTS_VOLADURA.msPorMetroEspaciamiento,
+  });
+
+  const [reproduciendo, setReproduciendo] = useState(false);
+  const [tiempoActual_ms, setTiempoActual_ms] = useState(0);
+
+  const resultado = useMemo(() => disenarMallaPerforacion(entrada), [entrada]);
+
+  // null = usar la grilla auto-generada por formula (resultado.taladros); no-null = edicion manual
+  // (agregar/mover/eliminar taladros sueltos) que reemplaza esa grilla en toda la app hasta que se
+  // regenera explicitamente.
+  const [taladrosManuales, setTaladrosManuales] = usePersistedState<Taladro[] | null>("malla.taladrosManuales", null);
+  const taladrosEfectivos = taladrosManuales ?? resultado.taladros;
+  const resultadoEfectivo = useMemo(() => ({ ...resultado, taladros: taladrosEfectivos }), [resultado, taladrosEfectivos]);
+
+  const resultadoVoladura = useMemo(
+    () =>
+      disenarVoladura({
+        taladros: taladrosEfectivos,
+        burden_m: resultado.burdenDiseno_m,
+        espaciamiento_m: resultado.espaciamiento_m,
+        alturaBanco_m: entrada.alturaBanco_m,
+        explosivo: entrada.explosivo,
+        patronIniciacion: entradaVoladura.patronIniciacion,
+        msPorMetroBurden: entradaVoladura.msPorMetroBurden,
+        msPorMetroEspaciamiento: entradaVoladura.msPorMetroEspaciamiento,
+      }),
+    [taladrosEfectivos, resultado.burdenDiseno_m, resultado.espaciamiento_m, entrada.alturaBanco_m, entrada.explosivo, entradaVoladura]
+  );
+
+  const opcionesEscena = useMemo(
+    () => ({
+      poligonoCresta: entrada.poligonoCresta,
+      cotaCresta: entrada.cotaCresta,
+      alturaBanco_m: entrada.alturaBanco_m,
+    }),
+    [entrada.poligonoCresta, entrada.cotaCresta, entrada.alturaBanco_m]
+  );
+
+  // Reproduccion de la secuencia de iniciacion: siempre dura ~5s en pantalla, sin importar los
+  // ms reales de la voladura (que suelen ser demasiado breves para percibirse).
+  useEffect(() => {
+    if (!reproduciendo) return;
+    const duracionReal_ms = Math.max(resultadoVoladura.duracionTotalSecuencia_ms, 1);
+    const escala = duracionReal_ms / DURACION_VISUAL_ANIMACION_MS;
+    let cuadro: number;
+    let inicio: number | null = null;
+
+    const tick = (t: number) => {
+      if (inicio === null) inicio = t;
+      const nuevo = (t - inicio) * escala;
+      if (nuevo >= duracionReal_ms + 200) {
+        setTiempoActual_ms(duracionReal_ms + 200);
+        setReproduciendo(false);
+        return;
+      }
+      setTiempoActual_ms(nuevo);
+      cuadro = requestAnimationFrame(tick);
+    };
+    cuadro = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(cuadro);
+  }, [reproduciendo, resultadoVoladura.duracionTotalSecuencia_ms]);
+
+  function handleCambiarRectangulo(largo: number, ancho: number) {
+    setLargoRectangulo(largo);
+    setAnchoRectangulo(ancho);
+    setEntrada((prev) => ({ ...prev, poligonoCresta: rectangulo(largo, ancho) }));
+  }
+
+  async function handleImportarDXF(archivo: File) {
+    const texto = await archivo.text();
+    const resultadoImport = importarCrestaBancoDesdeDXF(texto);
+    if (!resultadoImport) {
+      setMensaje("No se encontró ninguna polilínea (LWPOLYLINE/POLYLINE) en el DXF importado.");
+      return;
+    }
+    setEntrada((prev) => ({
+      ...prev,
+      poligonoCresta: resultadoImport.poligonoCresta,
+      cotaCresta: resultadoImport.cotaDetectada || prev.cotaCresta,
+    }));
+    setMensaje(`Cresta importada: ${resultadoImport.poligonoCresta.length} vértices.`);
+  }
+
+  function handleExportarDXF() {
+    descargarTexto("malla-perforacion.dxf", exportarTaladrosDXF(resultadoEfectivo), "application/dxf");
+  }
+
+  function handleExportarCSV() {
+    descargarTexto("malla-perforacion.csv", exportarTaladrosCSV(resultadoEfectivo), "text/csv");
+  }
+
+  async function handleExportarPDF() {
+    const { generarReporteMalla } = await import("./utils/reportePdf.js");
+    const doc = generarReporteMalla(entrada, resultadoEfectivo, resultadoVoladura);
+    doc.save("reporte-malla-perforacion.pdf");
+  }
+
+  function handleExportarSecuenciaCSV() {
+    descargarTexto("secuencia-voladura.csv", exportarSecuenciaCSV(resultadoVoladura), "text/csv");
+  }
+
+  function handlePlay() {
+    if (tiempoActual_ms >= resultadoVoladura.duracionTotalSecuencia_ms) setTiempoActual_ms(0);
+    setReproduciendo(true);
+  }
+
+  function handlePausar() {
+    setReproduciendo(false);
+  }
+
+  function handleReiniciar() {
+    setReproduciendo(false);
+    setTiempoActual_ms(0);
+  }
+
+  function irAPestana(nueva: Pestana) {
+    setPestana(nueva);
+    if (nueva === "tabla" || nueva === "voladura") setSubPestanaDerecha(nueva);
+  }
+
+  if (vistaActual === "cad" && modoDiseno === "banco") {
+    return (
+      <EditorCadMalla
+        poligonoCresta={entrada.poligonoCresta}
+        onCambiarPoligono={(nuevos) => setEntrada({ ...entrada, poligonoCresta: nuevos })}
+        taladros={taladrosEfectivos}
+        onCambiarTaladros={setTaladrosManuales}
+        onIrARender={() => setVistaActual("taller3d")}
+        onVolver={() => onVolverAlPortal?.()}
+      />
+    );
+  }
+
+  return (
+    <>
+      {mensaje && (
+        <div className="mensaje-notificacion" role="status">
+          {mensaje}
+        </div>
+      )}
+
+      <div className="visor-modo-toggle" style={{ margin: "8px 14px 0" }}>
+        <button type="button" onClick={() => setVistaActual("cad")} style={{ borderColor: "#f97316", color: "#f97316", fontWeight: 700 }}>
+          📐 Editor CAD (2D)
+        </button>
+        <button type="button" data-activo={modoDiseno === "banco"} onClick={() => setModoDiseno("banco")}>
+          Banco (cielo abierto)
+        </button>
+        <button type="button" data-activo={modoDiseno === "tunel"} onClick={() => setModoDiseno("tunel")}>
+          Túnel / galería (subterráneo)
+        </button>
+      </div>
+
+      {modoDiseno === "tunel" ? (
+        <>
+          <main className="app-main">
+            <PanelDisenoTunel
+              geometria={geometriaTunel}
+              onCambiarGeometria={setGeometriaTunel}
+              entradaArranque={entradaArranqueTunel}
+              onCambiarEntradaArranque={setEntradaArranqueTunel}
+              resultadoGeometria={resultadoGeometriaTunel}
+              resultadoArranque={resultadoArranqueTunel}
+              taladros={taladrosTunel}
+              oculto={pestana !== "diseno"}
+            />
+
+            <div className="visor-contenedor" data-oculto={pestana !== "3d"}>
+              <div className="visor-contenido">
+                <EditorFrenteTunel taladros={taladrosTunel} onCambiarTaladros={setTaladrosTunel} />
+              </div>
+            </div>
+
+            <PanelDerechoTunel
+              subPestana={subPestanaDerecha}
+              onCambiarSubPestana={setSubPestanaDerecha}
+              taladros={taladrosTunel}
+              oculto={pestana !== "tabla" && pestana !== "voladura"}
+            />
+          </main>
+
+          <nav className="tabs-inferior">
+            <button type="button" data-activo={pestana === "diseno"} onClick={() => irAPestana("diseno")}>
+              Diseño
+            </button>
+            <button type="button" data-activo={pestana === "3d"} onClick={() => irAPestana("3d")}>
+              Frente
+            </button>
+            <button type="button" data-activo={pestana === "tabla"} onClick={() => irAPestana("tabla")}>
+              Taladros
+            </button>
+            <button type="button" data-activo={pestana === "voladura"} onClick={() => irAPestana("voladura")}>
+              Voladura
+            </button>
+          </nav>
+        </>
+      ) : (
+        <>
+      <main className="app-main">
+        <PanelDisenoMalla
+          entrada={entrada}
+          onCambiarEntrada={setEntrada}
+          resultado={resultadoEfectivo}
+          largoRectangulo={largoRectangulo}
+          anchoRectangulo={anchoRectangulo}
+          onCambiarRectangulo={handleCambiarRectangulo}
+          onImportarDXF={handleImportarDXF}
+          onExportarDXF={handleExportarDXF}
+          onExportarCSV={handleExportarCSV}
+          onExportarPDF={handleExportarPDF}
+          oculto={pestana !== "diseno"}
+        />
+
+        <div className="visor-contenedor" data-oculto={pestana !== "3d"}>
+          <div className="visor-modo-toggle">
+            <button type="button" data-activo={modoVisor === "3d"} onClick={() => setModoVisor("3d")}>
+              Vista 3D
+            </button>
+            <button type="button" data-activo={modoVisor === "editarCresta"} onClick={() => setModoVisor("editarCresta")}>
+              ✏ Dibujar cresta 2D
+            </button>
+            <button type="button" data-activo={modoVisor === "editarTaladros"} onClick={() => setModoVisor("editarTaladros")}>
+              ✏ Editar taladros
+            </button>
+          </div>
+          <div className="visor-contenido">
+            <div style={{ display: modoVisor === "3d" ? "contents" : "none" }}>
+              <Visor3D
+                resultado={resultadoEfectivo}
+                opciones={opcionesEscena}
+                resultadoVoladura={resultadoVoladura}
+                tiempoAnimacion_ms={tiempoActual_ms}
+                onCapas={setCapas}
+              />
+              <div className="capas-leyenda">
+                {capas.map((c) => (
+                  <div className="item" key={c.id}>
+                    <span className="swatch" style={{ background: c.color }} />
+                    {c.nombre}
+                  </div>
+                ))}
+              </div>
+            </div>
+            {modoVisor === "editarCresta" && (
+              <EditorPoligono2D
+                puntos={entrada.poligonoCresta}
+                onCambiarPuntos={(nuevos) => setEntrada((prev) => ({ ...prev, poligonoCresta: nuevos }))}
+              />
+            )}
+            {modoVisor === "editarTaladros" && (
+              <EditorTaladros
+                taladros={taladrosEfectivos}
+                onCambiarTaladros={setTaladrosManuales}
+                onRegenerarGrilla={() => setTaladrosManuales(null)}
+                esManual={taladrosManuales !== null}
+                defaults={{
+                  cotaCresta: entrada.cotaCresta,
+                  profundidad_m: resultado.profundidadTaladro_m,
+                  diametroMm: entrada.diametroMm,
+                  taco_m: resultado.taco_m,
+                  longitudCarga_m: resultado.longitudCarga_m,
+                }}
+              />
+            )}
+          </div>
+        </div>
+
+        <PanelDerecho
+          subPestana={subPestanaDerecha}
+          onCambiarSubPestana={setSubPestanaDerecha}
+          resultado={resultadoEfectivo}
+          resultadoVoladura={resultadoVoladura}
+          entradaVoladura={entradaVoladura}
+          onCambiarEntradaVoladura={setEntradaVoladura}
+          reproduciendo={reproduciendo}
+          tiempoActual_ms={tiempoActual_ms}
+          onPlay={handlePlay}
+          onPausar={handlePausar}
+          onReiniciar={handleReiniciar}
+          onExportarSecuenciaCSV={handleExportarSecuenciaCSV}
+          oculto={pestana !== "tabla" && pestana !== "voladura"}
+        />
+      </main>
+
+      <nav className="tabs-inferior">
+        <button type="button" onClick={() => setVistaActual("cad")} style={{ color: "#f97316", fontWeight: 700 }}>
+          📐 CAD 2D
+        </button>
+        <button type="button" data-activo={pestana === "diseno"} onClick={() => irAPestana("diseno")}>
+          Diseño
+        </button>
+        <button type="button" data-activo={pestana === "3d"} onClick={() => irAPestana("3d")}>
+          Vista 3D
+        </button>
+        <button type="button" data-activo={pestana === "tabla"} onClick={() => irAPestana("tabla")}>
+          Taladros
+        </button>
+        <button type="button" data-activo={pestana === "voladura"} onClick={() => irAPestana("voladura")}>
+          Voladura
+        </button>
+      </nav>
+        </>
+      )}
+    </>
+  );
+}
