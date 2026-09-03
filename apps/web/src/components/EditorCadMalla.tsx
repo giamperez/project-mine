@@ -108,6 +108,18 @@ export interface CotaCad3D {
   capaId: string;
 }
 
+export interface SolidoCad3D {
+  id: string;
+  nombre: string;
+  perfil: { x: number; y: number }[];
+  profundidad: number;
+  area_m2: number;
+  volumen_m3: number;
+  centroide: { x: number; y: number; z: number };
+  color: string;
+  capaId: string;
+}
+
 export type GrupoTaladroCad =
   | "arranque"
   | "alivio"
@@ -458,6 +470,12 @@ export default function EditorCadMalla({
   const [talColor, setTalColor] = usePersistedState<string>("cad:talColor", "#ec4899");
   const [talCargado, setTalCargado] = usePersistedState<boolean>("cad:talCargado", true);
 
+  // Estado del Panel 'SÓLIDO' (SOL - Exacto a la captura del usuario)
+  const [panelSolVisible, setPanelSolVisible] = useState(false);
+  const [panelSolMinimizado, setPanelSolMinimizado] = usePersistedState<boolean>("cad:panelSolMinimizado", false);
+  const [solProfundidad, setSolProfundidad] = usePersistedState<string>("cad:solProfundidad", "1.00");
+  const [solidosCad, setSolidosCad] = usePersistedState<SolidoCad3D[]>("cad:solidos", []);
+
   // Estado del Gestor de Capas y Carpetas (Estilo AutoCAD / Civil 3D)
   const [panelCapasVisible, setPanelCapasVisible] = useState(false);
   const [panelCapasMinimizado, setPanelCapasMinimizado] = usePersistedState<boolean>("cad:panelCapasMinimizado", false);
@@ -503,6 +521,15 @@ export default function EditorCadMalla({
       visible: true,
       bloqueada: false,
       carpetaId: "carp-topo",
+      elementosCount: 0,
+    },
+    {
+      id: "capa-solidos",
+      nombre: "Sólidos 3D / Extrusiones",
+      color: "#f43f5e",
+      visible: true,
+      bloqueada: false,
+      carpetaId: "carp-malla",
       elementosCount: 0,
     },
   ]);
@@ -1021,6 +1048,78 @@ export default function EditorCadMalla({
     };
     reader.readAsText(file);
     e.target.value = "";
+  }
+
+  // Extruir Polilínea Cerrada en Z y Obtener su Centroide 3D
+  function handleExtruirPerfil() {
+    const prof = parseFloat(solProfundidad);
+    if (isNaN(prof) || prof <= 0) {
+      mostrarAviso("Ingresa una profundidad válida mayor a 0 m");
+      return;
+    }
+
+    let perfilPuntos: { x: number; y: number }[] = [];
+    const plSeleccionada = polilineasCad.find(
+      (pl) => pl.cerrada && (polilineasSeleccionadas.includes(pl.id) || polilineasSeleccionadas.length === 0)
+    );
+
+    if (plSeleccionada && plSeleccionada.puntos.length >= 3) {
+      perfilPuntos = plSeleccionada.puntos.map((p) => ({ x: p.x, y: p.y }));
+    } else if (poligonoCresta && poligonoCresta.length >= 3) {
+      perfilPuntos = poligonoCresta.map((p) => ({ x: p.x, y: p.y }));
+    }
+
+    if (perfilPuntos.length < 3) {
+      mostrarAviso("Selecciona o dibuja una polilínea cerrada para extruir");
+      return;
+    }
+
+    let area2d = 0;
+    let cx = 0;
+    let cy = 0;
+    const n = perfilPuntos.length;
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n;
+      const factor = perfilPuntos[i].x * perfilPuntos[j].y - perfilPuntos[j].x * perfilPuntos[i].y;
+      area2d += factor;
+      cx += (perfilPuntos[i].x + perfilPuntos[j].x) * factor;
+      cy += (perfilPuntos[i].y + perfilPuntos[j].y) * factor;
+    }
+    area2d = area2d / 2;
+    const areaAbs = Math.abs(area2d);
+    if (areaAbs < 0.001) {
+      mostrarAviso("El polígono es colineal o tiene área nula");
+      return;
+    }
+
+    cx = cx / (6 * area2d);
+    cy = cy / (6 * area2d);
+    const cz = -prof / 2;
+    const volumen = areaAbs * prof;
+
+    const nuevoSolido: SolidoCad3D = {
+      id: `solido-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      nombre: `Sólido #${solidosCad.length + 1}`,
+      perfil: perfilPuntos,
+      profundidad: prof,
+      area_m2: Math.round(areaAbs * 100) / 100,
+      volumen_m3: Math.round(volumen * 100) / 100,
+      centroide: {
+        x: Math.round(cx * 100) / 100,
+        y: Math.round(cy * 100) / 100,
+        z: Math.round(cz * 100) / 100,
+      },
+      color: "#f43f5e",
+      capaId: capaActivaId || "capa-solidos",
+    };
+
+    setSolidosCad((prev) => [...prev, nuevoSolido]);
+    setCapas((prev) =>
+      prev.map((c) =>
+        c.id === "capa-solidos" ? { ...c, elementosCount: solidosCad.length + 1 } : c
+      )
+    );
+    mostrarAviso(`Sólido 3D generado: ${nuevoSolido.volumen_m3.toFixed(2)} m³ | Centro (${nuevoSolido.centroide.x}, ${nuevoSolido.centroide.y}, ${nuevoSolido.centroide.z})`);
   }
 
   // Insertar Punto por Coordenadas Exactas XYZ (Punto normal independiente sin líneas)
@@ -2467,7 +2566,57 @@ export default function EditorCadMalla({
         });
       }
     }
+
+    // 14. Renderizado de SÓLIDOS 3D Extruidos y Centroide
+    if (solidosCad.length > 0) {
+      solidosCad.forEach((sol) => {
+        const capaSol = capas.find((c) => c.id === sol.capaId);
+        if (capaSol && !capaSol.visible) return;
+
+        const shape = new THREE.Shape();
+        sol.perfil.forEach((pt, idx) => {
+          if (idx === 0) shape.moveTo(pt.x, pt.y);
+          else shape.lineTo(pt.x, pt.y);
+        });
+        shape.closePath();
+
+        const extrudeGeom = new THREE.ExtrudeGeometry(shape, {
+          depth: sol.profundidad,
+          bevelEnabled: false,
+        });
+
+        extrudeGeom.rotateX(Math.PI / 2);
+        extrudeGeom.translate(0, 0, 0);
+
+        const solMat = new THREE.MeshStandardMaterial({
+          color: new THREE.Color(sol.color || "#f43f5e").getHex(),
+          transparent: true,
+          opacity: 0.62,
+          roughness: 0.35,
+          metalness: 0.15,
+          side: THREE.DoubleSide,
+        });
+
+        const solidMesh = new THREE.Mesh(extrudeGeom, solMat);
+        group.add(solidMesh);
+
+        const edges = new THREE.EdgesGeometry(extrudeGeom);
+        const edgeLine = new THREE.LineSegments(
+          edges,
+          new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 2 })
+        );
+        group.add(edgeLine);
+
+        // Marcador cian en el Centroide 3D
+        const centroGeo = new THREE.SphereGeometry(0.35, 16, 16);
+        const centroMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
+        const centroMesh = new THREE.Mesh(centroGeo, centroMat);
+        centroMesh.position.set(sol.centroide.x, -sol.profundidad / 2, sol.centroide.y);
+        group.add(centroMesh);
+      });
+    }
   }, [
+    solidosCad,
     poligonoCresta,
     taladros,
     indicesSeleccionados,
@@ -4628,6 +4777,7 @@ export default function EditorCadMalla({
                     else if (h === "OFF") setPanelOffVisible((prev) => !prev);
                     else if (h === "COT") setPanelCotVisible((prev) => !prev);
                     else if (h === "TAL") setPanelTalVisible((prev) => !prev);
+                    else if (h === "SOL") setPanelSolVisible((prev) => !prev);
                   } else {
                     setHerramienta(h);
                     setPanelSelVisible(h === "SEL");
@@ -4641,8 +4791,8 @@ export default function EditorCadMalla({
                     setPanelOffVisible(h === "OFF");
                     setPanelCotVisible(h === "COT");
                     setPanelTalVisible(h === "TAL");
+                    setPanelSolVisible(h === "SOL");
                   }
-                  if (h === "SOL") onIrARender();
                 }}
                 title={`Herramienta ${h}`}
               >
@@ -5848,6 +5998,140 @@ export default function EditorCadMalla({
                 >
                   INSERTAR XYZ
                 </button>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* =========================================================================
+            PANEL: SÓLIDO (EXTRUIR POLILÍNEA CERRADA EN Z Y OBTENER SU CENTRO)
+           ========================================================================= */}
+        {herramienta === "SOL" && panelSolVisible && (
+          <div
+            className={`cad-panel-solido-exact ${panelSolMinimizado ? "panel-comprimido" : ""}`}
+            onPointerDown={(e) => e.stopPropagation()}
+            onPointerUp={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {panelSolMinimizado ? (
+              <div className="panel-mini-strip">
+                <div className="mini-coords-info">
+                  <strong>Sólido:</strong> Prof. {solProfundidad}m
+                </div>
+                <div className="mini-actions">
+                  <button type="button" className="btn-mini-expand" onClick={() => setPanelSolMinimizado(false)}>
+                    ⤢ Expandir
+                  </button>
+                  <button type="button" className="btn-header-round-close" onClick={() => setPanelSolVisible(false)}>
+                    ✕
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Header idéntico a la captura con título, subtítulo y '< OCULTAR' */}
+                <div className="panel-solido-header">
+                  <div className="panel-solido-title-col">
+                    <h2 className="panel-solido-title">SÓLIDO</h2>
+                    <p className="panel-solido-subtitle">
+                      Extruye una polilínea cerrada y<br />
+                      obtiene su centro.
+                    </p>
+                  </div>
+                  <div className="panel-solido-header-actions">
+                    <button
+                      type="button"
+                      className="btn-solido-ocultar"
+                      onClick={() => setPanelSolVisible(false)}
+                      title="Ocultar panel"
+                    >
+                      <span className="chevron-left">‹</span> OCULTAR
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-header-round-min"
+                      onClick={() => setPanelSolMinimizado(true)}
+                      title="Minimizar panel"
+                    >
+                      −
+                    </button>
+                  </div>
+                </div>
+
+                {/* Badge CAPA ACTIVA */}
+                <div className="panel-solido-capa-box">
+                  CAPA ACTIVA · {capas.find((c) => c.id === capaActivaId)?.nombre || "Dibujo CAD"}
+                </div>
+
+                {/* Texto descriptivo exacto */}
+                <p className="panel-solido-instruction">
+                  Selecciona una polilínea cerrada creada en CAD y extrúyela en Z.
+                </p>
+
+                {/* Campo Profundidad con 'm' fucsia */}
+                <div className="panel-solido-field-group">
+                  <div className="panel-solido-field-head">
+                    <span className="field-label-white">Profundidad</span>
+                    <span className="field-unit-pink">m</span>
+                  </div>
+                  <div className="panel-solido-input-card">
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="0.1"
+                      value={solProfundidad}
+                      onChange={(e) => setSolProfundidad(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleExtruirPerfil();
+                      }}
+                      className="panel-solido-input-value"
+                    />
+                  </div>
+                </div>
+
+                {/* Botón Principal Fucsia: EXTRUIR PERFIL */}
+                <button
+                  type="button"
+                  className="btn-pink-extruir-perfil"
+                  onClick={handleExtruirPerfil}
+                >
+                  EXTRUIR PERFIL
+                </button>
+
+                {/* Tarjeta de resultados si hay sólidos generados */}
+                {solidosCad.length > 0 && (
+                  <div className="panel-solido-results-card">
+                    <div className="results-head">
+                      <span>ÚLTIMO SÓLIDO (#{solidosCad.length})</span>
+                      <button
+                        type="button"
+                        className="btn-limpiar-solidos"
+                        onClick={() => {
+                          setSolidosCad([]);
+                          mostrarAviso("Sólidos eliminados");
+                        }}
+                      >
+                        Limpiar
+                      </button>
+                    </div>
+                    <div className="results-grid">
+                      <div className="res-item">
+                        <label>Volumen</label>
+                        <strong>{solidosCad[solidosCad.length - 1].volumen_m3.toFixed(2)} m³</strong>
+                      </div>
+                      <div className="res-item">
+                        <label>Área Base</label>
+                        <strong>{solidosCad[solidosCad.length - 1].area_m2.toFixed(2)} m²</strong>
+                      </div>
+                    </div>
+                    <div className="res-centroide">
+                      <label>Centroide 3D (X, Y, Z)</label>
+                      <code>
+                        ({solidosCad[solidosCad.length - 1].centroide.x}, {solidosCad[solidosCad.length - 1].centroide.y}, {solidosCad[solidosCad.length - 1].centroide.z}) m
+                      </code>
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </div>
