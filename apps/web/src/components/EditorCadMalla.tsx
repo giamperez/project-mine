@@ -42,7 +42,8 @@ type HerramientaCad =
   | "OFF"
   | "COT"
   | "TAL"
-  | "SOL";
+  | "SOL"
+  | "GRI";
 
 type SistemaCoordenadas = "local" | "utm_18s" | "utm_19s" | "psad56";
 type TipoLinea = "continua" | "discontinua" | "puntos" | "centro";
@@ -490,6 +491,17 @@ export default function EditorCadMalla({
   const [solProfundidad, setSolProfundidad] = usePersistedState<string>("cad:solProfundidad", "12.00");
   const [solidosCad, setSolidosCad] = usePersistedState<SolidoCad3D[]>("cad:solidos", []);
   const [aristasSolidosSeleccionadas, setAristasSolidosSeleccionadas] = useState<string[]>([]);
+
+  // Estado del Panel 'GRILLA' (GRI - Exacto a la captura del usuario)
+  const [panelGriVisible, setPanelGriVisible] = useState(false);
+  const [panelGriMinimizado, setPanelGriMinimizado] = usePersistedState<boolean>("cad:panelGriMinimizado", false);
+  const [griPaso, setGriPaso] = usePersistedState<string>("cad:griPaso", "0.5");
+  const [griOrigenX, setGriOrigenX] = usePersistedState<string>("cad:griOrigenX", "0");
+  const [griOrigenY, setGriOrigenY] = usePersistedState<string>("cad:griOrigenY", "0");
+  const [griMostrarGrilla, setGriMostrarGrilla] = usePersistedState<boolean>("cad:griMostrarGrilla", true);
+  const [griSnapMetrico, setGriSnapMetrico] = usePersistedState<boolean>("cad:griSnapMetrico", true);
+  const [griSnapMediaCuadricula, setGriSnapMediaCuadricula] = usePersistedState<boolean>("cad:griSnapMediaCuadricula", true);
+  const [griMoviendoOrigen, setGriMoviendoOrigen] = useState<boolean>(false);
 
   // Estado del Gestor de Capas y Carpetas (Estilo AutoCAD / Civil 3D)
   const [panelCapasVisible, setPanelCapasVisible] = useState(false);
@@ -1352,6 +1364,55 @@ export default function EditorCadMalla({
     mostrarAviso(`✓ Cota de ${nuevaCota.texto} creada sobre la arista`);
   }
 
+  // Centrar Origen de Grilla en Galería o en Centroide del Dibujo
+  function handleCentrarOrigenEnGaleria() {
+    // 1. Buscar si hay polilíneas con rol 'galeria'
+    const galeriaPl = polilineasCad.find((pl) => pl.rol === "galeria");
+    if (galeriaPl && galeriaPl.puntos.length > 0) {
+      const sumX = galeriaPl.puntos.reduce((acc, p) => acc + p.x, 0);
+      const sumY = galeriaPl.puntos.reduce((acc, p) => acc + p.y, 0);
+      const cx = (sumX / galeriaPl.puntos.length).toFixed(2);
+      const cy = (sumY / galeriaPl.puntos.length).toFixed(2);
+      setGriOrigenX(cx);
+      setGriOrigenY(cy);
+      mostrarAviso(`✓ Origen centrado en Galería CAD: (${cx}, ${cy})`);
+      return;
+    }
+
+    // 2. Si hay polígono cresta
+    if (poligonoCresta.length > 0) {
+      const sumX = poligonoCresta.reduce((acc, p) => acc + p.x, 0);
+      const sumY = poligonoCresta.reduce((acc, p) => acc + p.y, 0);
+      const cx = (sumX / poligonoCresta.length).toFixed(2);
+      const cy = (sumY / poligonoCresta.length).toFixed(2);
+      setGriOrigenX(cx);
+      setGriOrigenY(cy);
+      mostrarAviso(`✓ Origen centrado en Cresta de Banco: (${cx}, ${cy})`);
+      return;
+    }
+
+    // 3. O en centroide de líneas o puntos
+    if (lineasCad.length > 0) {
+      const sumX = lineasCad.reduce((acc, l) => acc + l.p1.x + l.p2.x, 0);
+      const sumY = lineasCad.reduce((acc, l) => acc + l.p1.y + l.p2.y, 0);
+      const cx = (sumX / (lineasCad.length * 2)).toFixed(2);
+      const cy = (sumY / (lineasCad.length * 2)).toFixed(2);
+      setGriOrigenX(cx);
+      setGriOrigenY(cy);
+      mostrarAviso(`✓ Origen centrado en Geometría CAD: (${cx}, ${cy})`);
+      return;
+    }
+
+    setGriOrigenX("0");
+    setGriOrigenY("0");
+    mostrarAviso("Origen restablecido en (0, 0)");
+  }
+
+  function handleIniciarMoverOrigenSnap() {
+    setGriMoviendoOrigen(true);
+    mostrarAviso("📍 Toca en cualquier punto, vértice o coordenada de la pantalla para situar el Origen de la grilla");
+  }
+
   // Insertar Punto por Coordenadas Exactas XYZ (Punto normal independiente sin líneas)
   function handleInsertarPuntoXYZ() {
     const x = parseFloat(ptoX) || 0;
@@ -1437,10 +1498,7 @@ export default function EditorCadMalla({
     dirLight.position.set(50, 100, 60);
     scene.add(dirLight);
 
-    const gridHelper = new THREE.GridHelper(500, 100, 0x1f304d, 0x131c2c);
-    gridHelper.position.y = -0.02;
-    scene.add(gridHelper);
-
+    // La Grilla técnica 3D se renderiza dinámicamente según paso y origen en el drawingGroup
     const axesHelper = new THREE.AxesHelper(10);
     scene.add(axesHelper);
 
@@ -2875,9 +2933,48 @@ export default function EditorCadMalla({
         group.add(centroMesh);
       });
     }
+
+    // 15. Renderizado de GRILLA Técnica Dinámica y Cruz de Origen
+    if (griMostrarGrilla) {
+      const p = Math.max(0.1, parseFloat(griPaso) || 0.5);
+      const oX = parseFloat(griOrigenX) || 0;
+      const oY = parseFloat(griOrigenY) || 0;
+      const radio = 160;
+      const numLineas = Math.min(400, Math.max(10, Math.round((radio * 2) / p)));
+      const size = numLineas * p;
+
+      const dynamicGrid = new THREE.GridHelper(size, numLineas, 0xf43f5e, 0x141e2e);
+      dynamicGrid.position.set(oX, -0.02, oY);
+      group.add(dynamicGrid);
+
+      // Cruz fucsia en el Origen configurado de la Grilla
+      const cruzMat = new THREE.LineBasicMaterial({ color: 0xf43f5e, linewidth: 2.5 });
+      const cSize = Math.max(1.2, p * 2);
+      const cruzGeo1 = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(oX - cSize, 0.03, oY),
+        new THREE.Vector3(oX + cSize, 0.03, oY),
+      ]);
+      const cruzGeo2 = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(oX, 0.03, oY - cSize),
+        new THREE.Vector3(oX, 0.03, oY + cSize),
+      ]);
+      group.add(new THREE.Line(cruzGeo1, cruzMat));
+      group.add(new THREE.Line(cruzGeo2, cruzMat));
+
+      // Marcador esférico de origen (0, 0) de la grilla
+      const oGeo = new THREE.SphereGeometry(0.28, 12, 12);
+      const oMat = new THREE.MeshBasicMaterial({ color: 0xf43f5e });
+      const oMesh = new THREE.Mesh(oGeo, oMat);
+      oMesh.position.set(oX, 0.04, oY);
+      group.add(oMesh);
+    }
   }, [
     solidosCad,
     aristasSolidosSeleccionadas,
+    griMostrarGrilla,
+    griPaso,
+    griOrigenX,
+    griOrigenY,
     poligonoCresta,
     taladros,
     indicesSeleccionados,
@@ -3154,6 +3251,38 @@ export default function EditorCadMalla({
 
     // Si fue un toque rápido sin arrastrar
     if (!orbitRef.current.hasMovedSignificantly) {
+      // Si estamos en modo 'MOVER ORIGEN CON SNAP' de la grilla
+      if (griMoviendoOrigen) {
+        let ptDestino: { x: number; y: number } | null = null;
+        const v = verificarToqueVertice(e.clientX, e.clientY);
+        if (v !== null && poligonoCresta[v]) {
+          ptDestino = { x: poligonoCresta[v].x, y: poligonoCresta[v].y };
+        }
+        if (!ptDestino) {
+          const ptoId = verificarToquePuntoCad(e.clientX, e.clientY);
+          if (ptoId) {
+            const ptObj = puntosCad.find((p) => p.id === ptoId);
+            if (ptObj) ptDestino = { x: ptObj.x, y: ptObj.y };
+          }
+        }
+        if (!ptDestino) {
+          const ptoMed = verificarToquePuntoMedio(e.clientX, e.clientY, 24);
+          if (ptoMed) ptDestino = { x: ptoMed.x, y: ptoMed.y };
+        }
+        if (!ptDestino) {
+          const pPlano = obtenerCoordenadasPlano(e.clientX, e.clientY);
+          if (pPlano) ptDestino = { x: pPlano.x, y: pPlano.y };
+        }
+
+        if (ptDestino) {
+          setGriOrigenX(ptDestino.x.toFixed(2));
+          setGriOrigenY(ptDestino.y.toFixed(2));
+          setGriMoviendoOrigen(false);
+          mostrarAviso(`✓ Origen de grilla situado en (${ptDestino.x.toFixed(2)}, ${ptDestino.y.toFixed(2)})`);
+          return;
+        }
+      }
+
       if (herramienta === "SEL") {
         hacerRaycastSeleccion(e.clientX, e.clientY);
       } else if (herramienta === "LIN") {
@@ -3186,6 +3315,8 @@ export default function EditorCadMalla({
       } else if (herramienta === "TAL") {
         setPanelTalVisible(true);
         handleInsertarTaladroSnap(e.clientX, e.clientY);
+      } else if (herramienta === "GRI") {
+        setPanelGriVisible(true);
       }
     }
   }
@@ -3265,8 +3396,18 @@ export default function EditorCadMalla({
     const hit = raycaster.ray.intersectPlane(groundPlane, target);
 
     if (hit) {
-      let pt: Punto2D = { x: Math.round(target.x * 10) / 10, y: Math.round(target.z * 10) / 10 };
-      if (snapActivo) pt = snapAGrilla(pt, 1);
+      let pt: Punto2D = { x: Math.round(target.x * 100) / 100, y: Math.round(target.z * 100) / 100 };
+      if (griSnapMetrico || snapActivo) {
+        const p = Math.max(0.01, parseFloat(griPaso) || 0.5);
+        const pasoEfectivo = griSnapMediaCuadricula ? p / 2 : p;
+        const oX = parseFloat(griOrigenX) || 0;
+        const oY = parseFloat(griOrigenY) || 0;
+
+        pt.x = Math.round((pt.x - oX) / pasoEfectivo) * pasoEfectivo + oX;
+        pt.y = Math.round((pt.y - oY) / pasoEfectivo) * pasoEfectivo + oY;
+        pt.x = Math.round(pt.x * 1000) / 1000;
+        pt.y = Math.round(pt.y * 1000) / 1000;
+      }
       return pt;
     }
     return null;
@@ -5124,6 +5265,7 @@ export default function EditorCadMalla({
               "COT",
               "TAL",
               "SOL",
+              "GRI",
             ] as HerramientaCad[]
           ).map((h) => {
             const activo = herramienta === h;
@@ -5146,6 +5288,7 @@ export default function EditorCadMalla({
                     else if (h === "COT") setPanelCotVisible((prev) => !prev);
                     else if (h === "TAL") setPanelTalVisible((prev) => !prev);
                     else if (h === "SOL") setPanelSolVisible((prev) => !prev);
+                    else if (h === "GRI") setPanelGriVisible((prev) => !prev);
                   } else {
                     setHerramienta(h);
                     setPanelSelVisible(h === "SEL");
@@ -5160,6 +5303,7 @@ export default function EditorCadMalla({
                     setPanelCotVisible(h === "COT");
                     setPanelTalVisible(h === "TAL");
                     setPanelSolVisible(h === "SOL");
+                    setPanelGriVisible(h === "GRI");
                   }
                 }}
                 title={`Herramienta ${h}`}
@@ -6647,6 +6791,188 @@ export default function EditorCadMalla({
                     </button>
                   </div>
                 )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* =========================================================================
+            PANEL: GRILLA (PASO, ORIGEN, MEDIAS REFERENCIAS Y GUÍAS AUXILIARES H/V)
+           ========================================================================= */}
+        {panelGriVisible && (
+          <div
+            className={`cad-panel-grilla-exact ${panelGriMinimizado ? "panel-comprimido" : ""}`}
+            onPointerDown={(e) => e.stopPropagation()}
+            onPointerUp={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {panelGriMinimizado ? (
+              <div className="panel-mini-strip">
+                <div className="mini-coords-info">
+                  <strong>Grilla:</strong> Paso {griPaso}m · ({griOrigenX}, {griOrigenY})
+                </div>
+                <div className="mini-actions">
+                  <button type="button" className="btn-mini-expand" onClick={() => setPanelGriMinimizado(false)}>
+                    ⤢ Expandir
+                  </button>
+                  <button type="button" className="btn-header-round-close" onClick={() => setPanelGriVisible(false)}>
+                    ✕
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Header con título 'GRILLA', subtítulo y '< OCULTAR' */}
+                <div className="panel-grilla-header">
+                  <div className="panel-grilla-title-col">
+                    <h2 className="panel-grilla-title">GRILLA</h2>
+                    <p className="panel-grilla-subtitle">
+                      Paso, origen, medias referencias y<br />
+                      guías auxiliares H/V.
+                    </p>
+                  </div>
+                  <div className="panel-grilla-header-actions">
+                    <button
+                      type="button"
+                      className="btn-grilla-ocultar"
+                      onClick={() => setPanelGriVisible(false)}
+                      title="Ocultar panel"
+                    >
+                      <span className="chevron-left">‹</span> OCULTAR
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-header-round-min"
+                      onClick={() => setPanelGriMinimizado(true)}
+                      title="Minimizar panel"
+                    >
+                      −
+                    </button>
+                  </div>
+                </div>
+
+                {/* Campo 1: Paso de grilla */}
+                <div className="panel-grilla-field-group">
+                  <div className="panel-grilla-field-head">
+                    <span className="field-label-white">Paso de grilla</span>
+                    <span className="field-unit-pink">m</span>
+                  </div>
+                  <div className="panel-grilla-input-card">
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0.05"
+                      value={griPaso}
+                      onChange={(e) => setGriPaso(e.target.value)}
+                      className="panel-grilla-input-value"
+                      placeholder="0.5"
+                    />
+                  </div>
+                </div>
+
+                {/* Fila con Origen X y Origen Y */}
+                <div className="panel-grilla-coords-row">
+                  <div className="panel-grilla-field-group">
+                    <div className="panel-grilla-field-head">
+                      <span className="field-label-white">Origen X</span>
+                      <span className="field-unit-pink">m</span>
+                    </div>
+                    <div className="panel-grilla-input-card">
+                      <input
+                        type="number"
+                        step="0.5"
+                        value={griOrigenX}
+                        onChange={(e) => setGriOrigenX(e.target.value)}
+                        className="panel-grilla-input-value"
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="panel-grilla-field-group">
+                    <div className="panel-grilla-field-head">
+                      <span className="field-label-white">Origen Y</span>
+                      <span className="field-unit-pink">m</span>
+                    </div>
+                    <div className="panel-grilla-input-card">
+                      <input
+                        type="number"
+                        step="0.5"
+                        value={griOrigenY}
+                        onChange={(e) => setGriOrigenY(e.target.value)}
+                        className="panel-grilla-input-value"
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Botón 1: CENTRAR ORIGEN EN GALERÍA */}
+                <button
+                  type="button"
+                  className="btn-grilla-centrar-galeria"
+                  onClick={handleCentrarOrigenEnGaleria}
+                >
+                  CENTRAR ORIGEN EN GALERÍA
+                </button>
+
+                {/* Botón 2: MOVER ORIGEN CON SNAP */}
+                <button
+                  type="button"
+                  className={`btn-grilla-mover-snap ${griMoviendoOrigen ? "activo" : ""}`}
+                  onClick={handleIniciarMoverOrigenSnap}
+                >
+                  {griMoviendoOrigen ? "📍 TOCA EN PANTALLA..." : "MOVER ORIGEN CON SNAP"}
+                </button>
+
+                {/* 3 Toggles interactivos (switches fucsia con pastilla blanca) */}
+                <div className="panel-grilla-toggles">
+                  {/* Toggle 1: Mostrar grilla */}
+                  <div className="grilla-toggle-row">
+                    <span className="grilla-toggle-label">Mostrar grilla</span>
+                    <div
+                      className={`toggle-switch-track ${griMostrarGrilla ? "active" : ""}`}
+                      onClick={() => setGriMostrarGrilla(!griMostrarGrilla)}
+                      title="Activar o desactivar visualización de la cuadrícula"
+                    >
+                      <div className="toggle-switch-thumb" />
+                    </div>
+                  </div>
+
+                  {/* Toggle 2: SNAP métrico */}
+                  <div className="grilla-toggle-row">
+                    <span className="grilla-toggle-label">SNAP métrico</span>
+                    <div
+                      className={`toggle-switch-track ${griSnapMetrico ? "active" : ""}`}
+                      onClick={() => {
+                        const nuevo = !griSnapMetrico;
+                        setGriSnapMetrico(nuevo);
+                        setSnapActivo(nuevo);
+                        mostrarAviso(nuevo ? `✓ SNAP métrico activado (cada ${griPaso}m)` : "SNAP métrico desactivado");
+                      }}
+                      title="Fuerza al cursor a encajar en los pasos de la grilla"
+                    >
+                      <div className="toggle-switch-thumb" />
+                    </div>
+                  </div>
+
+                  {/* Toggle 3: SNAP a media cuadrícula */}
+                  <div className="grilla-toggle-row">
+                    <span className="grilla-toggle-label">SNAP a media cuadrícula</span>
+                    <div
+                      className={`toggle-switch-track ${griSnapMediaCuadricula ? "active" : ""}`}
+                      onClick={() => {
+                        const nuevo = !griSnapMediaCuadricula;
+                        setGriSnapMediaCuadricula(nuevo);
+                        const media = ((parseFloat(griPaso) || 0.5) / 2).toFixed(2);
+                        mostrarAviso(nuevo ? `✓ SNAP a media cuadrícula activado (cada ${media}m)` : "SNAP a media cuadrícula desactivado");
+                      }}
+                      title="Permite encajar a la mitad del paso de cuadrícula"
+                    >
+                      <div className="toggle-switch-thumb" />
+                    </div>
+                  </div>
+                </div>
               </>
             )}
           </div>
