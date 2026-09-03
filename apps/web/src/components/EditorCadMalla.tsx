@@ -108,16 +108,28 @@ export interface CotaCad3D {
   capaId: string;
 }
 
+export interface AristaSolidoCad {
+  id: string;
+  solidoId: string;
+  tipo: "superior" | "inferior" | "vertical";
+  p1: { x: number; y: number; z: number };
+  p2: { x: number; y: number; z: number };
+  longitud: number;
+}
+
 export interface SolidoCad3D {
   id: string;
   nombre: string;
   perfil: { x: number; y: number }[];
+  modoExtrusion?: "profundidad" | "levantamiento" | "ambos";
   profundidad: number;
+  levantamiento?: number;
   area_m2: number;
   volumen_m3: number;
   centroide: { x: number; y: number; z: number };
   color: string;
   capaId: string;
+  aristas?: AristaSolidoCad[];
 }
 
 export type GrupoTaladroCad =
@@ -470,11 +482,14 @@ export default function EditorCadMalla({
   const [talColor, setTalColor] = usePersistedState<string>("cad:talColor", "#ec4899");
   const [talCargado, setTalCargado] = usePersistedState<boolean>("cad:talCargado", true);
 
-  // Estado del Panel 'SÓLIDO' (SOL - Exacto a la captura del usuario)
+  // Estado del Panel 'SÓLIDO' (SOL - Levantamiento, Profundidad y Selección de Aristas 3D)
   const [panelSolVisible, setPanelSolVisible] = useState(false);
   const [panelSolMinimizado, setPanelSolMinimizado] = usePersistedState<boolean>("cad:panelSolMinimizado", false);
-  const [solProfundidad, setSolProfundidad] = usePersistedState<string>("cad:solProfundidad", "1.00");
+  const [solModoExtrusion, setSolModoExtrusion] = usePersistedState<"profundidad" | "levantamiento" | "ambos">("cad:solModoExtrusion", "levantamiento");
+  const [solLevantamiento, setSolLevantamiento] = usePersistedState<string>("cad:solLevantamiento", "10.00");
+  const [solProfundidad, setSolProfundidad] = usePersistedState<string>("cad:solProfundidad", "12.00");
   const [solidosCad, setSolidosCad] = usePersistedState<SolidoCad3D[]>("cad:solidos", []);
+  const [aristasSolidosSeleccionadas, setAristasSolidosSeleccionadas] = useState<string[]>([]);
 
   // Estado del Gestor de Capas y Carpetas (Estilo AutoCAD / Civil 3D)
   const [panelCapasVisible, setPanelCapasVisible] = useState(false);
@@ -1050,11 +1065,82 @@ export default function EditorCadMalla({
     e.target.value = "";
   }
 
-  // Extruir Polilínea Cerrada en Z y Obtener su Centroide 3D
+  // Obtener o calcular las aristas 3D (superior, inferior, vertical) de un sólido
+  function obtenerAristasDeSolido(sol: SolidoCad3D): AristaSolidoCad[] {
+    if (sol.aristas && sol.aristas.length > 0) return sol.aristas;
+    const lev = sol.levantamiento || 0;
+    const prof = sol.profundidad || 0;
+    const zSup = lev;
+    const zInf = -prof;
+    const pts = sol.perfil;
+    const n = pts.length;
+    const aristas: AristaSolidoCad[] = [];
+    if (n < 3) return aristas;
+
+    // Aristas superiores
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n;
+      const p1 = { x: pts[i].x, y: pts[i].y, z: zSup };
+      const p2 = { x: pts[j].x, y: pts[j].y, z: zSup };
+      aristas.push({
+        id: `${sol.id}-sup-${i}`,
+        solidoId: sol.id,
+        tipo: "superior",
+        p1,
+        p2,
+        longitud: Math.hypot(p2.x - p1.x, p2.y - p1.y, p2.z - p1.z),
+      });
+    }
+
+    // Aristas inferiores
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n;
+      const p1 = { x: pts[i].x, y: pts[i].y, z: zInf };
+      const p2 = { x: pts[j].x, y: pts[j].y, z: zInf };
+      aristas.push({
+        id: `${sol.id}-inf-${i}`,
+        solidoId: sol.id,
+        tipo: "inferior",
+        p1,
+        p2,
+        longitud: Math.hypot(p2.x - p1.x, p2.y - p1.y, p2.z - p1.z),
+      });
+    }
+
+    // Aristas verticales
+    for (let i = 0; i < n; i++) {
+      const p1 = { x: pts[i].x, y: pts[i].y, z: zInf };
+      const p2 = { x: pts[i].x, y: pts[i].y, z: zSup };
+      aristas.push({
+        id: `${sol.id}-vert-${i}`,
+        solidoId: sol.id,
+        tipo: "vertical",
+        p1,
+        p2,
+        longitud: Math.hypot(p2.x - p1.x, p2.y - p1.y, p2.z - p1.z),
+      });
+    }
+
+    return aristas;
+  }
+
+  // Extruir Polilínea Cerrada en Z (Levantamiento y/o Profundidad) y Obtener su Centroide 3D y Aristas
   function handleExtruirPerfil() {
-    const prof = parseFloat(solProfundidad);
-    if (isNaN(prof) || prof <= 0) {
-      mostrarAviso("Ingresa una profundidad válida mayor a 0 m");
+    let lev = 0;
+    let prof = 0;
+
+    if (solModoExtrusion === "levantamiento" || solModoExtrusion === "ambos") {
+      lev = parseFloat(solLevantamiento);
+      if (isNaN(lev) || lev < 0) lev = 0;
+    }
+    if (solModoExtrusion === "profundidad" || solModoExtrusion === "ambos") {
+      prof = parseFloat(solProfundidad);
+      if (isNaN(prof) || prof < 0) prof = 0;
+    }
+
+    const hTotal = lev + prof;
+    if (hTotal <= 0.01) {
+      mostrarAviso("Ingresa un valor mayor a 0 m para el levantamiento o profundidad");
       return;
     }
 
@@ -1094,14 +1180,57 @@ export default function EditorCadMalla({
 
     cx = cx / (6 * area2d);
     cy = cy / (6 * area2d);
-    const cz = -prof / 2;
-    const volumen = areaAbs * prof;
+    // Centroide vertical en el punto medio entre -prof y +lev
+    const cz = (lev - prof) / 2;
+    const volumen = areaAbs * hTotal;
+
+    const solidoId = `solido-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+
+    // Construir aristas 3D
+    const aristas: AristaSolidoCad[] = [];
+    const zSup = lev;
+    const zInf = -prof;
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n;
+      const p1Sup = { x: perfilPuntos[i].x, y: perfilPuntos[i].y, z: zSup };
+      const p2Sup = { x: perfilPuntos[j].x, y: perfilPuntos[j].y, z: zSup };
+      aristas.push({
+        id: `${solidoId}-sup-${i}`,
+        solidoId,
+        tipo: "superior",
+        p1: p1Sup,
+        p2: p2Sup,
+        longitud: Math.hypot(p2Sup.x - p1Sup.x, p2Sup.y - p1Sup.y, p2Sup.z - p1Sup.z),
+      });
+
+      const p1Inf = { x: perfilPuntos[i].x, y: perfilPuntos[i].y, z: zInf };
+      const p2Inf = { x: perfilPuntos[j].x, y: perfilPuntos[j].y, z: zInf };
+      aristas.push({
+        id: `${solidoId}-inf-${i}`,
+        solidoId,
+        tipo: "inferior",
+        p1: p1Inf,
+        p2: p2Inf,
+        longitud: Math.hypot(p2Inf.x - p1Inf.x, p2Inf.y - p1Inf.y, p2Inf.z - p1Inf.z),
+      });
+
+      aristas.push({
+        id: `${solidoId}-vert-${i}`,
+        solidoId,
+        tipo: "vertical",
+        p1: p1Inf,
+        p2: p1Sup,
+        longitud: Math.hypot(p1Sup.x - p1Inf.x, p1Sup.y - p1Inf.y, p1Sup.z - p1Inf.z),
+      });
+    }
 
     const nuevoSolido: SolidoCad3D = {
-      id: `solido-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      id: solidoId,
       nombre: `Sólido #${solidosCad.length + 1}`,
       perfil: perfilPuntos,
+      modoExtrusion: solModoExtrusion,
       profundidad: prof,
+      levantamiento: lev,
       area_m2: Math.round(areaAbs * 100) / 100,
       volumen_m3: Math.round(volumen * 100) / 100,
       centroide: {
@@ -1111,6 +1240,7 @@ export default function EditorCadMalla({
       },
       color: "#f43f5e",
       capaId: capaActivaId || "capa-solidos",
+      aristas,
     };
 
     setSolidosCad((prev) => [...prev, nuevoSolido]);
@@ -1119,7 +1249,107 @@ export default function EditorCadMalla({
         c.id === "capa-solidos" ? { ...c, elementosCount: solidosCad.length + 1 } : c
       )
     );
-    mostrarAviso(`Sólido 3D generado: ${nuevoSolido.volumen_m3.toFixed(2)} m³ | Centro (${nuevoSolido.centroide.x}, ${nuevoSolido.centroide.y}, ${nuevoSolido.centroide.z})`);
+    mostrarAviso(`Sólido 3D generado: ${nuevoSolido.volumen_m3.toFixed(2)} m³ | Centro (${nuevoSolido.centroide.x}, ${nuevoSolido.centroide.y}, ${nuevoSolido.centroide.z}) | ${aristas.length} aristas listas para seleccionar`);
+  }
+
+  // Convertir aristas seleccionadas del sólido a Líneas CAD
+  function handleConvertirAristasALineasCad() {
+    if (aristasSolidosSeleccionadas.length === 0) {
+      mostrarAviso("Selecciona una o más aristas del sólido para convertir a Línea CAD");
+      return;
+    }
+
+    const todasAristas: AristaSolidoCad[] = [];
+    solidosCad.forEach((s) => {
+      todasAristas.push(...obtenerAristasDeSolido(s));
+    });
+
+    const aristasAConvertir = todasAristas.filter((a) => aristasSolidosSeleccionadas.includes(a.id));
+    if (aristasAConvertir.length === 0) return;
+
+    registrarHistorial();
+
+    const nuevasLineas: LineaCad3D[] = aristasAConvertir.map((ar) => {
+      const dx = ar.p2.x - ar.p1.x;
+      const dy = ar.p2.y - ar.p1.y;
+      const dz = ar.p2.z - ar.p1.z;
+      const az = (Math.atan2(dx, dy) * (180 / Math.PI) + 360) % 360;
+      return {
+        id: `linea-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        p1: { x: ar.p1.x, y: ar.p1.y, z: ar.p1.z },
+        p2: { x: ar.p2.x, y: ar.p2.y, z: ar.p2.z },
+        capaId: capaActivaId === "capa-puntos" || capaActivaId === "capa-cresta" ? "capa-lineas" : (capaActivaId || "capa-lineas"),
+        tipo: "continua",
+        rol: "geometria",
+        longitud: Math.round(ar.longitud * 100) / 100,
+        azimut: Math.round(az * 10) / 10,
+      };
+    });
+
+    setLineasCad((prev) => [...prev, ...nuevasLineas]);
+    setCapas((prev) =>
+      prev.map((c) =>
+        c.id === (capaActivaId || "capa-lineas")
+          ? { ...c, elementosCount: c.elementosCount + nuevasLineas.length }
+          : c
+      )
+    );
+    mostrarAviso(`✓ ${nuevasLineas.length} arista(s) convertida(s) en Líneas CAD en capa activa. ¡Listas para dibujar sobre ellas!`);
+  }
+
+  // Extraer contorno base superior o inferior de un sólido como Polilínea CAD cerrada
+  function handleExtraerBaseSolido(tipo: "superior" | "inferior") {
+    if (solidosCad.length === 0) {
+      mostrarAviso("No hay sólidos 3D creados");
+      return;
+    }
+
+    const sol = solidosCad[solidosCad.length - 1];
+    const cotaZ = tipo === "superior" ? (sol.levantamiento || 0) : -(sol.profundidad || 0);
+
+    const puntos3D = sol.perfil.map((p) => ({
+      x: p.x,
+      y: p.y,
+      z: cotaZ,
+    }));
+
+    registrarHistorial();
+    const nuevaPl: PolilineaCad3D = {
+      id: `pl-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      puntos: puntos3D,
+      cerrada: true,
+      capaId: capaActivaId || "capa-cresta",
+      tipo: "continua",
+      rol: "geometria",
+      longitud: Math.round(longitudPoligono_m(puntos3D) * 100) / 100,
+    };
+
+    setPolilineasCad((prev) => [...prev, nuevaPl]);
+    setPolilineasSeleccionadas([nuevaPl.id]);
+    mostrarAviso(`✓ Base ${tipo} extraída como Polilínea cerrada CAD (Cota Z=${cotaZ}m).`);
+  }
+
+  // Acotar automáticamente la arista seleccionada con la herramienta COTA
+  function handleCrearCotaDesdeArista() {
+    if (aristasSolidosSeleccionadas.length === 0) return;
+    const todasAristas: AristaSolidoCad[] = [];
+    solidosCad.forEach((s) => todasAristas.push(...obtenerAristasDeSolido(s)));
+    const ar = todasAristas.find((a) => aristasSolidosSeleccionadas.includes(a.id));
+    if (!ar) return;
+
+    registrarHistorial();
+    const nuevaCota: CotaCad3D = {
+      id: `cota-${Date.now()}`,
+      p1: { ...ar.p1 },
+      p2: { ...ar.p2 },
+      desplazamiento: 1.2,
+      texto: `${ar.longitud.toFixed(2)} m`,
+      tipo: "distancia",
+      capaId: capaActivaId || "capa-lineas",
+    };
+
+    setCotasCad((prev) => [...prev, nuevaCota]);
+    mostrarAviso(`✓ Cota de ${nuevaCota.texto} creada sobre la arista`);
   }
 
   // Insertar Punto por Coordenadas Exactas XYZ (Punto normal independiente sin líneas)
@@ -2567,11 +2797,15 @@ export default function EditorCadMalla({
       }
     }
 
-    // 14. Renderizado de SÓLIDOS 3D Extruidos y Centroide
+    // 14. Renderizado de SÓLIDOS 3D Extruidos, Aristas Interactivas y Centroide
     if (solidosCad.length > 0) {
       solidosCad.forEach((sol) => {
         const capaSol = capas.find((c) => c.id === sol.capaId);
         if (capaSol && !capaSol.visible) return;
+
+        const lev = sol.levantamiento || 0;
+        const prof = sol.profundidad || 0;
+        const hTotal = (lev + prof) > 0 ? (lev + prof) : (sol.profundidad || 1);
 
         const shape = new THREE.Shape();
         sol.perfil.forEach((pt, idx) => {
@@ -2581,17 +2815,18 @@ export default function EditorCadMalla({
         shape.closePath();
 
         const extrudeGeom = new THREE.ExtrudeGeometry(shape, {
-          depth: sol.profundidad,
+          depth: hTotal,
           bevelEnabled: false,
         });
 
         extrudeGeom.rotateX(Math.PI / 2);
-        extrudeGeom.translate(0, 0, 0);
+        // Trasladar en Y de Three.js para que el sólido ocupe exactamente de -prof a +lev
+        extrudeGeom.translate(0, lev, 0);
 
         const solMat = new THREE.MeshStandardMaterial({
           color: new THREE.Color(sol.color || "#f43f5e").getHex(),
           transparent: true,
-          opacity: 0.62,
+          opacity: 0.58,
           roughness: 0.35,
           metalness: 0.15,
           side: THREE.DoubleSide,
@@ -2600,23 +2835,49 @@ export default function EditorCadMalla({
         const solidMesh = new THREE.Mesh(extrudeGeom, solMat);
         group.add(solidMesh);
 
-        const edges = new THREE.EdgesGeometry(extrudeGeom);
-        const edgeLine = new THREE.LineSegments(
-          edges,
-          new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 2 })
-        );
-        group.add(edgeLine);
+        // Renderizado de las aristas del sólido (seleccionadas vs normales)
+        const aristas = obtenerAristasDeSolido(sol);
+        aristas.forEach((ar) => {
+          const esSel = aristasSolidosSeleccionadas.includes(ar.id);
+          const colorAr = esSel ? 0x00f0ff : 0xe2e8f0;
+          const ancho = esSel ? 3.5 : 1.5;
 
-        // Marcador cian en el Centroide 3D
-        const centroGeo = new THREE.SphereGeometry(0.35, 16, 16);
+          // CAD (x, y, z) -> Three.js (x, z, y)
+          const p1Vec = new THREE.Vector3(ar.p1.x, ar.p1.z, ar.p1.y);
+          const p2Vec = new THREE.Vector3(ar.p2.x, ar.p2.z, ar.p2.y);
+          const geom = new THREE.BufferGeometry().setFromPoints([p1Vec, p2Vec]);
+
+          const mat = new THREE.LineBasicMaterial({
+            color: colorAr,
+            linewidth: ancho,
+          });
+          const lineObj = new THREE.Line(geom, mat);
+          group.add(lineObj);
+
+          if (esSel) {
+            // Nodos marcadores esféricos en los extremos de la arista seleccionada
+            [p1Vec, p2Vec].forEach((pVec) => {
+              const nodeGeo = new THREE.SphereGeometry(0.35, 12, 12);
+              const nodeMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
+              const nodeMesh = new THREE.Mesh(nodeGeo, nodeMat);
+              nodeMesh.position.copy(pVec);
+              group.add(nodeMesh);
+            });
+          }
+        });
+
+        // Marcador cian luminiscente en el Centroide 3D
+        const centroGeo = new THREE.SphereGeometry(0.38, 16, 16);
         const centroMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
         const centroMesh = new THREE.Mesh(centroGeo, centroMat);
-        centroMesh.position.set(sol.centroide.x, -sol.profundidad / 2, sol.centroide.y);
+        // CAD x=x, Three.js Y = CAD z (elevación), Three.js Z = CAD y (Norte)
+        centroMesh.position.set(sol.centroide.x, sol.centroide.z, sol.centroide.y);
         group.add(centroMesh);
       });
     }
   }, [
     solidosCad,
+    aristasSolidosSeleccionadas,
     poligonoCresta,
     taladros,
     indicesSeleccionados,
@@ -3095,6 +3356,27 @@ export default function EditorCadMalla({
       }
     });
 
+    // 3. Puntos medios de aristas de sólidos 3D
+    solidosCad.forEach((s) => {
+      const capaObj = capas.find((c) => c.id === s.capaId);
+      if (capaObj?.visible === false) return;
+      const aristas = obtenerAristasDeSolido(s);
+      aristas.forEach((ar) => {
+        const mx = (ar.p1.x + ar.p2.x) / 2;
+        const my = (ar.p1.y + ar.p2.y) / 2;
+        const mz = (ar.p1.z + ar.p2.z) / 2;
+        // CAD (x, y, z) -> Three.js (x, z, y)
+        const scr = proyectarAPantalla(new THREE.Vector3(mx, mz + 0.16, my));
+        if (scr && scr.delante) {
+          const d = Math.hypot(clientX - scr.x, clientY - scr.y);
+          if (d < minDist) {
+            minDist = d;
+            masCercano = { x: Math.round(mx * 100) / 100, y: Math.round(my * 100) / 100, z: Math.round(mz * 100) / 100 };
+          }
+        }
+      });
+    });
+
     return masCercano;
   }
 
@@ -3108,12 +3390,79 @@ export default function EditorCadMalla({
     return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
   }
 
+  function verificarToqueAristaSolido(clientX: number, clientY: number, tolPx = 18): { arista: AristaSolidoCad; dist: number } | null {
+    let mejorMatch: { arista: AristaSolidoCad; dist: number } | null = null;
+    let minDist = tolPx;
+
+    solidosCad.forEach((sol) => {
+      const capaSol = capas.find((c) => c.id === sol.capaId);
+      if (capaSol && !capaSol.visible) return;
+
+      const aristas = obtenerAristasDeSolido(sol);
+      aristas.forEach((ar) => {
+        // CAD (x, y, z) -> Three.js (x, z, y)
+        const s1 = proyectarAPantalla(new THREE.Vector3(ar.p1.x, ar.p1.z, ar.p1.y));
+        const s2 = proyectarAPantalla(new THREE.Vector3(ar.p2.x, ar.p2.z, ar.p2.y));
+        if (s1?.delante && s2?.delante) {
+          const d = distPuntoASegmento2D(clientX, clientY, s1.x, s1.y, s2.x, s2.y);
+          if (d < minDist) {
+            minDist = d;
+            mejorMatch = { arista: ar, dist: d };
+          }
+        }
+      });
+    });
+
+    return mejorMatch;
+  }
+
+  function verificarToqueVerticeSolido(clientX: number, clientY: number, tolPx = 22): { x: number; y: number; z: number } | null {
+    let masCercano: { x: number; y: number; z: number } | null = null;
+    let minDist = tolPx;
+
+    solidosCad.forEach((sol) => {
+      const capaSol = capas.find((c) => c.id === sol.capaId);
+      if (capaSol && !capaSol.visible) return;
+
+      const aristas = obtenerAristasDeSolido(sol);
+      aristas.forEach((ar) => {
+        [ar.p1, ar.p2].forEach((p) => {
+          const scr = proyectarAPantalla(new THREE.Vector3(p.x, p.z + 0.1, p.y));
+          if (scr && scr.delante) {
+            const d = Math.hypot(clientX - scr.x, clientY - scr.y);
+            if (d < minDist) {
+              minDist = d;
+              masCercano = { x: p.x, y: p.y, z: p.z };
+            }
+          }
+        });
+      });
+    });
+
+    return masCercano;
+  }
+
   function hacerRaycastSeleccion(clientX: number, clientY: number) {
+    // 1. Verificar si tocó una arista de un sólido 3D
+    const matchArista = verificarToqueAristaSolido(clientX, clientY);
+    if (matchArista) {
+      setAristasSolidosSeleccionadas([matchArista.arista.id]);
+      setPuntosSeleccionados([]);
+      setIndicesSeleccionados([]);
+      setLineasSeleccionadas([]);
+      setPanelSolVisible(true);
+      mostrarAviso(
+        `Arista 3D ${matchArista.arista.tipo.toUpperCase()} (${matchArista.arista.longitud.toFixed(2)}m) seleccionada. ¡Lista para extraer a Línea CAD o medir!`
+      );
+      return;
+    }
+
     const ptoCadId = verificarToquePuntoCad(clientX, clientY);
     if (ptoCadId !== null) {
       setPuntosSeleccionados([ptoCadId]);
       setIndicesSeleccionados([]);
       setLineasSeleccionadas([]);
+      setAristasSolidosSeleccionadas([]);
       setPanelSelVisible(true);
       const ptObj = puntosCad.find((p) => p.id === ptoCadId);
       if (ptObj) {
@@ -3127,6 +3476,7 @@ export default function EditorCadMalla({
       setIndicesSeleccionados([idx]);
       setPuntosSeleccionados([]);
       setLineasSeleccionadas([]);
+      setAristasSolidosSeleccionadas([]);
       setPuntoBaseIndice(idx);
       setPanelSelVisible(true);
       mostrarAviso(`Vértice ${idx + 1} seleccionado (Punto base: ${idx + 1})`);
@@ -3152,6 +3502,7 @@ export default function EditorCadMalla({
       setLineasSeleccionadas([lineaMasCercanaId]);
       setPuntosSeleccionados([]);
       setIndicesSeleccionados([]);
+      setAristasSolidosSeleccionadas([]);
       setPanelSelVisible(true);
       const lObj = lineasCad.find((l) => l.id === lineaMasCercanaId);
       if (lObj) {
@@ -3163,6 +3514,7 @@ export default function EditorCadMalla({
     setIndicesSeleccionados([]);
     setPuntosSeleccionados([]);
     setLineasSeleccionadas([]);
+    setAristasSolidosSeleccionadas([]);
   }
 
   function raycastPunto(clientX: number, clientY: number) {
@@ -3245,6 +3597,14 @@ export default function EditorCadMalla({
         if (ptoObj) {
           p3D = { x: ptoObj.x, y: ptoObj.y, z: ptoObj.z || 0 };
         }
+      }
+    }
+
+    if (!p3D) {
+      const vSol = verificarToqueVerticeSolido(clientX, clientY, 22);
+      if (vSol) {
+        p3D = vSol;
+        mostrarAviso(`▲ Snap: Vértice de Sólido 3D (${vSol.x}, ${vSol.y}, Z=${vSol.z})`);
       }
     }
 
@@ -3401,6 +3761,14 @@ export default function EditorCadMalla({
         if (ptoObj) {
           p3D = { x: ptoObj.x, y: ptoObj.y, z: ptoObj.z || 0 };
         }
+      }
+    }
+
+    if (!p3D) {
+      const vSol = verificarToqueVerticeSolido(clientX, clientY, 22);
+      if (vSol) {
+        p3D = vSol;
+        mostrarAviso(`▲ Snap: Vértice de Sólido 3D (${vSol.x}, ${vSol.y}, Z=${vSol.z})`);
       }
     }
 
@@ -6006,7 +6374,10 @@ export default function EditorCadMalla({
         {/* =========================================================================
             PANEL: SÓLIDO (EXTRUIR POLILÍNEA CERRADA EN Z Y OBTENER SU CENTRO)
            ========================================================================= */}
-        {herramienta === "SOL" && panelSolVisible && (
+        {/* =========================================================================
+            PANEL: SÓLIDO (EXTRUIR POLILÍNEA EN Z - LEVANTAMIENTO, PROFUNDIDAD Y ARISTAS)
+           ========================================================================= */}
+        {(herramienta === "SOL" || aristasSolidosSeleccionadas.length > 0 || panelSolVisible) && panelSolVisible && (
           <div
             className={`cad-panel-solido-exact ${panelSolMinimizado ? "panel-comprimido" : ""}`}
             onPointerDown={(e) => e.stopPropagation()}
@@ -6016,7 +6387,12 @@ export default function EditorCadMalla({
             {panelSolMinimizado ? (
               <div className="panel-mini-strip">
                 <div className="mini-coords-info">
-                  <strong>Sólido:</strong> Prof. {solProfundidad}m
+                  <strong>Sólido:</strong>{" "}
+                  {solModoExtrusion === "levantamiento"
+                    ? `Lev. ${solLevantamiento}m`
+                    : solModoExtrusion === "profundidad"
+                    ? `Prof. ${solProfundidad}m`
+                    : `+${solLevantamiento}m / -${solProfundidad}m`}
                 </div>
                 <div className="mini-actions">
                   <button type="button" className="btn-mini-expand" onClick={() => setPanelSolMinimizado(false)}>
@@ -6029,13 +6405,13 @@ export default function EditorCadMalla({
               </div>
             ) : (
               <>
-                {/* Header idéntico a la captura con título, subtítulo y '< OCULTAR' */}
+                {/* Header con título, subtítulo y '< OCULTAR' */}
                 <div className="panel-solido-header">
                   <div className="panel-solido-title-col">
-                    <h2 className="panel-solido-title">SÓLIDO</h2>
+                    <h2 className="panel-solido-title">SÓLIDO 3D</h2>
                     <p className="panel-solido-subtitle">
-                      Extruye una polilínea cerrada y<br />
-                      obtiene su centro.
+                      Levantamiento (+Z) o Profundidad (-Z)<br />
+                      con aristas 3D seleccionables.
                     </p>
                   </div>
                   <div className="panel-solido-header-actions">
@@ -6063,31 +6439,81 @@ export default function EditorCadMalla({
                   CAPA ACTIVA · {capas.find((c) => c.id === capaActivaId)?.nombre || "Dibujo CAD"}
                 </div>
 
-                {/* Texto descriptivo exacto */}
-                <p className="panel-solido-instruction">
-                  Selecciona una polilínea cerrada creada en CAD y extrúyela en Z.
-                </p>
-
-                {/* Campo Profundidad con 'm' fucsia */}
-                <div className="panel-solido-field-group">
-                  <div className="panel-solido-field-head">
-                    <span className="field-label-white">Profundidad</span>
-                    <span className="field-unit-pink">m</span>
-                  </div>
-                  <div className="panel-solido-input-card">
-                    <input
-                      type="number"
-                      step="0.5"
-                      min="0.1"
-                      value={solProfundidad}
-                      onChange={(e) => setSolProfundidad(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleExtruirPerfil();
-                      }}
-                      className="panel-solido-input-value"
-                    />
-                  </div>
+                {/* Selector de Modo: Levantamiento (+Z) vs Profundidad (-Z) vs Ambos */}
+                <div className="panel-solido-modo-tabs">
+                  <button
+                    type="button"
+                    className={`btn-modo-tab ${solModoExtrusion === "levantamiento" ? "activo" : ""}`}
+                    onClick={() => setSolModoExtrusion("levantamiento")}
+                    title="Extruir hacia arriba (+Z, altura o cota superior)"
+                  >
+                    ↑ Levantamiento
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn-modo-tab ${solModoExtrusion === "profundidad" ? "activo" : ""}`}
+                    onClick={() => setSolModoExtrusion("profundidad")}
+                    title="Extruir hacia abajo (-Z, profundidad o fondo de banco)"
+                  >
+                    ↓ Profundidad
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn-modo-tab ${solModoExtrusion === "ambos" ? "activo" : ""}`}
+                    onClick={() => setSolModoExtrusion("ambos")}
+                    title="Extruir bilateralmente (+Z y -Z)"
+                  >
+                    ↕ Ambos
+                  </button>
                 </div>
+
+                {/* Campo Levantamiento (+Z) */}
+                {(solModoExtrusion === "levantamiento" || solModoExtrusion === "ambos") && (
+                  <div className="panel-solido-field-group">
+                    <div className="panel-solido-field-head">
+                      <span className="field-label-white">Levantamiento (+Z)</span>
+                      <span className="field-unit-pink">m</span>
+                    </div>
+                    <div className="panel-solido-input-card">
+                      <input
+                        type="number"
+                        step="0.5"
+                        min="0.1"
+                        value={solLevantamiento}
+                        onChange={(e) => setSolLevantamiento(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleExtruirPerfil();
+                        }}
+                        className="panel-solido-input-value"
+                        placeholder="10.00"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Campo Profundidad (-Z) */}
+                {(solModoExtrusion === "profundidad" || solModoExtrusion === "ambos") && (
+                  <div className="panel-solido-field-group">
+                    <div className="panel-solido-field-head">
+                      <span className="field-label-white">Profundidad (-Z)</span>
+                      <span className="field-unit-pink">m</span>
+                    </div>
+                    <div className="panel-solido-input-card">
+                      <input
+                        type="number"
+                        step="0.5"
+                        min="0.1"
+                        value={solProfundidad}
+                        onChange={(e) => setSolProfundidad(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleExtruirPerfil();
+                        }}
+                        className="panel-solido-input-value"
+                        placeholder="12.00"
+                      />
+                    </div>
+                  </div>
+                )}
 
                 {/* Botón Principal Fucsia: EXTRUIR PERFIL */}
                 <button
@@ -6095,8 +6521,83 @@ export default function EditorCadMalla({
                   className="btn-pink-extruir-perfil"
                   onClick={handleExtruirPerfil}
                 >
-                  EXTRUIR PERFIL
+                  EXTRUIR PERFIL 3D
                 </button>
+
+                {/* SECCIÓN DE ARISTAS 3D SELECCIONADAS (Para crear más cosas por ahí) */}
+                {aristasSolidosSeleccionadas.length > 0 && (() => {
+                  const todasAristas: AristaSolidoCad[] = [];
+                  solidosCad.forEach((s) => todasAristas.push(...obtenerAristasDeSolido(s)));
+                  const arSel = todasAristas.find((a) => aristasSolidosSeleccionadas.includes(a.id));
+                  return (
+                    <div className="panel-solido-arista-sel-card">
+                      <div className="arista-sel-header">
+                        <span className="badge-arista-sel">
+                          ARISTA 3D ACTIVA ({aristasSolidosSeleccionadas.length})
+                        </span>
+                        <button
+                          type="button"
+                          className="btn-arista-deseleccionar"
+                          onClick={() => setAristasSolidosSeleccionadas([])}
+                          title="Deseleccionar arista"
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      {arSel && (
+                        <div className="arista-sel-info">
+                          <div className="arista-info-fila">
+                            <span className="info-label">Tipo:</span>
+                            <span className="info-val-cyan">{arSel.tipo.toUpperCase()}</span>
+                            <span className="info-label">Long:</span>
+                            <span className="info-val-white">{arSel.longitud.toFixed(2)} m</span>
+                          </div>
+                          <div className="arista-coords-box">
+                            <div>P1: ({arSel.p1.x}, {arSel.p1.y}, Z={arSel.p1.z})</div>
+                            <div>P2: ({arSel.p2.x}, {arSel.p2.y}, Z={arSel.p2.z})</div>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="arista-acciones-title">ACCIONES DE MODELADO:</div>
+                      <div className="arista-acciones-grid">
+                        <button
+                          type="button"
+                          className="btn-arista-accion btn-arista-primario"
+                          onClick={handleConvertirAristasALineasCad}
+                          title="Convierte esta arista en Línea CAD para seguir dibujando, recortando o usándola de guía"
+                        >
+                          + Convertir a Línea CAD
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-arista-accion"
+                          onClick={handleCrearCotaDesdeArista}
+                          title="Acotar con medida paramétrica esta arista"
+                        >
+                          📏 Acotar Arista (COT)
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-arista-accion"
+                          onClick={() => handleExtraerBaseSolido("superior")}
+                          title="Extraer el contorno superior como Polilínea cerrada CAD"
+                        >
+                          ⬆ Extraer Base Superior
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-arista-accion"
+                          onClick={() => handleExtraerBaseSolido("inferior")}
+                          title="Extraer el contorno inferior como Polilínea cerrada CAD"
+                        >
+                          ⬇ Extraer Base Inferior
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Tarjeta de resultados si hay sólidos generados */}
                 {solidosCad.length > 0 && (
@@ -6108,6 +6609,7 @@ export default function EditorCadMalla({
                         className="btn-limpiar-solidos"
                         onClick={() => {
                           setSolidosCad([]);
+                          setAristasSolidosSeleccionadas([]);
                           mostrarAviso("Sólidos eliminados");
                         }}
                       >
@@ -6130,6 +6632,19 @@ export default function EditorCadMalla({
                         ({solidosCad[solidosCad.length - 1].centroide.x}, {solidosCad[solidosCad.length - 1].centroide.y}, {solidosCad[solidosCad.length - 1].centroide.z}) m
                       </code>
                     </div>
+                    {/* Botón rápido para seleccionar todas las aristas de este sólido */}
+                    <button
+                      type="button"
+                      className="btn-seleccionar-todas-aristas"
+                      onClick={() => {
+                        const ult = solidosCad[solidosCad.length - 1];
+                        const aristas = obtenerAristasDeSolido(ult);
+                        setAristasSolidosSeleccionadas(aristas.map((a) => a.id));
+                        mostrarAviso(`${aristas.length} aristas del Sólido seleccionadas`);
+                      }}
+                    >
+                      ⚡ Seleccionar todas las aristas del sólido
+                    </button>
                   </div>
                 )}
               </>
