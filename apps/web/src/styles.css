@@ -2073,22 +2073,29 @@ table.tabla-taladros td:first-child {
   cursor: grabbing;
 }
 
-/* Dock Lateral Izquierdo con Cápsula Borde Magenta/Pink */
+/* Dock Lateral Izquierdo con Cápsula Técnica Industrial */
 .cad-dock-left-exact {
   position: absolute;
   top: 18px;
   left: 12px;
   width: 44px;
-  background: rgba(12, 17, 26, 0.88);
-  border: 1.5px solid rgba(225, 29, 72, 0.4);
+  background: rgba(10, 15, 24, 0.92);
+  border: 1.5px solid color-mix(in srgb, var(--acento, #f97316) 45%, transparent);
   border-radius: 22px;
   padding: 6px 3px;
   display: flex;
   flex-direction: column;
   gap: 5px;
   z-index: 20;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.75), 0 0 16px color-mix(in srgb, var(--acento, #f97316) 18%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cad-dock-left-exact:hover {
+  border-color: var(--acento, #f97316);
+  box-shadow: 0 8px 36px rgba(0, 0, 0, 0.85), 0 0 20px color-mix(in srgb, var(--acento, #f97316) 28%, transparent);
 }
 
 .btn-dock-tool-exact {
@@ -2104,36 +2111,47 @@ table.tabla-taladros td:first-child {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s;
+  transition: all 0.16s ease;
+  letter-spacing: 0.3px;
 }
 
 .btn-dock-tool-exact:hover {
   background: rgba(255, 255, 255, 0.08);
-  color: #fff;
+  color: #ffffff;
+  transform: scale(1.04);
 }
 
 .btn-dock-tool-exact.tool-active-pink {
-  background: #e11d48;
-  color: #ffffff;
-  box-shadow: 0 0 14px rgba(225, 29, 72, 0.65);
+  background: var(--acento, #f97316);
+  color: #0b111c;
+  font-weight: 900;
+  box-shadow: 0 0 14px color-mix(in srgb, var(--acento, #f97316) 75%, transparent);
+  transform: scale(1.05);
 }
 
-/* Dock Lateral Derecho con Cápsula Borde Magenta/Pink */
+/* Dock Lateral Derecho con Cápsula Técnica Industrial */
 .cad-dock-right-exact {
   position: absolute;
   top: 140px;
   right: 12px;
   width: 44px;
-  background: rgba(12, 17, 26, 0.88);
-  border: 1.5px solid rgba(225, 29, 72, 0.4);
+  background: rgba(10, 15, 24, 0.92);
+  border: 1.5px solid color-mix(in srgb, var(--acento, #f97316) 45%, transparent);
   border-radius: 22px;
   padding: 8px 3px;
   display: flex;
   flex-direction: column;
   gap: 8px;
   z-index: 20;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.75), 0 0 16px color-mix(in srgb, var(--acento, #f97316) 18%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cad-dock-right-exact:hover {
+  border-color: var(--acento, #f97316);
+  box-shadow: 0 8px 36px rgba(0, 0, 0, 0.85), 0 0 20px color-mix(in srgb, var(--acento, #f97316) 28%, transparent);
 }
 
 .btn-dock-circle-exact {
@@ -2149,18 +2167,27 @@ table.tabla-taladros td:first-child {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s;
+  transition: all 0.16s ease;
 }
 
 .btn-dock-circle-exact:hover {
   background: #1a2335;
-  color: #fff;
+  color: #ffffff;
+  border-color: color-mix(in srgb, var(--acento, #f97316) 50%, transparent);
+  transform: scale(1.06);
+}
+
+.btn-dock-circle-exact.tool-active-pink {
+  background: var(--acento, #f97316) !important;
+  color: #0b111c !important;
+  border-color: var(--acento, #f97316) !important;
+  box-shadow: 0 0 14px color-mix(in srgb, var(--acento, #f97316) 70%, transparent) !important;
 }
 
 .btn-dock-circle-exact.active-border-white {
-  border-color: #ffffff;
-  color: #ffffff;
-  box-shadow: 0 0 10px rgba(255, 255, 255, 0.4);
+  border-color: var(--acento, #f97316);
+  color: var(--acento-suave, #fdba74);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--acento, #f97316) 50%, transparent);
 }
 
 /* Ejes 3D Sincronizados en Tiempo Real con la Cámara */
@@ -2302,16 +2329,16 @@ table.tabla-taladros td:first-child {
 }
 
 .cad-tab-pill-exact.tab-active-pink {
-  background: #1c0a15;
-  border: 1.5px solid #e11d48;
+  background: color-mix(in srgb, var(--acento, #f97316) 18%, #0f1522);
+  border: 1.5px solid var(--acento, #f97316);
   color: #ffffff;
-  box-shadow: 0 0 14px rgba(225, 29, 72, 0.35);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--acento, #f97316) 40%, transparent);
 }
 
 .cad-tab-pill-exact.btn-tab-add {
-  background: #1c0a15;
-  border: 1.5px solid #e11d48;
-  color: #f43f5e;
+  background: color-mix(in srgb, var(--acento, #f97316) 12%, #0f1522);
+  border: 1.5px solid color-mix(in srgb, var(--acento, #f97316) 50%, transparent);
+  color: var(--acento-suave, #fdba74);
   font-size: 16px;
   font-weight: 800;
   padding: 5px 14px;
@@ -2321,9 +2348,9 @@ table.tabla-taladros td:first-child {
   width: 36px;
   height: 36px;
   border-radius: 12px;
-  border: 1px solid rgba(225, 29, 72, 0.5);
-  background: rgba(225, 29, 72, 0.1);
-  color: #e11d48;
+  border: 1px solid color-mix(in srgb, var(--acento, #f97316) 45%, transparent);
+  background: color-mix(in srgb, var(--acento, #f97316) 12%, transparent);
+  color: var(--acento-suave, #fdba74);
   font-size: 20px;
   font-weight: 700;
   display: flex;
@@ -2334,7 +2361,9 @@ table.tabla-taladros td:first-child {
 }
 
 .btn-cad-plus-exact:hover {
-  background: rgba(225, 29, 72, 0.25);
+  background: color-mix(in srgb, var(--acento, #f97316) 24%, transparent);
+  border-color: var(--acento, #f97316);
+  color: #ffffff;
   transform: scale(1.05);
 }
 
@@ -2405,24 +2434,49 @@ table.tabla-taladros td:first-child {
 
 /* Modo Comprimido / Minimizado: Ocupa una tira mínima sin tapar la pantalla */
 .panel-comprimido {
-  padding: 6px 12px !important;
+  display: flex !important;
+  align-items: center !important;
+  padding: 4px 6px 4px 14px !important;
   border-radius: 999px !important;
   height: 42px !important;
+  min-height: 42px !important;
   max-height: 42px !important;
   width: auto !important;
-  min-width: 220px !important;
-  max-width: 320px !important;
+  width: fit-content !important;
+  min-width: 200px !important;
+  max-width: min(520px, calc(100vw - 32px)) !important;
   overflow: hidden !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6) !important;
-  border-color: rgba(244, 63, 94, 0.6) !important;
-  background: #0b111c !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.75), 0 0 14px color-mix(in srgb, var(--acento, #f97316) 20%, transparent) !important;
+  border: 1px solid color-mix(in srgb, var(--acento, #f97316) 45%, transparent) !important;
+  background: rgba(11, 17, 28, 0.94) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  z-index: 40 !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.panel-comprimido:hover {
+  border-color: var(--acento, #f97316) !important;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.85), 0 0 18px color-mix(in srgb, var(--acento, #f97316) 30%, transparent) !important;
 }
 
 @media (max-width: 600px) {
   .panel-comprimido {
-    top: 14px !important;
-    left: 56px !important;
-    width: min(280px, calc(100% - 108px)) !important;
+    top: 12px !important;
+    left: 54px !important;
+    right: auto !important;
+    max-width: calc(100vw - 64px) !important;
+    min-width: 0 !important;
+    padding: 3px 5px 3px 10px !important;
+    height: 38px !important;
+    min-height: 38px !important;
+  }
+
+  .cad-panel-capas-autocad.panel-comprimido {
+    top: auto !important;
+    bottom: 62px !important;
+    left: 10px !important;
+    max-width: calc(100vw - 20px) !important;
   }
 }
 
@@ -2432,22 +2486,68 @@ table.tabla-taladros td:first-child {
   justify-content: space-between;
   width: 100%;
   gap: 10px;
+  min-width: 0;
 }
 
 .mini-coords-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 11.5px;
+  font-weight: 500;
   color: #cbd5e1;
   font-family: ui-monospace, SFMono-Regular, monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.mini-coords-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--acento, #f97316);
+  box-shadow: 0 0 8px var(--acento, #f97316);
+  flex-shrink: 0;
 }
 
 .mini-coords-info strong {
-  color: #06b6d4;
+  color: var(--acento, #f97316);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.mini-coords-badge {
+  background: color-mix(in srgb, var(--acento, #f97316) 18%, rgba(255, 255, 255, 0.06));
+  color: var(--acento-suave, #fdba74);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.mini-coords-sep {
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.mini-coords-label {
+  color: #f1f5f9;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .mini-actions {
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-shrink: 0;
 }
 
 .btn-mini-mode {
@@ -2462,20 +2562,38 @@ table.tabla-taladros td:first-child {
 }
 
 .btn-mini-mode.mode-active {
-  background: #e11d48;
-  border-color: #e11d48;
-  color: #ffffff;
+  background: var(--acento, #f97316);
+  border-color: var(--acento, #f97316);
+  color: #0b111c;
 }
 
 .btn-mini-expand {
-  background: rgba(6, 182, 212, 0.15);
-  border: 1px solid #06b6d4;
-  color: #06b6d4;
-  font-size: 10.5px;
-  font-weight: 800;
-  padding: 4px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: color-mix(in srgb, var(--acento, #f97316) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--acento, #f97316) 55%, transparent);
+  color: var(--acento-suave, #fdba74);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 12px;
   border-radius: 999px;
   cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.16s ease;
+  line-height: 1;
+}
+
+.btn-mini-expand:hover {
+  background: var(--acento, #f97316);
+  border-color: var(--acento, #f97316);
+  color: #0b111c;
+  box-shadow: 0 0 12px color-mix(in srgb, var(--acento, #f97316) 45%, transparent);
+  transform: translateY(-0.5px);
+}
+
+.btn-mini-expand:active {
+  transform: translateY(0.5px);
 }
 
 /* Header de Paneles */
@@ -2534,24 +2652,27 @@ table.tabla-taladros td:first-child {
 .btn-header-round-close {
   width: 26px;
   height: 26px;
+  min-width: 26px;
   border-radius: 50%;
-  background: rgba(225, 29, 72, 0.1);
-  border: 1px solid rgba(225, 29, 72, 0.35);
-  color: #e11d48;
-  font-size: 12px;
-  font-weight: 800;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.16s ease;
   padding: 0;
+  line-height: 1;
 }
 
 .btn-header-round-close:hover {
-  background: #e11d48;
-  color: #ffffff;
-  transform: scale(1.08);
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #fca5a5;
+  transform: scale(1.06);
 }
 
 /* Selector de Coordenadas con Menú Desplegable Arriba */
@@ -2787,7 +2908,7 @@ table.tabla-taladros td:first-child {
 }
 
 .unit-pink {
-  color: #e11d48;
+  color: var(--acento, #f97316);
   font-size: 11px;
   font-weight: 800;
 }
@@ -2947,11 +3068,11 @@ table.tabla-taladros td:first-child {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #170712;
-  border: 1px solid rgba(244, 63, 94, 0.28);
+  background: linear-gradient(135deg, #111a2e, color-mix(in srgb, var(--acento, #f97316) 12%, #0b111c));
+  border: 1px solid color-mix(in srgb, var(--acento, #f97316) 35%, rgba(255, 255, 255, 0.08));
   border-radius: 12px;
   padding: 8px 12px;
-  box-shadow: inset 0 0 12px rgba(244, 63, 94, 0.08);
+  box-shadow: inset 0 0 12px color-mix(in srgb, var(--acento, #f97316) 8%, transparent);
   flex-shrink: 0;
 }
 
@@ -3025,10 +3146,10 @@ table.tabla-taladros td:first-child {
 }
 
 .btn-capa-carpeta-pill.active {
-  background: #16243b;
-  border-color: #38bdf8;
-  color: #38bdf8;
-  box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
+  background: color-mix(in srgb, var(--acento, #f97316) 18%, #0f1522);
+  border-color: var(--acento, #f97316);
+  color: var(--acento, #f97316);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--acento, #f97316) 30%, transparent);
 }
 
 .pill-badge-num {
@@ -3253,17 +3374,17 @@ table.tabla-taladros td:first-child {
 }
 
 .btn-pink-dibujar-linea {
-  background: #e11d48;
+  background: var(--acento, #f97316);
   border: none;
   border-radius: 999px;
-  color: #ffffff;
+  color: #0b111c;
   font-size: 13.5px;
   font-weight: 800;
-  padding: 12px;
+  padding: 11px;
   cursor: pointer;
   letter-spacing: 0.6px;
-  transition: all 0.15s;
-  box-shadow: 0 4px 18px rgba(225, 29, 72, 0.4);
+  transition: all 0.18s ease;
+  box-shadow: 0 4px 18px color-mix(in srgb, var(--acento, #f97316) 40%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3271,7 +3392,8 @@ table.tabla-taladros td:first-child {
 }
 
 .btn-pink-dibujar-linea:hover {
-  background: #be123c;
+  background: color-mix(in srgb, var(--acento, #f97316) 88%, white);
+  box-shadow: 0 6px 24px color-mix(in srgb, var(--acento, #f97316) 55%, transparent);
   transform: translateY(-1px);
 }
 
@@ -3362,17 +3484,17 @@ table.tabla-taladros td:first-child {
 }
 
 .btn-pink-insertar-xyz {
-  background: #ff0055;
+  background: var(--acento, #f97316);
   border: none;
   border-radius: 999px;
-  color: #ffffff;
+  color: #0b111c;
   font-size: 13.5px;
   font-weight: 800;
-  padding: 13px;
+  padding: 11px;
   cursor: pointer;
   letter-spacing: 0.6px;
-  transition: all 0.15s ease;
-  box-shadow: 0 4px 18px rgba(255, 0, 85, 0.45);
+  transition: all 0.18s ease;
+  box-shadow: 0 4px 18px color-mix(in srgb, var(--acento, #f97316) 40%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3384,13 +3506,13 @@ table.tabla-taladros td:first-child {
   font-size: 12px;
   font-weight: 800;
   margin-top: 2px;
-  box-shadow: 0 4px 14px rgba(255, 0, 85, 0.35);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--acento, #f97316) 35%, transparent);
 }
 
 .btn-pink-insertar-xyz:hover {
-  background: #e6004c;
+  background: color-mix(in srgb, var(--acento, #f97316) 88%, white);
   transform: translateY(-1px);
-  box-shadow: 0 6px 22px rgba(255, 0, 85, 0.55);
+  box-shadow: 0 6px 22px color-mix(in srgb, var(--acento, #f97316) 55%, transparent);
 }
 
 .btn-pink-insertar-xyz:active {
@@ -3523,7 +3645,7 @@ table.tabla-taladros td:first-child {
   font-weight: 800;
   border-radius: 999px;
   margin-top: 2px;
-  box-shadow: 0 4px 14px rgba(225, 29, 72, 0.35);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--acento, #f97316) 35%, transparent);
 }
 
 /* Estilos específicos para Panel POLILÍNEA */
@@ -3552,8 +3674,8 @@ table.tabla-taladros td:first-child {
 }
 
 .toggle-switch-track.active {
-  background: #e11d48;
-  border-color: #e11d48;
+  background: var(--acento, #f97316);
+  border-color: var(--acento, #f97316);
 }
 
 .toggle-switch-thumb {
@@ -3572,17 +3694,17 @@ table.tabla-taladros td:first-child {
 }
 
 .btn-pink-finalizar-pl {
-  background: #ff0055;
+  background: var(--acento, #f97316);
   border: none;
   border-radius: 999px;
-  color: #ffffff;
+  color: #0b111c;
   font-size: 12px;
   font-weight: 800;
   padding: 9px 14px;
   cursor: pointer;
   letter-spacing: 0.5px;
-  transition: all 0.15s;
-  box-shadow: 0 4px 14px rgba(255, 0, 85, 0.35);
+  transition: all 0.18s ease;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--acento, #f97316) 35%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3598,9 +3720,9 @@ table.tabla-taladros td:first-child {
 }
 
 .btn-pink-finalizar-pl:not(:disabled):hover {
-  background: #e6004c;
+  background: color-mix(in srgb, var(--acento, #f97316) 88%, white);
   transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(255, 0, 85, 0.45);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--acento, #f97316) 50%, transparent);
 }
 
 /* ==========================================================================
@@ -4019,8 +4141,8 @@ table.tabla-taladros td:first-child {
 
 .btn-pink-extruir-perfil {
   width: 100%;
-  background: #f43f5e;
-  color: #ffffff;
+  background: var(--acento, #f97316);
+  color: #0b111c;
   border: none;
   border-radius: 999px;
   padding: 12px 16px;
@@ -4029,20 +4151,20 @@ table.tabla-taladros td:first-child {
   letter-spacing: 0.8px;
   text-transform: uppercase;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(244, 63, 94, 0.4);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--acento, #f97316) 40%, transparent);
   margin-top: 6px;
   transition: all 0.18s ease;
 }
 
 .btn-pink-extruir-perfil:hover {
-  background: #e11d48;
-  box-shadow: 0 6px 20px rgba(244, 63, 94, 0.6);
+  background: color-mix(in srgb, var(--acento, #f97316) 88%, white);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--acento, #f97316) 60%, transparent);
   transform: translateY(-1px);
 }
 
 .panel-solido-results-card {
   background: rgba(15, 23, 42, 0.7);
-  border: 1px solid rgba(244, 63, 94, 0.3);
+  border: 1px solid color-mix(in srgb, var(--acento, #f97316) 30%, transparent);
   border-radius: 10px;
   padding: 8px 10px;
   display: flex;
@@ -4056,7 +4178,7 @@ table.tabla-taladros td:first-child {
   justify-content: space-between;
   align-items: center;
   font-size: 10px;
-  color: #f43f5e;
+  color: var(--acento, #f97316);
   font-weight: 700;
   letter-spacing: 0.5px;
 }
@@ -4071,7 +4193,7 @@ table.tabla-taladros td:first-child {
 }
 
 .panel-solido-results-card .btn-limpiar-solidos:hover {
-  color: #f43f5e;
+  color: var(--acento, #f97316);
 }
 
 .panel-solido-results-card .results-grid {
@@ -4150,9 +4272,10 @@ table.tabla-taladros td:first-child {
 }
 
 .btn-modo-tab.activo {
-  background: #f43f5e;
-  color: #ffffff;
-  box-shadow: 0 2px 8px rgba(244, 63, 94, 0.45);
+  background: var(--acento, #f97316);
+  color: #0b111c;
+  font-weight: 800;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--acento, #f97316) 45%, transparent);
 }
 
 /* Tarjeta de Arista 3D Seleccionada */
@@ -4192,7 +4315,7 @@ table.tabla-taladros td:first-child {
 }
 
 .btn-arista-deseleccionar:hover {
-  color: #f43f5e;
+  color: var(--acento, #f97316);
 }
 
 .arista-sel-info {
@@ -4280,9 +4403,9 @@ table.tabla-taladros td:first-child {
 }
 
 .btn-seleccionar-todas-aristas {
-  background: rgba(244, 63, 94, 0.12);
-  border: 1px dashed rgba(244, 63, 94, 0.4);
-  color: #fda4af;
+  background: color-mix(in srgb, var(--acento, #f97316) 12%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--acento, #f97316) 40%, transparent);
+  color: var(--acento-suave, #fdba74);
   font-size: 10.5px;
   font-weight: 700;
   padding: 6px 8px;
@@ -4294,8 +4417,8 @@ table.tabla-taladros td:first-child {
 }
 
 .btn-seleccionar-todas-aristas:hover {
-  background: rgba(244, 63, 94, 0.25);
-  border-color: #f43f5e;
+  background: color-mix(in srgb, var(--acento, #f97316) 25%, transparent);
+  border-color: var(--acento, #f97316);
   color: #ffffff;
 }
 
@@ -4340,7 +4463,7 @@ table.tabla-taladros td:first-child {
 .btn-grilla-ocultar {
   background: transparent;
   border: none;
-  color: #f43f5e;
+  color: var(--acento, #f97316);
   font-size: 11px;
   font-weight: 800;
   cursor: pointer;
@@ -4391,8 +4514,8 @@ table.tabla-taladros td:first-child {
 .btn-grilla-centrar-galeria {
   width: 100%;
   background: transparent;
-  border: 1.5px solid #f43f5e;
-  color: #f43f5e;
+  border: 1.5px solid var(--acento, #f97316);
+  color: var(--acento, #f97316);
   border-radius: 999px;
   padding: 10px 14px;
   font-size: 11.5px;
@@ -4406,8 +4529,8 @@ table.tabla-taladros td:first-child {
 }
 
 .btn-grilla-centrar-galeria:hover {
-  background: rgba(244, 63, 94, 0.15);
-  box-shadow: 0 0 14px rgba(244, 63, 94, 0.35);
+  background: color-mix(in srgb, var(--acento, #f97316) 15%, transparent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--acento, #f97316) 35%, transparent);
   transform: translateY(-1px);
 }
 
@@ -4415,7 +4538,7 @@ table.tabla-taladros td:first-child {
   width: 100%;
   background: #111827;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #f43f5e;
+  color: var(--acento, #f97316);
   border-radius: 999px;
   padding: 9px 14px;
   font-size: 11px;
@@ -4429,14 +4552,14 @@ table.tabla-taladros td:first-child {
 
 .btn-grilla-mover-snap:hover {
   background: #1f2937;
-  border-color: rgba(244, 63, 94, 0.4);
+  border-color: color-mix(in srgb, var(--acento, #f97316) 40%, transparent);
 }
 
 .btn-grilla-mover-snap.activo {
-  background: rgba(244, 63, 94, 0.25);
-  border-color: #f43f5e;
+  background: color-mix(in srgb, var(--acento, #f97316) 25%, transparent);
+  border-color: var(--acento, #f97316);
   color: #ffffff;
-  box-shadow: 0 0 12px rgba(244, 63, 94, 0.45);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--acento, #f97316) 45%, transparent);
 }
 
 .panel-grilla-toggles {
@@ -4485,7 +4608,7 @@ table.tabla-taladros td:first-child {
 .btn-limpiar-guias {
   background: transparent;
   border: none;
-  color: #f43f5e;
+  color: var(--acento, #f97316);
   font-size: 10px;
   font-weight: 700;
   cursor: pointer;

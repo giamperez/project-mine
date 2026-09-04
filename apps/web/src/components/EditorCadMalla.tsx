@@ -29,6 +29,7 @@ import {
   desfasarArco,
   desfasarPolilinea,
 } from "../utils/cadDesfase.js";
+import PanelDatosRmrMetodo from "./PanelDatosRmrMetodo.js";
 
 type HerramientaCad =
   | "SEL"
@@ -159,7 +160,7 @@ export const GRUPOS_TALADRO_CONFIG: InfoGrupoTaladro[] = [
     id: "arranque",
     label: "Arranque",
     abrev: "ARR",
-    colorDefecto: "#ec4899",
+    colorDefecto: "#f97316",
     radioMmDefecto: "22.5",
     longitudMDefecto: "3.6",
     lookOutDefecto: "0",
@@ -371,6 +372,9 @@ export default function EditorCadMalla({
   const BASE_UTM_E = 432000;
   const BASE_UTM_N = 8765000;
 
+  // Estado del Panel DATOS / RMR / MÉTODO
+  const [panelDatosRmrVisible, setPanelDatosRmrVisible] = usePersistedState<boolean>("cad:panelDatosRmrVisible", false);
+
   // Estado del Panel 'SELECCIONAR' (cerrado por defecto)
   const [panelSelVisible, setPanelSelVisible] = useState(false);
   const [panelSelMinimizado, setPanelSelMinimizado] = usePersistedState<boolean>("cad:panelSelMinimizado", false);
@@ -480,7 +484,7 @@ export default function EditorCadMalla({
   const [talLongitudM, setTalLongitudM] = usePersistedState<string>("cad:talLongitudM", "3.6");
   const [talLookOutDeg, setTalLookOutDeg] = usePersistedState<string>("cad:talLookOutDeg", "0");
   const [talGradientePct, setTalGradientePct] = usePersistedState<string>("cad:talGradientePct", "0");
-  const [talColor, setTalColor] = usePersistedState<string>("cad:talColor", "#ec4899");
+  const [talColor, setTalColor] = usePersistedState<string>("cad:talColor", "#f97316");
   const [talCargado, setTalCargado] = usePersistedState<boolean>("cad:talCargado", true);
 
   // Estado del Panel 'SÓLIDO' (SOL - Levantamiento, Profundidad y Selección de Aristas 3D)
@@ -5534,9 +5538,11 @@ export default function EditorCadMalla({
         <aside className="cad-dock-right-exact" onClick={(e) => e.stopPropagation()}>
           <button
             type="button"
-            className="btn-dock-circle-exact"
-            onClick={() => mostrarAviso(`Área: ${area.toFixed(1)} m² | Perímetro: ${perimetro.toFixed(1)} m`)}
-            title="Resumen Métrico (Σ)"
+            className={`btn-dock-circle-exact ${panelDatosRmrVisible ? "tool-active-pink" : ""}`}
+            onClick={() => {
+              setPanelDatosRmrVisible(!panelDatosRmrVisible);
+            }}
+            title="Datos / RMR / Método (Σ)"
           >
             Σ
           </button>
@@ -5573,7 +5579,6 @@ export default function EditorCadMalla({
               mostrarAviso(!mostrarPuntoMedio ? "▲ Puntos medios de líneas activados (marcadores en pantalla)" : "Puntos medios desactivados");
             }}
             title={mostrarPuntoMedio ? "Desactivar Punto Medio (PM)" : "Mostrar y Encajar Punto Medio (PM)"}
-            style={mostrarPuntoMedio ? { borderColor: "#06b6d4", color: "#06b6d4", boxShadow: "0 0 14px rgba(6, 182, 212, 0.6)" } : {}}
           >
             PM
           </button>
@@ -7278,14 +7283,39 @@ export default function EditorCadMalla({
           >
             {panelCapasMinimizado ? (
               <div className="panel-mini-strip">
-                <div className="mini-coords-info">
-                  <strong>Capas:</strong> {capas.length} activas · {capas.find((c) => c.id === capaActivaId)?.nombre || "Dibujo CAD"}
+                <div
+                  className="mini-coords-info"
+                  title={`Capas: ${capas.length} activas · ${capas.find((c) => c.id === capaActivaId)?.nombre || "Dibujo CAD"}`}
+                >
+                  <span className="mini-coords-dot" />
+                  <strong>Capas:</strong>
+                  <span className="mini-coords-badge">{capas.length} act.</span>
+                  <span className="mini-coords-sep">·</span>
+                  <span className="mini-coords-label">
+                    {capas.find((c) => c.id === capaActivaId)?.nombre || "Dibujo CAD"}
+                  </span>
                 </div>
                 <div className="mini-actions">
-                  <button type="button" className="btn-mini-expand" onClick={() => setPanelCapasMinimizado(false)}>
-                    ⤢ Expandir
+                  <button
+                    type="button"
+                    className="btn-mini-expand"
+                    onClick={() => setPanelCapasMinimizado(false)}
+                    title="Expandir gestor de capas"
+                  >
+                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <polyline points="15 3 21 3 21 9" />
+                      <polyline points="9 21 3 21 3 15" />
+                      <line x1="21" y1="3" x2="14" y2="10" />
+                      <line x1="3" y1="21" x2="10" y2="14" />
+                    </svg>
+                    <span>Expandir</span>
                   </button>
-                  <button type="button" className="btn-header-round-close" onClick={() => setPanelCapasVisible(false)}>
+                  <button
+                    type="button"
+                    className="btn-header-round-close"
+                    onClick={() => setPanelCapasVisible(false)}
+                    title="Cerrar panel"
+                  >
                     ✕
                   </button>
                 </div>
@@ -8634,6 +8664,20 @@ export default function EditorCadMalla({
             )}
           </div>
         )}
+
+        {/* PANEL DATOS / RMR / MÉTODO */}
+        <PanelDatosRmrMetodo
+          visible={panelDatosRmrVisible}
+          onOcultar={() => setPanelDatosRmrVisible(false)}
+          poligonoCresta={poligonoCresta}
+          lineasCad={lineasCad}
+          polilineasCad={polilineasCad}
+          taladros={taladros}
+          onAplicarParametros={(params) => {
+            mostrarAviso(`Parámetros aplicados: ${params.ancho}x${params.alto}m | RMR ${params.rmr}`);
+          }}
+          mostrarAviso={mostrarAviso}
+        />
       </div>
 
       {/* 3. Barra Inferior de Escena */}
@@ -8682,7 +8726,7 @@ export default function EditorCadMalla({
             onClick={handleReasignarSeleccionACapaActiva}
             title="Reasignar selección a capa activa"
           >
-            <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="#f43f5e" strokeWidth="2.5">
+            <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="var(--acento, #f97316)" strokeWidth="2.5">
               <line x1="6" y1="3" x2="6" y2="15" />
               <circle cx="18" cy="6" r="3" />
               <circle cx="6" cy="18" r="3" />
