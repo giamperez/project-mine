@@ -5335,25 +5335,32 @@ export default function EditorCadMalla({
 
         {/* Selector de Sistema de Coordenadas en la Barra Superior */}
         <div className="cad-header-coords-bar">
-          <select
-            className="select-coords-topbar"
-            value={sistemaCoords}
-            onChange={(e) => {
-              const val = e.target.value;
-              if (val === "importar") {
-                document.getElementById("input-cad-importar")?.click();
-              } else {
-                setSistemaCoords(val as SistemaCoordenadas);
-              }
-            }}
-            title="Sistema de coordenadas"
-          >
-            <option value="local">🌐 Local Mina (m)</option>
-            <option value="utm_18s">🌐 UTM 18S</option>
-            <option value="utm_19s">🌐 UTM 19S</option>
-            <option value="psad56">🌐 PSAD56</option>
-            <option value="importar">📁 Jalar DXF/JSON...</option>
-          </select>
+          <div className="coords-select-wrapper">
+            <svg className="coords-globe-svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="2" y1="12" x2="22" y2="12" />
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+            </svg>
+            <select
+              className="select-coords-topbar"
+              value={sistemaCoords}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === "importar") {
+                  document.getElementById("input-cad-importar")?.click();
+                } else {
+                  setSistemaCoords(val as SistemaCoordenadas);
+                }
+              }}
+              title="Sistema de coordenadas"
+            >
+              <option value="local">Local Mina (m)</option>
+              <option value="utm_18s">UTM 18S</option>
+              <option value="utm_19s">UTM 19S</option>
+              <option value="psad56">PSAD56</option>
+              <option value="importar">Jalar DXF/JSON...</option>
+            </select>
+          </div>
 
           <button
             type="button"
@@ -5361,35 +5368,70 @@ export default function EditorCadMalla({
             onClick={() => document.getElementById("input-cad-importar")?.click()}
             title="Importar y jalar coordenadas de archivo"
           >
-            📁
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+            </svg>
           </button>
         </div>
 
         <div className="cad-header-actions-exact">
-          <button type="button" className="btn-exact-icon" onClick={handleDeshacer} disabled={historial.length === 0} title="Deshacer">
-            ↺
-          </button>
-          <button type="button" className="btn-exact-icon" onClick={handleRehacer} disabled={historialRehacer.length === 0} title="Rehacer">
-            ↻
-          </button>
           <button
             type="button"
-            className={`btn-exact-icon ${bloqueadoGlobal ? "icon-yellow" : ""}`}
-            onClick={() => setBloqueadoGlobal(!bloqueadoGlobal)}
-            title="Bloquear capas"
+            className="btn-exact-icon"
+            onClick={handleDeshacer}
+            disabled={historial.length === 0}
+            title="Deshacer"
           >
-            🔒
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M3 7v6h6" />
+              <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" />
+            </svg>
           </button>
           <button
             type="button"
-            className="btn-exact-icon icon-green"
+            className="btn-exact-icon"
+            onClick={handleRehacer}
+            disabled={historialRehacer.length === 0}
+            title="Rehacer"
+          >
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 7v6h-6" />
+              <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            className={`btn-exact-icon ${bloqueadoGlobal ? "btn-exact-icon-active" : ""}`}
+            onClick={() => setBloqueadoGlobal(!bloqueadoGlobal)}
+            title={bloqueadoGlobal ? "Capas bloqueadas (clic para desbloquear)" : "Bloquear capas"}
+          >
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d={bloqueadoGlobal ? "M7 11V7a5 5 0 0 1 10 0v4" : "M7 11V7a5 5 0 0 1 9.9-1"} />
+            </svg>
+          </button>
+          <button
+            type="button"
+            className={`btn-exact-icon ${panelCapasVisible ? "btn-exact-icon-active" : ""}`}
             onClick={() => setPanelCapasVisible(!panelCapasVisible)}
             title="Gestor de Capas y Carpetas"
           >
-            👁️
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
           </button>
-          <button type="button" className="btn-exact-icon icon-green-check" onClick={onIrARender} title="Confirmar y ver modelo">
-            ✅
+          <button
+            type="button"
+            className="btn-exact-icon"
+            onClick={onIrARender}
+            title="Confirmar y ver modelo 3D"
+          >
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+              <line x1="12" y1="22.08" x2="12" y2="12" />
+            </svg>
           </button>
           <button type="button" className="btn-exact-salir" onClick={onVolver} title="Salir">
             SALIR
@@ -5680,7 +5722,7 @@ export default function EditorCadMalla({
                         }}
                         title="Toca un vértice en pantalla para usarlo como punto base"
                       >
-                        {esperandoPuntoBase ? "🎯 Toca vértice..." : "🎯 Cambiar base"}
+                        {esperandoPuntoBase ? "Toca vértice..." : "Cambiar base"}
                       </button>
                     </div>
                     <span className="pb-coords-text">
@@ -5692,7 +5734,7 @@ export default function EditorCadMalla({
                 {puntosSeleccionados.length > 0 && (
                   <div className="panel-punto-base-box">
                     <span className="pb-coords-text">
-                      📍 Punto individual · Se mueve directo a coordenadas
+                      Punto individual · Se mueve directo a coordenadas
                     </span>
                   </div>
                 )}
@@ -7106,7 +7148,7 @@ export default function EditorCadMalla({
                   className={`btn-grilla-mover-snap ${griMoviendoOrigen ? "activo" : ""}`}
                   onClick={handleIniciarMoverOrigenSnap}
                 >
-                  {griMoviendoOrigen ? "📍 TOCA EN PANTALLA..." : "MOVER ORIGEN CON SNAP"}
+                  {griMoviendoOrigen ? "TOCA EN PANTALLA..." : "MOVER ORIGEN CON SNAP"}
                 </button>
 
                 {/* 3 Toggles interactivos (switches fucsia con pastilla blanca) */}
@@ -7202,11 +7244,11 @@ export default function EditorCadMalla({
                           setModoCrearGuia(null);
                         } else {
                           setModoCrearGuia("H");
-                          mostrarAviso("📍 Toca en el plano para situar la guía Horizontal");
+                          mostrarAviso("Toca en el plano para situar la guía Horizontal");
                         }
                       }}
                     >
-                      {modoCrearGuia === "H" ? "📍 Toca en plano..." : "Horizontal"}
+                      {modoCrearGuia === "H" ? "Toca en plano..." : "Horizontal"}
                     </button>
                     <button
                       type="button"
@@ -7216,11 +7258,11 @@ export default function EditorCadMalla({
                           setModoCrearGuia(null);
                         } else {
                           setModoCrearGuia("V");
-                          mostrarAviso("📍 Toca en el plano para situar la guía Vertical");
+                          mostrarAviso("Toca en el plano para situar la guía Vertical");
                         }
                       }}
                     >
-                      {modoCrearGuia === "V" ? "📍 Toca en plano..." : "Vertical"}
+                      {modoCrearGuia === "V" ? "Toca en plano..." : "Vertical"}
                     </button>
                   </div>
 
@@ -7316,7 +7358,10 @@ export default function EditorCadMalla({
                         onClick={() => setFiltroCarpeta(filtroCarpeta === carp.id ? null : carp.id)}
                         title={`Filtrar por carpeta: ${carp.nombre}`}
                       >
-                        <span>📁 {carp.nombre}</span>
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                        </svg>
+                        <span>{carp.nombre}</span>
                         <span className="pill-badge-num">{enCarp}</span>
                       </button>
                     );
@@ -8622,7 +8667,7 @@ export default function EditorCadMalla({
             type="button"
             className="btn-scene-exact-tool"
             onClick={handleCrearNuevaCarpeta}
-            title="Nueva Carpeta de Capas (📁+)"
+            title="Nueva Carpeta de Capas (+)"
           >
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#f8fafc" strokeWidth="2">
               <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />

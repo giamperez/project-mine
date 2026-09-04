@@ -1944,82 +1944,101 @@ table.tabla-taladros td:first-child {
 .cad-header-coords-bar {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
+}
+
+.coords-select-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #090e17;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 2px 8px;
+  transition: border-color 0.15s;
+}
+
+.coords-select-wrapper:hover,
+.coords-select-wrapper:focus-within {
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.coords-globe-svg {
+  color: #94a3b8;
+  flex-shrink: 0;
 }
 
 .select-coords-topbar {
-  background: #090e17;
-  border: 1px solid rgba(6, 182, 212, 0.35);
-  border-radius: 6px;
+  background: transparent;
+  border: none;
   color: #e2e8f0;
   font-size: 11px;
   font-weight: 700;
-  padding: 3px 8px;
+  padding: 3px 0;
   outline: none;
   cursor: pointer;
   max-width: 140px;
 }
 
-.select-coords-topbar:focus {
-  border-color: #06b6d4;
-}
-
 .btn-topbar-import-icon {
-  background: #0f172a;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 6px;
-  color: #38bdf8;
-  font-size: 11px;
-  padding: 3px 6px;
+  width: 30px;
+  height: 30px;
+  background: #0c111c;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #94a3b8;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.15s;
+  transition: all 0.15s;
 }
 
 .btn-topbar-import-icon:hover {
-  transform: scale(1.08);
+  background: #151e2f;
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+  transform: scale(1.05);
 }
 
 .cad-header-actions-exact {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .btn-exact-icon {
-  background: none;
-  border: none;
-  font-size: 16px;
+  width: 32px;
+  height: 32px;
+  background: #0c111c;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
   cursor: pointer;
-  padding: 3px;
+  padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #94a3b8;
-  transition: transform 0.15s;
+  transition: all 0.15s ease;
 }
 
 .btn-exact-icon:hover:not(:disabled) {
-  transform: scale(1.15);
+  background: #151e2f;
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+  transform: scale(1.05);
 }
 
 .btn-exact-icon:disabled {
-  opacity: 0.35;
+  opacity: 0.3;
   cursor: not-allowed;
 }
 
-.icon-yellow {
-  color: #facc15;
-}
-
-.icon-green {
-  color: #22c55e;
-}
-
-.icon-green-check {
-  font-size: 17px;
+.btn-exact-icon.btn-exact-icon-active {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: #ffffff;
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.25);
 }
 
 .btn-exact-salir {
