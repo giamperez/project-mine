@@ -5348,30 +5348,20 @@ export default function EditorCadMalla({
                 const val = e.target.value;
                 if (val === "importar") {
                   document.getElementById("input-cad-importar")?.click();
+                  e.target.value = sistemaCoords;
                 } else {
                   setSistemaCoords(val as SistemaCoordenadas);
                 }
               }}
-              title="Sistema de coordenadas"
+              title="Sistema de coordenadas (selecciona para cambiar o jalar DXF/JSON)"
             >
               <option value="local">Local Mina (m)</option>
               <option value="utm_18s">UTM 18S</option>
               <option value="utm_19s">UTM 19S</option>
               <option value="psad56">PSAD56</option>
-              <option value="importar">Jalar DXF/JSON...</option>
+              <option value="importar">📁 Jalar DXF/JSON...</option>
             </select>
           </div>
-
-          <button
-            type="button"
-            className="btn-topbar-import-icon"
-            onClick={() => document.getElementById("input-cad-importar")?.click()}
-            title="Importar y jalar coordenadas de archivo"
-          >
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-            </svg>
-          </button>
         </div>
 
         <div className="cad-header-actions-exact">
