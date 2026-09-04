@@ -207,7 +207,7 @@ export default function EspacioMalla({ onVolverAlPortal }: EspacioMallaProps = {
     if (nueva === "tabla" || nueva === "voladura") setSubPestanaDerecha(nueva);
   }
 
-  if (vistaActual === "cad" && modoDiseno === "banco") {
+  if (vistaActual === "cad") {
     return (
       <EditorCadMalla
         poligonoCresta={entrada.poligonoCresta}
@@ -228,17 +228,77 @@ export default function EspacioMalla({ onVolverAlPortal }: EspacioMallaProps = {
         </div>
       )}
 
-      <div className="visor-modo-toggle" style={{ margin: "8px 14px 0" }}>
-        <button type="button" onClick={() => setVistaActual("cad")} style={{ borderColor: "#f97316", color: "#f97316", fontWeight: 700 }}>
-          📐 Editor CAD (2D)
-        </button>
-        <button type="button" data-activo={modoDiseno === "banco"} onClick={() => setModoDiseno("banco")}>
-          Banco (cielo abierto)
-        </button>
-        <button type="button" data-activo={modoDiseno === "tunel"} onClick={() => setModoDiseno("tunel")}>
-          Túnel / galería (subterráneo)
-        </button>
-      </div>
+      {/* Barra Superior Profesional del Taller 3D */}
+      <header className="taller-top-bar">
+        <div className="taller-top-left">
+          <button
+            type="button"
+            className="btn-taller-back"
+            onClick={() => {
+              setVistaActual("cad");
+              setModoDiseno("banco");
+            }}
+            title="Volver al Editor CAD interactivo"
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <line x1="19" y1="12" x2="5" y2="12" />
+              <polyline points="12 19 5 12 12 5" />
+            </svg>
+            <span>Volver al Editor CAD</span>
+          </button>
+
+          {onVolverAlPortal && (
+            <button
+              type="button"
+              className="btn-taller-portal"
+              onClick={onVolverAlPortal}
+              title="Volver al Portal Principal"
+            >
+              Portal
+            </button>
+          )}
+        </div>
+
+        {/* Selector de Modo Segmentado Monocromático */}
+        <div className="taller-segmented-control">
+          <button
+            type="button"
+            className="taller-segment-btn"
+            onClick={() => {
+              setVistaActual("cad");
+              setModoDiseno("banco");
+            }}
+            title="Ir al Editor CAD 2D/3D"
+          >
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+              <line x1="3" y1="9" x2="21" y2="9" />
+              <line x1="9" y1="21" x2="9" y2="9" />
+            </svg>
+            <span>Editor CAD (2D)</span>
+          </button>
+          <button
+            type="button"
+            className={`taller-segment-btn ${modoDiseno === "banco" ? "segment-active" : ""}`}
+            onClick={() => setModoDiseno("banco")}
+          >
+            Banco (cielo abierto)
+          </button>
+          <button
+            type="button"
+            className={`taller-segment-btn ${modoDiseno === "tunel" ? "segment-active" : ""}`}
+            onClick={() => setModoDiseno("tunel")}
+          >
+            Túnel / galería (subterráneo)
+          </button>
+        </div>
+
+        <div className="taller-top-right">
+          <span className="taller-mode-tag">
+            {modoDiseno === "tunel" ? "MÓDULO SUBTERRÁNEO" : "MÓDULO SUPERFICIE"}
+          </span>
+        </div>
+      </header>
 
       {modoDiseno === "tunel" ? (
         <>
@@ -269,6 +329,21 @@ export default function EspacioMalla({ onVolverAlPortal }: EspacioMallaProps = {
           </main>
 
           <nav className="tabs-inferior">
+            <button
+              type="button"
+              className="tab-inferior-back-cad"
+              onClick={() => {
+                setVistaActual("cad");
+                setModoDiseno("banco");
+              }}
+              title="Volver al Editor CAD interactivo"
+            >
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <line x1="19" y1="12" x2="5" y2="12" />
+                <polyline points="12 19 5 12 12 5" />
+              </svg>
+              <span>← Editor CAD</span>
+            </button>
             <button type="button" data-activo={pestana === "diseno"} onClick={() => irAPestana("diseno")}>
               Diseño
             </button>
@@ -306,10 +381,10 @@ export default function EspacioMalla({ onVolverAlPortal }: EspacioMallaProps = {
               Vista 3D
             </button>
             <button type="button" data-activo={modoVisor === "editarCresta"} onClick={() => setModoVisor("editarCresta")}>
-              ✏ Dibujar cresta 2D
+              Dibujar cresta 2D
             </button>
             <button type="button" data-activo={modoVisor === "editarTaladros"} onClick={() => setModoVisor("editarTaladros")}>
-              ✏ Editar taladros
+              Editar taladros
             </button>
           </div>
           <div className="visor-contenido">
@@ -372,8 +447,20 @@ export default function EspacioMalla({ onVolverAlPortal }: EspacioMallaProps = {
       </main>
 
       <nav className="tabs-inferior">
-        <button type="button" onClick={() => setVistaActual("cad")} style={{ color: "#f97316", fontWeight: 700 }}>
-          📐 CAD 2D
+        <button
+          type="button"
+          className="tab-inferior-back-cad"
+          onClick={() => {
+            setVistaActual("cad");
+            setModoDiseno("banco");
+          }}
+          title="Volver al Editor CAD interactivo"
+        >
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2">
+            <line x1="19" y1="12" x2="5" y2="12" />
+            <polyline points="12 19 5 12 12 5" />
+          </svg>
+          <span>← Editor CAD</span>
         </button>
         <button type="button" data-activo={pestana === "diseno"} onClick={() => irAPestana("diseno")}>
           Diseño

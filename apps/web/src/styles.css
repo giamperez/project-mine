@@ -4540,6 +4540,217 @@ table.tabla-taladros td:first-child {
   margin-top: 4px;
 }
 
+/* ==========================================================================
+   TALLER 3D / TÚNEL / BANCO - TOP BAR & CONTROLES MONOCROMÁTICOS PROFESIONALES
+   ========================================================================== */
 
+.taller-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 16px;
+  background: #080d17;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+  z-index: 20;
+}
 
+.taller-top-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
 
+.btn-taller-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #f1f5f9;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 13px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+
+.btn-taller-back:hover {
+  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(56, 189, 248, 0.4);
+  color: #38bdf8;
+  transform: translateX(-1px);
+}
+
+.btn-taller-portal {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 6px 11px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-taller-portal:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+}
+
+/* Selector Segmentado Monocromático */
+.taller-segmented-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: #04070e;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 10px;
+  padding: 3px;
+}
+
+.taller-segment-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 13px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.16s ease;
+  white-space: nowrap;
+}
+
+.taller-segment-btn:hover {
+  color: #f1f5f9;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.taller-segment-btn.segment-active {
+  background: #151e30;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  color: #38bdf8;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+.taller-top-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.taller-mode-tag {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  color: #7dd3fc;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Botón de retorno al CAD en barra inferior */
+.tab-inferior-back-cad {
+  color: #38bdf8 !important;
+  font-weight: 700 !important;
+}
+
+.tab-inferior-back-cad svg {
+  margin-bottom: 1px;
+}
+
+.tab-inferior-back-cad:active {
+  background: rgba(56, 189, 248, 0.15) !important;
+}
+
+/* Refinamiento de paneles form (Diseño Túnel & Malla) para aspecto CAD oscuro y profesional */
+.panel-form {
+  background: #090e18;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+}
+
+.panel-form fieldset {
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  padding: 12px 14px 14px;
+  margin-bottom: 14px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+
+.panel-form legend {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #94a3b8;
+  text-transform: uppercase;
+  padding: 0 6px;
+}
+
+.panel-form .campo label {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #94a3b8;
+}
+
+.panel-form .campo input,
+.panel-form .campo select {
+  background: #070b14;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #f1f5f9;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.panel-form .campo input:focus,
+.panel-form .campo select:focus {
+  outline: none;
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+}
+
+.panel-form .resultados .dato {
+  background: rgba(7, 11, 20, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.panel-form .resultados .dato span {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.panel-form .resultados .dato b {
+  font-size: 12.5px;
+  color: #f1f5f9;
+}
+
+@media (max-width: 860px) {
+  .taller-top-bar {
+    padding: 8px 10px;
+    flex-wrap: wrap;
+  }
+  .taller-top-right {
+    display: none;
+  }
+  .taller-segment-btn {
+    padding: 5px 8px;
+    font-size: 11px;
+  }
+}
