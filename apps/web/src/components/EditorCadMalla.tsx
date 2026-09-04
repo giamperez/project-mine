@@ -5573,22 +5573,22 @@ export default function EditorCadMalla({
                     <h2 className="panel-solido-title">SELECCIONAR</h2>
                     <p className="panel-solido-subtitle">Selecciona con toque. La cámara sigue libre; mover solo con ΔXYZ.</p>
                   </div>
-                  <div className="panel-solido-header-actions">
-                    <button
-                      type="button"
-                      className="btn-solido-ocultar"
-                      onClick={() => setPanelSelVisible(false)}
-                      title="Ocultar panel"
-                    >
-                      <span className="chevron-left">‹</span> OCULTAR
-                    </button>
+                  <div className="panel-header-buttons">
                     <button
                       type="button"
                       className="btn-header-round-min"
                       onClick={() => setPanelSelMinimizado(true)}
-                      title="Minimizar panel"
+                      title="Minimizar panel (−)"
                     >
                       −
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-header-round-close"
+                      onClick={() => setPanelSelVisible(false)}
+                      title="Cerrar panel (✕)"
+                    >
+                      ✕
                     </button>
                   </div>
                 </div>
@@ -5750,22 +5750,22 @@ export default function EditorCadMalla({
                     <h2 className="panel-solido-title">LÍNEA</h2>
                     <p className="panel-solido-subtitle">Toca inicio y final usando SNAP, o distancia + azimut.</p>
                   </div>
-                  <div className="panel-solido-header-actions">
-                    <button
-                      type="button"
-                      className="btn-solido-ocultar"
-                      onClick={cerrarPanelYPasarASeleccion}
-                      title="Ocultar y pasar a Selección"
-                    >
-                      <span className="chevron-left">‹</span> OCULTAR
-                    </button>
+                  <div className="panel-header-buttons">
                     <button
                       type="button"
                       className="btn-header-round-min"
                       onClick={() => setPanelLinMinimizado(true)}
-                      title="Minimizar panel"
+                      title="Minimizar panel (−)"
                     >
                       −
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-header-round-close"
+                      onClick={cerrarPanelYPasarASeleccion}
+                      title="Cerrar panel y seleccionar directo (✕)"
+                    >
+                      ✕
                     </button>
                   </div>
                 </div>
@@ -5971,22 +5971,22 @@ export default function EditorCadMalla({
                     <h2 className="panel-solido-title">POLILÍNEA</h2>
                     <p className="panel-solido-subtitle">Toca vértices sucesivos y cierra cuando corresponda.</p>
                   </div>
-                  <div className="panel-solido-header-actions">
-                    <button
-                      type="button"
-                      className="btn-solido-ocultar"
-                      onClick={cerrarPanelYPasarASeleccion}
-                      title="Ocultar y pasar a Selección"
-                    >
-                      <span className="chevron-left">‹</span> OCULTAR
-                    </button>
+                  <div className="panel-header-buttons">
                     <button
                       type="button"
                       className="btn-header-round-min"
                       onClick={() => setPanelPlMinimizado(true)}
-                      title="Minimizar panel"
+                      title="Minimizar panel (−)"
                     >
                       −
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-header-round-close"
+                      onClick={cerrarPanelYPasarASeleccion}
+                      title="Cerrar panel y seleccionar directo (✕)"
+                    >
+                      ✕
                     </button>
                   </div>
                 </div>
@@ -6173,22 +6173,22 @@ export default function EditorCadMalla({
                     <h2 className="panel-solido-title">ARCO</h2>
                     <p className="panel-solido-subtitle">Inicio/fin + radio, centro/radio o tres puntos.</p>
                   </div>
-                  <div className="panel-solido-header-actions">
-                    <button
-                      type="button"
-                      className="btn-solido-ocultar"
-                      onClick={cerrarPanelYPasarASeleccion}
-                      title="Ocultar y pasar a Selección"
-                    >
-                      <span className="chevron-left">‹</span> OCULTAR
-                    </button>
+                  <div className="panel-header-buttons">
                     <button
                       type="button"
                       className="btn-header-round-min"
                       onClick={() => setPanelArcMinimizado(true)}
-                      title="Minimizar panel"
+                      title="Minimizar panel (−)"
                     >
                       −
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-header-round-close"
+                      onClick={cerrarPanelYPasarASeleccion}
+                      title="Cerrar panel y seleccionar directo (✕)"
+                    >
+                      ✕
                     </button>
                   </div>
                 </div>
@@ -6469,22 +6469,22 @@ export default function EditorCadMalla({
                     <h2 className="panel-solido-title">PUNTO</h2>
                     <p className="panel-solido-subtitle">Toca en pantalla o ingresa coordenadas absolutas.</p>
                   </div>
-                  <div className="panel-solido-header-actions">
-                    <button
-                      type="button"
-                      className="btn-solido-ocultar"
-                      onClick={cerrarPanelYPasarASeleccion}
-                      title="Ocultar y pasar a Selección"
-                    >
-                      <span className="chevron-left">‹</span> OCULTAR
-                    </button>
+                  <div className="panel-header-buttons">
                     <button
                       type="button"
                       className="btn-header-round-min"
                       onClick={() => setPanelPtoMinimizado(true)}
-                      title="Minimizar panel"
+                      title="Minimizar panel (−)"
                     >
                       −
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-header-round-close"
+                      onClick={cerrarPanelYPasarASeleccion}
+                      title="Cerrar panel y seleccionar directo (✕)"
+                    >
+                      ✕
                     </button>
                   </div>
                 </div>
@@ -6679,22 +6679,22 @@ export default function EditorCadMalla({
                       con aristas 3D seleccionables.
                     </p>
                   </div>
-                  <div className="panel-solido-header-actions">
-                    <button
-                      type="button"
-                      className="btn-solido-ocultar"
-                      onClick={cerrarPanelYPasarASeleccion}
-                      title="Ocultar y pasar a Selección"
-                    >
-                      <span className="chevron-left">‹</span> OCULTAR
-                    </button>
+                  <div className="panel-header-buttons">
                     <button
                       type="button"
                       className="btn-header-round-min"
                       onClick={() => setPanelSolMinimizado(true)}
-                      title="Minimizar panel"
+                      title="Minimizar panel (−)"
                     >
                       −
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-header-round-close"
+                      onClick={cerrarPanelYPasarASeleccion}
+                      title="Cerrar panel y seleccionar directo (✕)"
+                    >
+                      ✕
                     </button>
                   </div>
                 </div>
@@ -6952,22 +6952,22 @@ export default function EditorCadMalla({
                       guías auxiliares H/V.
                     </p>
                   </div>
-                  <div className="panel-grilla-header-actions">
-                    <button
-                      type="button"
-                      className="btn-grilla-ocultar"
-                      onClick={cerrarPanelYPasarASeleccion}
-                      title="Ocultar y pasar a Selección"
-                    >
-                      <span className="chevron-left">‹</span> OCULTAR
-                    </button>
+                  <div className="panel-header-buttons">
                     <button
                       type="button"
                       className="btn-header-round-min"
                       onClick={() => setPanelGriMinimizado(true)}
-                      title="Minimizar panel"
+                      title="Minimizar panel (−)"
                     >
                       −
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-header-round-close"
+                      onClick={cerrarPanelYPasarASeleccion}
+                      title="Cerrar panel y seleccionar directo (✕)"
+                    >
+                      ✕
                     </button>
                   </div>
                 </div>
@@ -7334,22 +7334,22 @@ export default function EditorCadMalla({
                     <h2 className="panel-solido-title">RECORTAR</h2>
                     <p className="panel-solido-subtitle">Selecciona objeto y cortante para recortar.</p>
                   </div>
-                  <div className="panel-solido-header-actions">
-                    <button
-                      type="button"
-                      className="btn-solido-ocultar"
-                      onClick={cerrarPanelYPasarASeleccion}
-                      title="Ocultar y pasar a Selección"
-                    >
-                      <span className="chevron-left">‹</span> OCULTAR
-                    </button>
+                  <div className="panel-header-buttons">
                     <button
                       type="button"
                       className="btn-header-round-min"
                       onClick={() => setPanelRecMinimizado(true)}
-                      title="Minimizar panel"
+                      title="Minimizar panel (−)"
                     >
                       −
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-header-round-close"
+                      onClick={cerrarPanelYPasarASeleccion}
+                      title="Cerrar panel y seleccionar directo (✕)"
+                    >
+                      ✕
                     </button>
                   </div>
                 </div>
@@ -7515,22 +7515,22 @@ export default function EditorCadMalla({
                     <h2 className="panel-solido-title">UNIR / SEPARAR</h2>
                     <p className="panel-solido-subtitle">Une segmentos contiguos en polilínea cerrada.</p>
                   </div>
-                  <div className="panel-solido-header-actions">
-                    <button
-                      type="button"
-                      className="btn-solido-ocultar"
-                      onClick={cerrarPanelYPasarASeleccion}
-                      title="Ocultar y pasar a Selección"
-                    >
-                      <span className="chevron-left">‹</span> OCULTAR
-                    </button>
+                  <div className="panel-header-buttons">
                     <button
                       type="button"
                       className="btn-header-round-min"
                       onClick={() => setPanelUniMinimizado(true)}
-                      title="Minimizar panel"
+                      title="Minimizar panel (−)"
                     >
                       −
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-header-round-close"
+                      onClick={cerrarPanelYPasarASeleccion}
+                      title="Cerrar panel y seleccionar directo (✕)"
+                    >
+                      ✕
                     </button>
                   </div>
                 </div>
@@ -7681,22 +7681,22 @@ export default function EditorCadMalla({
                     <h2 className="panel-solido-title">DIVIDIR</h2>
                     <p className="panel-solido-subtitle">Selecciona una línea y crea N referencias equidistantes.</p>
                   </div>
-                  <div className="panel-solido-header-actions">
-                    <button
-                      type="button"
-                      className="btn-solido-ocultar"
-                      onClick={cerrarPanelYPasarASeleccion}
-                      title="Ocultar y pasar a Selección"
-                    >
-                      <span className="chevron-left">‹</span> OCULTAR
-                    </button>
+                  <div className="panel-header-buttons">
                     <button
                       type="button"
                       className="btn-header-round-min"
                       onClick={() => setPanelDivMinimizado(true)}
-                      title="Minimizar panel"
+                      title="Minimizar panel (−)"
                     >
                       −
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-header-round-close"
+                      onClick={cerrarPanelYPasarASeleccion}
+                      title="Cerrar panel y seleccionar directo (✕)"
+                    >
+                      ✕
                     </button>
                   </div>
                 </div>
@@ -7806,22 +7806,22 @@ export default function EditorCadMalla({
                     <h2 className="panel-solido-title">DESFASE</h2>
                     <p className="panel-solido-subtitle">Genera curvas paralelas a una distancia fija.</p>
                   </div>
-                  <div className="panel-solido-header-actions">
-                    <button
-                      type="button"
-                      className="btn-solido-ocultar"
-                      onClick={cerrarPanelYPasarASeleccion}
-                      title="Ocultar y pasar a Selección"
-                    >
-                      <span className="chevron-left">‹</span> OCULTAR
-                    </button>
+                  <div className="panel-header-buttons">
                     <button
                       type="button"
                       className="btn-header-round-min"
                       onClick={() => setPanelOffMinimizado(true)}
-                      title="Minimizar panel"
+                      title="Minimizar panel (−)"
                     >
                       −
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-header-round-close"
+                      onClick={cerrarPanelYPasarASeleccion}
+                      title="Cerrar panel y seleccionar directo (✕)"
+                    >
+                      ✕
                     </button>
                   </div>
                 </div>
@@ -8006,22 +8006,22 @@ export default function EditorCadMalla({
                     <h2 className="panel-solido-title">COTA / B</h2>
                     <p className="panel-solido-subtitle">Cotas paramétricas o guías B1–B5 / 4G para el arranque.</p>
                   </div>
-                  <div className="panel-solido-header-actions">
-                    <button
-                      type="button"
-                      className="btn-solido-ocultar"
-                      onClick={cerrarPanelYPasarASeleccion}
-                      title="Ocultar y pasar a Selección"
-                    >
-                      <span className="chevron-left">‹</span> OCULTAR
-                    </button>
+                  <div className="panel-header-buttons">
                     <button
                       type="button"
                       className="btn-header-round-min"
                       onClick={() => setPanelCotMinimizado(true)}
-                      title="Minimizar panel"
+                      title="Minimizar panel (−)"
                     >
                       −
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-header-round-close"
+                      onClick={cerrarPanelYPasarASeleccion}
+                      title="Cerrar panel y seleccionar directo (✕)"
+                    >
+                      ✕
                     </button>
                   </div>
                 </div>
@@ -8244,22 +8244,22 @@ export default function EditorCadMalla({
                       Inserta taladros por grupo usando la configuración activa.
                     </p>
                   </div>
-                  <div className="panel-solido-header-actions">
-                    <button
-                      type="button"
-                      className="btn-solido-ocultar"
-                      onClick={cerrarPanelYPasarASeleccion}
-                      title="Ocultar y pasar a Selección"
-                    >
-                      <span className="chevron-left">‹</span> OCULTAR
-                    </button>
+                  <div className="panel-header-buttons">
                     <button
                       type="button"
                       className="btn-header-round-min"
                       onClick={() => setPanelTalMinimizado(true)}
-                      title="Minimizar panel"
+                      title="Minimizar panel (−)"
                     >
                       −
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-header-round-close"
+                      onClick={cerrarPanelYPasarASeleccion}
+                      title="Cerrar panel y seleccionar directo (✕)"
+                    >
+                      ✕
                     </button>
                   </div>
                 </div>
