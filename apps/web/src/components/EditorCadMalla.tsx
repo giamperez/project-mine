@@ -501,12 +501,15 @@ export default function EditorCadMalla({
   const [griMostrarGrilla, setGriMostrarGrilla] = usePersistedState<boolean>("cad:griMostrarGrilla", true);
   const [griSnapMetrico, setGriSnapMetrico] = usePersistedState<boolean>("cad:griSnapMetrico", true);
   const [griSnapMediaCuadricula, setGriSnapMediaCuadricula] = usePersistedState<boolean>("cad:griSnapMediaCuadricula", true);
+  const [griVerDistancias, setGriVerDistancias] = usePersistedState<boolean>("cad:griVerDistancias", false);
+  const [guiasAuxiliares, setGuiasAuxiliares] = usePersistedState<{ id: string; tipo: "H" | "V"; pos: number }[]>("cad:guiasAuxiliares", []);
+  const [modoCrearGuia, setModoCrearGuia] = useState<"H" | "V" | null>(null);
   const [griMoviendoOrigen, setGriMoviendoOrigen] = useState<boolean>(false);
 
   // Estado del Gestor de Capas y Carpetas (Estilo AutoCAD / Civil 3D)
   const [panelCapasVisible, setPanelCapasVisible] = useState(false);
   const [panelCapasMinimizado, setPanelCapasMinimizado] = usePersistedState<boolean>("cad:panelCapasMinimizado", false);
-  const [capaActivaId, setCapaActivaId] = usePersistedState<string>("cad:capaActivaId", "capa-cresta");
+  const [capaActivaId, setCapaActivaId] = usePersistedState<string>("cad:capaActivaId", "capa-dibujo");
 
   const [carpetas, setCarpetas] = usePersistedState<CarpetaCad[]>("cad:carpetas", [
     { id: "carp-malla", nombre: "Malla de Perforación", abierta: true, visible: true },
@@ -515,44 +518,44 @@ export default function EditorCadMalla({
 
   const [capas, setCapas] = usePersistedState<CapaCad[]>("cad:capas", [
     {
-      id: "capa-cresta",
-      nombre: "Cresta del Banco",
-      color: "#10b981",
+      id: "capa-base",
+      nombre: "Malla calculada · base",
+      color: "#22c55e",
       visible: true,
       bloqueada: false,
       carpetaId: "carp-malla",
       elementosCount: 4,
     },
     {
+      id: "capa-dibujo",
+      nombre: "Dibujo CAD",
+      color: "#ec4899",
+      visible: true,
+      bloqueada: false,
+      carpetaId: "carp-malla",
+      elementosCount: 0,
+    },
+    {
+      id: "capa-cotas",
+      nombre: "Cotas y anotaciones",
+      color: "#ffffff",
+      visible: true,
+      bloqueada: false,
+      carpetaId: "carp-topo",
+      elementosCount: 0,
+    },
+    {
       id: "capa-taladros",
-      nombre: "Taladros de Producción",
-      color: "#f97316",
+      nombre: "Taladros manuales",
+      color: "#06b6d4",
       visible: true,
       bloqueada: false,
       carpetaId: "carp-malla",
       elementosCount: taladros.length,
     },
     {
-      id: "capa-lineas",
-      nombre: "Líneas de Eje / Guías",
-      color: "#818cf8",
-      visible: true,
-      bloqueada: false,
-      carpetaId: "carp-topo",
-      elementosCount: 0,
-    },
-    {
-      id: "capa-puntos",
-      nombre: "Puntos de Control",
-      color: "#06b6d4",
-      visible: true,
-      bloqueada: false,
-      carpetaId: "carp-topo",
-      elementosCount: 0,
-    },
-    {
       id: "capa-solidos",
-      nombre: "Sólidos 3D / Extrusiones",
+      nombre: "Sólidos 3D",
       color: "#f43f5e",
       visible: true,
       bloqueada: false,
@@ -2967,11 +2970,64 @@ export default function EditorCadMalla({
       const oMesh = new THREE.Mesh(oGeo, oMat);
       oMesh.position.set(oX, 0.04, oY);
       group.add(oMesh);
+
+      // Ver Distancias de Grilla (Anotaciones numéricas en metros a lo largo de los ejes)
+      if (griVerDistancias) {
+        const stepDist = p >= 5 ? p : (p >= 1 ? 5 : (p >= 0.5 ? 2.5 : 1));
+        const numMarcas = 10;
+        for (let i = -numMarcas; i <= numMarcas; i++) {
+          if (i === 0) continue;
+          const dVal = (i * stepDist).toFixed(1).replace(/\.0$/, "");
+          // Eje X (Este-Oeste)
+          const spX = crearSpriteTextoCotaLocal(`${dVal > "0" ? `+${dVal}` : dVal}m`, "#94a3b8");
+          spX.position.set(oX + i * stepDist, 0.08, oY);
+          spX.scale.set(1.4, 0.7, 1);
+          group.add(spX);
+
+          // Eje Y (Norte-Sur en Z de Three.js)
+          const spY = crearSpriteTextoCotaLocal(`${dVal > "0" ? `+${dVal}` : dVal}m`, "#06b6d4");
+          spY.position.set(oX, 0.08, oY + i * stepDist);
+          spY.scale.set(1.4, 0.7, 1);
+          group.add(spY);
+        }
+      }
+
+      // Líneas Auxiliares de Grilla (Horizontales y Verticales)
+      // "Al apagar Mostrar grilla también se ocultan todas las guías auxiliares. No se borran."
+      if (guiasAuxiliares.length > 0) {
+        guiasAuxiliares.forEach((g) => {
+          const lGeo = new THREE.BufferGeometry();
+          if (g.tipo === "H") {
+            // Horizontal: a lo largo de X en Z_three = pos
+            lGeo.setFromPoints([
+              new THREE.Vector3(-400, 0.02, g.pos),
+              new THREE.Vector3(400, 0.02, g.pos),
+            ]);
+          } else {
+            // Vertical: a lo largo de Z_three en X = pos
+            lGeo.setFromPoints([
+              new THREE.Vector3(g.pos, 0.02, -400),
+              new THREE.Vector3(g.pos, 0.02, 400),
+            ]);
+          }
+          const lMat = new THREE.LineDashedMaterial({
+            color: g.tipo === "H" ? 0x00f0ff : 0xf43f5e,
+            linewidth: 2,
+            dashSize: 1.2,
+            gapSize: 0.6,
+          });
+          const auxLine = new THREE.Line(lGeo, lMat);
+          auxLine.computeLineDistances();
+          group.add(auxLine);
+        });
+      }
     }
   }, [
     solidosCad,
     aristasSolidosSeleccionadas,
     griMostrarGrilla,
+    griVerDistancias,
+    guiasAuxiliares,
     griPaso,
     griOrigenX,
     griOrigenY,
@@ -3279,6 +3335,23 @@ export default function EditorCadMalla({
           setGriOrigenY(ptDestino.y.toFixed(2));
           setGriMoviendoOrigen(false);
           mostrarAviso(`✓ Origen de grilla situado en (${ptDestino.x.toFixed(2)}, ${ptDestino.y.toFixed(2)})`);
+          return;
+        }
+      }
+
+      // Si estamos en modo de fijar Guía Auxiliar (Horizontal o Vertical)
+      if (modoCrearGuia) {
+        const pPlano = obtenerCoordenadasPlano(e.clientX, e.clientY);
+        if (pPlano) {
+          const posVal = modoCrearGuia === "H" ? pPlano.y : pPlano.x;
+          const nuevaGuia = {
+            id: `guia-${Date.now()}`,
+            tipo: modoCrearGuia,
+            pos: Math.round(posVal * 100) / 100,
+          };
+          setGuiasAuxiliares((prev) => [...prev, nuevaGuia]);
+          setModoCrearGuia(null);
+          mostrarAviso(`✓ Guía auxiliar ${nuevaGuia.tipo === "H" ? "Horizontal" : "Vertical"} fijada en ${nuevaGuia.pos}m`);
           return;
         }
       }
@@ -6971,6 +7044,78 @@ export default function EditorCadMalla({
                     >
                       <div className="toggle-switch-thumb" />
                     </div>
+                  </div>
+
+                  {/* Toggle 4: Ver distancias de grilla (Exacto a la captura) */}
+                  <div className="grilla-toggle-row">
+                    <span className="grilla-toggle-label">Ver distancias de grilla</span>
+                    <div
+                      className={`toggle-switch-track ${griVerDistancias ? "active" : ""}`}
+                      onClick={() => {
+                        const nuevo = !griVerDistancias;
+                        setGriVerDistancias(nuevo);
+                        mostrarAviso(nuevo ? "✓ Distancias métricas en grilla visibles" : "Distancias métricas ocultas");
+                      }}
+                      title="Muestra etiquetas de distancia en metros a lo largo de los ejes"
+                    >
+                      <div className="toggle-switch-thumb" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sección: Líneas auxiliares de grilla */}
+                <div className="panel-grilla-aux-section">
+                  <div className="panel-grilla-aux-title-row">
+                    <span className="panel-grilla-aux-title">Líneas auxiliares de grilla</span>
+                    {guiasAuxiliares.length > 0 && (
+                      <button
+                        type="button"
+                        className="btn-limpiar-guias"
+                        onClick={() => {
+                          setGuiasAuxiliares([]);
+                          mostrarAviso("Guías auxiliares eliminadas");
+                        }}
+                        title="Borrar todas las guías auxiliares"
+                      >
+                        Limpiar ({guiasAuxiliares.length})
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="panel-grilla-aux-btns">
+                    <button
+                      type="button"
+                      className={`btn-grilla-aux ${modoCrearGuia === "H" ? "activo" : ""}`}
+                      onClick={() => {
+                        if (modoCrearGuia === "H") {
+                          setModoCrearGuia(null);
+                        } else {
+                          setModoCrearGuia("H");
+                          mostrarAviso("📍 Toca en el plano para situar la guía Horizontal");
+                        }
+                      }}
+                    >
+                      {modoCrearGuia === "H" ? "📍 Toca en plano..." : "Horizontal"}
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn-grilla-aux ${modoCrearGuia === "V" ? "activo" : ""}`}
+                      onClick={() => {
+                        if (modoCrearGuia === "V") {
+                          setModoCrearGuia(null);
+                        } else {
+                          setModoCrearGuia("V");
+                          mostrarAviso("📍 Toca en el plano para situar la guía Vertical");
+                        }
+                      }}
+                    >
+                      {modoCrearGuia === "V" ? "📍 Toca en plano..." : "Vertical"}
+                    </button>
+                  </div>
+
+                  {/* Recuadro informativo exacto a la captura de pantalla */}
+                  <div className="panel-grilla-info-box">
+                    Al apagar Mostrar grilla también se ocultan todas las guías auxiliares. No se borran.
                   </div>
                 </div>
               </>
