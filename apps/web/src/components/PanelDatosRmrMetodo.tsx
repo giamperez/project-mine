@@ -1,6 +1,19 @@
-import React, { useState, useMemo } from "react";
-import type { Punto2D, Taladro } from "@suite/core";
+import React, { useState, useMemo, useRef, useEffect } from "react";
+import type { Punto2D, Taladro, TipoRoca, EntradaArranqueHolmberg } from "@suite/core";
+import {
+  calcularArranqueHolmberg,
+  calcularGeometriaFrente,
+  diametroEquivalente_mm,
+  generarTaladrosFrenteTunel,
+  burdenLangeforsMax_m,
+  burdenLangeforsPractico_m,
+  espaciamientoKonya_m,
+  cargaLineal_kgm,
+  pesoExplosivoPorTaladro_kg,
+  CONSTANTE_ROCA_POR_TIPO,
+} from "@suite/core";
 import type { LineaCad3D, PolilineaCad3D } from "./EditorCadMalla.js";
+import { EXPLOSIVOS_PRESET, TIPOS_ROCA } from "../data/presets.js";
 
 export type TabPanel = "datos" | "rmr" | "metodo" | "resultado";
 export type TipoSeccionPlantilla = "rectangular" | "herradura" | "tipo_d" | "arco_personalizado";
@@ -12,6 +25,7 @@ interface Props {
   visible: boolean;
   onOcultar: () => void;
   poligonoCresta?: Punto2D[];
+  onCambiarPoligono?: (nuevos: Punto2D[]) => void;
   lineasCad?: LineaCad3D[];
   polilineasCad?: PolilineaCad3D[];
   taladros?: Taladro[];
@@ -24,6 +38,8 @@ interface Props {
     diametroAlivioMm: number;
     rmr: number;
   }) => void;
+  /** Reemplaza los taladros del editor CAD por la ronda generada (cuele + contorno + produccion). */
+  onGenerarTaladros?: (taladros: Taladro[]) => void;
   mostrarAviso?: (msg: string) => void;
 }
 
@@ -31,10 +47,12 @@ export default function PanelDatosRmrMetodo({
   visible,
   onOcultar,
   poligonoCresta = [],
+  onCambiarPoligono,
   lineasCad = [],
   polilineasCad = [],
   taladros = [],
   onAplicarParametros,
+  onGenerarTaladros,
   mostrarAviso,
 }: Props) {
   // Navegación entre pestañas
@@ -56,11 +74,22 @@ export default function PanelDatosRmrMetodo({
   // Parámetros de Alivio y Perforación
   const [numAlivios, setNumAlivios] = useState<number>(4);
   const [diametroAlivioMm, setDiametroAlivioMm] = useState<number>(102);
-  const [diametroProdMm, setDiametroProdMm] = useState<number>(45);
+  const [diametroCargaMm, setDiametroCargaMm] = useState<number>(45);
   const [avanceM, setAvanceM] = useState<number>(3.6);
+  // Eficiencia de corte: avance real logrado / longitud perforada. Un cuele paralelo bien
+  // diseñado (Jimeno, 1995, cap. 22) logra 85-95%; el resto se pierde por desvío de perforación
+  // y rotura incompleta del fondo del taladro.
+  const [eficienciaCorte, setEficienciaCorte] = useState<number>(0.9);
 
-  // TAB 2: GEOMECÁNICA RMR
+  // TAB 2: GEOMECÁNICA RMR (índice ya calculado en el módulo Geomecánica, o estimado en campo)
   const [rmrScore, setRmrScore] = useState<number>(45);
+
+  // Roca y explosivo — alimentan las fórmulas de burden/espaciamiento de la zona de producción
+  // (Ash 1963 / Langefors-Kihlström, ya implementadas y citadas en @suite/core).
+  const [tipoRoca, setTipoRoca] = useState<TipoRoca>("media");
+  const [densidadRocaGcm3, setDensidadRocaGcm3] = useState<number>(2.7);
+  const [explosivoIdx, setExplosivoIdx] = useState<number>(0);
+  const explosivo = EXPLOSIVOS_PRESET[explosivoIdx] ?? EXPLOSIVOS_PRESET[0];
 
   // TAB 3: MÉTODO Y SECUENCIA DE CORTE
   const [metodoDiseno, setMetodoDiseno] = useState<MetodoDisenoArranque>("corte_paralelo");
@@ -101,37 +130,32 @@ export default function PanelDatosRmrMetodo({
   });
 
   // =========================================================================
-  // CÁLCULOS GEOMÉTRICOS RIGUROSOS
+  // CÁLCULOS GEOMÉTRICOS
+  // Rectangular/herradura: `calcularGeometriaFrente` (@suite/core), verificado por tests unitarios
+  // contra López Jimeno et al. (1995) cap. 22. Tipo D / arco personalizado: no son formas
+  // estandarizadas en una fuente única, así que se aproximan por geometría analítica (segmento
+  // parabólico, área = (2/3)·base·altura — cuadratura de la parábola, resultado clásico atribuido
+  // a Arquímedes) — se etiquetan como aproximación, no como fórmula de diseño de voladura.
   // =========================================================================
   const metricasSeccion = useMemo(() => {
     const W = Math.max(0.5, anchoGaleria);
     const H = Math.max(0.5, altoGaleria);
 
-    if (tipoSeccion === "rectangular") {
-      const area = W * H;
-      const perimetro = 2 * (W + H);
-      return { area, perimetro, corona: 0, hastial: H };
-    }
-
-    if (tipoSeccion === "herradura") {
-      const radio = W / 2;
-      const hCorona = Math.min(radio, H);
-      const hHastial = Math.max(0, H - hCorona);
-      const area = W * hHastial + (Math.PI * radio * radio) / 2;
-      const perimetro = W + 2 * hHastial + Math.PI * radio;
-      return { area, perimetro, corona: hCorona, hastial: hHastial };
+    if (tipoSeccion === "rectangular" || tipoSeccion === "herradura") {
+      const g = calcularGeometriaFrente({ tipo: tipoSeccion, ancho_m: W, alto_m: H });
+      return { area: g.area_m2, perimetro: g.perimetro_m, corona: g.alturaCorona_m, hastial: g.alturaHastial_m };
     }
 
     if (tipoSeccion === "tipo_d") {
       const hCorona = Math.min(W * 0.35, H);
       const hHastial = Math.max(0, H - hCorona);
-      // Arco rebajado de corona + caja inferior
+      // Arco rebajado de corona (segmento parabólico) + caja inferior rectangular
       const area = W * hHastial + (2 / 3) * W * hCorona;
       const perimetro = W + 2 * hHastial + Math.sqrt(W * W + (16 / 3) * hCorona * hCorona);
       return { area, perimetro, corona: hCorona, hastial: hHastial };
     }
 
-    // Arco personalizado
+    // Arco personalizado (corona semielíptica de flecha configurable)
     const hCorona = Math.min(alturaCorona, H);
     const hHastial = Math.max(0, H - hCorona);
     const area = W * hHastial + (Math.PI * (W / 2) * hCorona) / 2;
@@ -140,102 +164,125 @@ export default function PanelDatosRmrMetodo({
   }, [tipoSeccion, anchoGaleria, altoGaleria, alturaCorona]);
 
   // =========================================================================
-  // CÁLCULO DE DIÁMETRO EQUIVALENTE DE ALIVIO
-  // De = D_individual * sqrt(N)  (López Jimeno & Holmberg)
+  // DIÁMETRO EQUIVALENTE DE ALIVIO — De = D_individual · √N
+  // López Jimeno, López Jimeno & Ayala Carcedo (1995) "Drilling and Blasting of Rocks",
+  // A.A. Balkema, cap. 22 "Blasting for tunnels and drifts", p. 219.
   // =========================================================================
-  const diametroEquivalente = useMemo(() => {
-    const n = Math.max(1, numAlivios);
-    const dIndMm = Math.max(25, diametroAlivioMm);
-    const deMm = dIndMm * Math.sqrt(n);
-    const deM = deMm / 1000;
-    return { deMm, deM };
-  }, [numAlivios, diametroAlivioMm]);
-
-  // =========================================================================
-  // CÁLCULO DE LA SECUENCIA DE ARRANQUE EN 5 ETAPAS (HOLMBERG 5-QUADRANT CUT)
-  // Valores calibrados con exactitud de la referencia sueca / Jimeno:
-  // Etapa 1: B1 = 2.00 * De,  E1 = B1 * sqrt(2)
-  // Etapa 2..5: Bi = 0.85 * E(i-1),  Ei = E(i-1) * 1.909
-  // =========================================================================
-  const etapasArranque = useMemo(() => {
-    const { deM } = diametroEquivalente;
-
-    // Etapa 1
-    const f1 = 2.0;
-    const b1 = f1 * deM;
-    const e1 = b1 * Math.SQRT2;
-
-    // Etapa 2
-    const f2 = 0.85;
-    const b2 = f2 * e1;
-    const e2 = e1 * 1.909;
-
-    // Etapa 3
-    const f3 = 0.85;
-    const b3 = f3 * e2;
-    const e3 = e2 * 1.909;
-
-    // Etapa 4
-    const f4 = 0.85;
-    const b4 = f4 * e3;
-    const e4 = e3 * 1.909;
-
-    // Etapa 5 (Control de expansión)
-    const f5 = 0.85;
-    const b5 = f5 * e4;
-    const e5 = e4 * 1.909;
-
-    return [
-      { etapa: 1, b: b1, e: e1, f: f1 },
-      { etapa: 2, b: b2, e: e2, f: f2 },
-      { etapa: 3, b: b3, e: e3, f: f3 },
-      { etapa: 4, b: b4, e: e4, f: f4 },
-      { etapa: 5, b: b5, e: e5, f: f5 },
-    ];
-  }, [diametroEquivalente]);
+  const deMm = useMemo(
+    () => diametroEquivalente_mm(Math.max(25, diametroAlivioMm), Math.max(1, numAlivios)),
+    [numAlivios, diametroAlivioMm]
+  );
+  const diametroEquivalente = { deMm, deM: deMm / 1000 };
 
   // =========================================================================
-  // RECOMENDACIÓN GEOMECÁNICA RMR (BIENIAWSKI / SUECO)
+  // SECUENCIA DEL ARRANQUE (CUELE HOLMBERG, MÉTODO SIMPLIFICADO)
+  // B1 = 1.5·De, E1 = B1·√2; para n≥2: Bn = E(n-1), En = 1.5·Bn·√2.
+  // Se agregan secciones mientras En < √avance (el lado de la última sección no debería ser menor
+  // que la raíz del avance) — misma fuente que el diámetro equivalente, p. 221.
+  // Fórmula original: Holmberg, R. (1982) "Charge calculations for tunnelling", en Underground
+  // Mining Methods Handbook, SME; simplificada por Olofsson, S. (1990) "Applied Explosives
+  // Technology for Construction and Mining", APEX Consultants.
+  // =========================================================================
+  const arranqueResultado = useMemo(
+    () =>
+      calcularArranqueHolmberg({
+        diametroIndividualAlivio_mm: Math.max(25, diametroAlivioMm),
+        numeroTaladrosAlivio: Math.max(1, numAlivios),
+        avance_m: Math.max(0.1, avanceM),
+      }),
+    [diametroAlivioMm, numAlivios, avanceM]
+  );
+  const etapasArranque = arranqueResultado.secciones.map((s) => ({ etapa: s.numero, b: s.burden_m, e: s.espaciamiento_m, f: s.factor }));
+
+  // =========================================================================
+  // ZONA DE PRODUCCIÓN (DESTROZA): burden/espaciamiento por Ash / Langefors-Kihlström + Konya
+  // — las mismas fórmulas ya usadas y citadas para el banco a cielo abierto en @suite/core
+  // (formulas/mining/blastPattern.ts). Después de que el cuele abre la primera cavidad, el resto
+  // de la ronda se comporta, en burden/espaciamiento, como un banco de altura = avance/eficiencia
+  // (criterio explícito en Jimeno, 1995, cap. 22 §22.4.4 "cálculo del resto de la voladura").
+  // =========================================================================
+  const constanteRoca = CONSTANTE_ROCA_POR_TIPO[tipoRoca];
+  const profundidadTaladro_m = Math.max(0.1, avanceM) / Math.min(0.98, Math.max(0.5, eficienciaCorte));
+  const produccionResultado = useMemo(() => {
+    const bMax = burdenLangeforsMax_m(diametroCargaMm, explosivo.densidadGcm3, explosivo.fuerzaRelativaANFO, constanteRoca, 1.0, 1.25);
+    const bPractico = burdenLangeforsPractico_m(bMax, profundidadTaladro_m, 0.05, 0.03);
+    const { espaciamiento_m, razonRigidezHB } = espaciamientoKonya_m(bPractico, profundidadTaladro_m);
+    return { burdenMax_m: bMax, burden_m: bPractico, espaciamiento_m, razonRigidezHB };
+  }, [diametroCargaMm, explosivo, constanteRoca, profundidadTaladro_m]);
+
+  // =========================================================================
+  // ESPACIAMIENTO DE CONTORNO (voladura controlada / smooth blasting)
+  // espaciamiento ≈ (10 a 16) × diámetro del taladro. OSMRE (2016) "Blast Design — Module 3:
+  // Surface Blast Design", Office of Surface Mining Reclamation and Enforcement (EE.UU.): 12×Ø
+  // para presplit/control, 15×Ø roca dura y 20×Ø roca blanda en smooth blasting de superficie —
+  // el mismo principio (espaciamiento proporcional al diámetro) se usa para el recorte en túneles
+  // (Olofsson, S. 1990). Aquí se reduce el multiplicador en roca de peor calidad (RMR bajo) para
+  // limitar la sobre-rotura y preservar la estabilidad del contorno — el RMR (Bieniawski, 1989,
+  // "Engineering Rock Mass Classifications", Wiley) mide justamente eso: calidad/tiempo de
+  // auto-sostenimiento del macizo, no la dureza de la roca intacta (que ya está cubierta por
+  // tipoRoca/explosivo arriba).
   // =========================================================================
   const recomendacionRmr = useMemo(() => {
+    const diamM = diametroCargaMm / 1000;
     if (rmrScore > 60) {
       return {
-        tipo: "Roca Suave",
-        clase: "Clase I - II (Buena / Muy Buena)",
-        espaciamiento: 0.73,
-        coeficienteK: 1.1,
+        tipo: "Roca de buena calidad geomecánica",
+        clase: "Clase I - II (RMR 61-100, Bieniawski 1989)",
+        espaciamientoContorno: diamM * 16,
         aliviosSugeridos: 4,
-        factorCarga: "1.10 - 1.30 kg/m³",
         colorBadge: "#10b981",
         descripcion:
-          "Roca de alta calidad geomecánica y baja resistencia al corte. Permite mayor espaciamiento y menor factor de roca K sin generar sobre-rotura.",
+          "Macizo poco fracturado y con discontinuidades favorables (alto tiempo de auto-sostenimiento). Admite mayor espaciamiento de contorno sin riesgo de sobre-rotura.",
       };
     }
     if (rmrScore >= 41) {
       return {
-        tipo: "Roca Semidura",
-        clase: "Clase III (Regular)",
-        espaciamiento: 0.55,
-        coeficienteK: 1.65,
+        tipo: "Roca de calidad geomecánica media",
+        clase: "Clase III (RMR 41-60, Bieniawski 1989)",
+        espaciamientoContorno: diamM * 13,
         aliviosSugeridos: 4,
-        factorCarga: "1.40 - 1.70 kg/m³",
         colorBadge: "var(--acento, #f97316)",
         descripcion:
-          "Calidad geomecánica media. Requiere espaciamiento controlado en contorno (corona y hastiales) para preservar las discontinuidades estructurales.",
+          "Calidad media: discontinuidades moderadamente desfavorables. Espaciamiento de contorno intermedio para controlar la sobre-rotura sin perder avance.",
       };
     }
     return {
-      tipo: "Roca Dura",
-      clase: "Clase IV - V (Mala / Muy Mala o Gran Dureza)",
-      espaciamiento: 0.48,
-      coeficienteK: 2.25,
+      tipo: "Roca de baja calidad geomecánica",
+      clase: "Clase IV - V (RMR ≤ 40, Bieniawski 1989)",
+      espaciamientoContorno: diamM * 10,
       aliviosSugeridos: 5,
-      factorCarga: "1.80 - 2.40 kg/m³",
       colorBadge: "#ef4444",
       descripcion:
-        "Roca tenaz o de macizo fuertemente alterado/confinado. Requiere 5 taladros de alivio para ampliar la cara libre y menor espaciamiento para evitar el soplado.",
+        "Macizo muy fracturado o con bajo tiempo de auto-sostenimiento. Se recomienda un taladro de alivio adicional (5) para una apertura más gradual del cuele y contorno más cerrado para limitar la sobre-rotura.",
     };
-  }, [rmrScore]);
+  }, [rmrScore, diametroCargaMm]);
+
+  // =========================================================================
+  // CARGA EXPLOSIVA Y FACTOR DE CARGA (cálculo ascendente, no una tabla RMR→kg/m³)
+  // Carga lineal Mc = (π/4)·d²·ρ_explosivo y factor de carga = peso explosivo / volumen de roca
+  // — mismas fórmulas de @suite/core (formulas/mining/blasting.ts), citando Ash, R.L. (1963)
+  // "The Mechanics of Rock Breakage", Pit & Quarry.
+  // =========================================================================
+  const cargaExplosiva = useMemo(() => {
+    const mc = cargaLineal_kgm(diametroCargaMm, explosivo.densidadGcm3);
+    const tacoTípico = produccionResultado.burden_m * 0.7;
+    const longitudCarga_m = Math.max(0, profundidadTaladro_m - tacoTípico);
+    const pesoPorTaladro_kg = pesoExplosivoPorTaladro_kg(longitudCarga_m, mc);
+    const volumenRonda_m3 = metricasSeccion.area * avanceM;
+    return { cargaLineal_kgm: mc, pesoPorTaladro_kg, longitudCarga_m, volumenRonda_m3 };
+  }, [diametroCargaMm, explosivo, produccionResultado.burden_m, profundidadTaladro_m, metricasSeccion.area, avanceM]);
+
+  // Estimación previa del número de taladros (antes de generar la ronda real): taladros de
+  // contorno por perímetro/espaciamiento + taladros de producción por área/(burden×espaciamiento)
+  // + alivio y arranque ya conocidos. Es una cuenta propia de este panel (no una fórmula empírica
+  // citada de una fuente única) — una vez generada la ronda real, el conteo exacto reemplaza a
+  // esta estimación (ver "Taladros manuales" en Resultado).
+  const estimacionTaladros = useMemo(() => {
+    const contorno = Math.ceil(metricasSeccion.perimetro / Math.max(0.1, recomendacionRmr.espaciamientoContorno));
+    const produccion = Math.ceil(metricasSeccion.area / Math.max(0.01, produccionResultado.burden_m * produccionResultado.espaciamiento_m));
+    const arranque = 4 * arranqueResultado.secciones.length;
+    return { contorno, produccion, arranque, alivio: Math.max(1, numAlivios), total: contorno + produccion + arranque + Math.max(1, numAlivios) };
+  }, [metricasSeccion, recomendacionRmr.espaciamientoContorno, produccionResultado, arranqueResultado.secciones.length, numAlivios]);
 
   // =========================================================================
   // ANÁLISIS NO DESTRUCTIVO CAD (INSPECCIÓN DE CAPAS ACTIVAS)
@@ -319,52 +366,302 @@ export default function PanelDatosRmrMetodo({
     }
   };
 
+  // Referencia de interacción del usuario para sincronización en vivo
+  const hasUserInteractedRef = useRef(false);
+  const [sincronizacionEnVivo, setSincronizacionEnVivo] = useState(true);
+
+  // Helper para construir el contorno geométrico de la galería (Herradura, Rectangular, Tipo D, Arco)
+  const construirContornoFrente = (
+    secTipo: TipoSeccionPlantilla = tipoSeccion,
+    w: number = anchoGaleria,
+    h: number = altoGaleria,
+    hc: number = alturaCorona
+  ): Punto2D[] => {
+    const W = Math.max(0.5, w);
+    const H = Math.max(0.5, h);
+    const halfW = W / 2;
+
+    // Si ya existe un polígono en la escena, preservar su centroX y base de piso
+    let centroX = 0;
+    let pisoY = 0;
+    if (poligonoCresta && poligonoCresta.length >= 3) {
+      const xs = poligonoCresta.map((p) => p.x);
+      const ys = poligonoCresta.map((p) => p.y);
+      centroX = (Math.min(...xs) + Math.max(...xs)) / 2;
+      pisoY = Math.min(...ys);
+    }
+
+    const ptsLocales: Punto2D[] = [];
+
+    if (secTipo === "rectangular") {
+      ptsLocales.push({ x: -halfW, y: 0 });
+      ptsLocales.push({ x: halfW, y: 0 });
+      ptsLocales.push({ x: halfW, y: H });
+      ptsLocales.push({ x: -halfW, y: H });
+    } else if (secTipo === "herradura") {
+      const R = halfW;
+      const hHastial = Math.max(0, H - R);
+      // Piso
+      ptsLocales.push({ x: -halfW, y: 0 });
+      ptsLocales.push({ x: halfW, y: 0 });
+      // Hastial derecho
+      ptsLocales.push({ x: halfW, y: hHastial });
+      // Bóveda semicircular (0 -> PI)
+      const nPasos = 16;
+      for (let i = 1; i < nPasos; i++) {
+        const ang = (i / nPasos) * Math.PI;
+        ptsLocales.push({
+          x: R * Math.cos(ang),
+          y: hHastial + R * Math.sin(ang),
+        });
+      }
+      // Hastial izquierdo
+      ptsLocales.push({ x: -halfW, y: hHastial });
+    } else if (secTipo === "tipo_d") {
+      const hCorona = Math.min(W * 0.35, H);
+      const hHastial = Math.max(0, H - hCorona);
+      ptsLocales.push({ x: -halfW, y: 0 });
+      ptsLocales.push({ x: halfW, y: 0 });
+      ptsLocales.push({ x: halfW, y: hHastial });
+      const nPasos = 16;
+      for (let i = 1; i < nPasos; i++) {
+        const ang = (i / nPasos) * Math.PI;
+        ptsLocales.push({
+          x: halfW * Math.cos(ang),
+          y: hHastial + hCorona * Math.sin(ang),
+        });
+      }
+      ptsLocales.push({ x: -halfW, y: hHastial });
+    } else {
+      // arco_personalizado
+      const hCorona = Math.min(hc, H);
+      const hHastial = Math.max(0, H - hCorona);
+      ptsLocales.push({ x: -halfW, y: 0 });
+      ptsLocales.push({ x: halfW, y: 0 });
+      ptsLocales.push({ x: halfW, y: hHastial });
+      const nPasos = 16;
+      for (let i = 1; i < nPasos; i++) {
+        const ang = (i / nPasos) * Math.PI;
+        ptsLocales.push({
+          x: halfW * Math.cos(ang),
+          y: hHastial + hCorona * Math.sin(ang),
+        });
+      }
+      ptsLocales.push({ x: -halfW, y: hHastial });
+    }
+
+    return ptsLocales.map((p) => ({
+      x: Math.round((centroX + p.x) * 1000) / 1000,
+      y: Math.round((pisoY + p.y) * 1000) / 1000,
+    }));
+  };
+
+  // Sincronización completa de Geometría y Taladros en 3D
+  const sincronizarMallaYTaladros = (
+    overrideParams?: {
+      tipo?: TipoSeccionPlantilla;
+      ancho?: number;
+      alto?: number;
+      corona?: number;
+      alivios?: number;
+      diamAlivio?: number;
+      diamCarga?: number;
+      avance?: number;
+      rmr?: number;
+      notificar?: boolean;
+    }
+  ) => {
+    const secTipo = overrideParams?.tipo ?? tipoSeccion;
+    const w = overrideParams?.ancho ?? anchoGaleria;
+    const h = overrideParams?.alto ?? altoGaleria;
+    const hc = overrideParams?.corona ?? alturaCorona;
+    const nAliv = overrideParams?.alivios ?? numAlivios;
+    const dAliv = overrideParams?.diamAlivio ?? diametroAlivioMm;
+    const dCarga = overrideParams?.diamCarga ?? diametroCargaMm;
+    const av = overrideParams?.avance ?? avanceM;
+    const rmr = overrideParams?.rmr ?? rmrScore;
+
+    // 1. Generar contorno de frente y actualizar poligonoCresta
+    const nuevoPoligono = construirContornoFrente(secTipo, w, h, hc);
+    if (onCambiarPoligono) {
+      onCambiarPoligono(nuevoPoligono);
+    }
+
+    // 2. Calcular secuencia de arranque Holmberg
+    const entradaArranque: EntradaArranqueHolmberg = {
+      diametroIndividualAlivio_mm: Math.max(25, dAliv),
+      numeroTaladrosAlivio: Math.max(1, nAliv),
+      avance_m: av,
+      maximoSecciones: 8,
+    };
+    const resArranque = calcularArranqueHolmberg(entradaArranque);
+
+    // 3. Recomendaciones RMR para contorno
+    const espContorno =
+      rmr >= 60
+        ? (dCarga / 1000) * 16
+        : rmr >= 41
+        ? (dCarga / 1000) * 13
+        : rmr >= 21
+        ? (dCarga / 1000) * 11
+        : (dCarga / 1000) * 9;
+
+    // Burden y espaciamiento de producción
+    const B_prod = Math.max(0.4, Math.min(1.2, w * 0.22));
+    const E_prod = Math.max(0.4, Math.min(1.2, B_prod * 1.15));
+
+    // 4. Generar taladros del frente
+    const resultado = generarTaladrosFrenteTunel({
+      poligonoCresta: nuevoPoligono,
+      secciones: resArranque.secciones,
+      diametroIndividualAlivio_mm: Math.max(25, dAliv),
+      numeroTaladrosAlivio: Math.max(1, nAliv),
+      diametroCargaMm: dCarga,
+      burdenProduccion_m: B_prod,
+      espaciamientoProduccion_m: E_prod,
+      espaciamientoContorno_m: espContorno,
+    });
+
+    if (resultado.puntos.length > 0 && onGenerarTaladros) {
+      const prof = av > 0 ? av : 3.6;
+      const taco_m = B_prod * 0.7;
+      const timestamp = Date.now();
+      const taladrosGenerados: Taladro[] = resultado.puntos.map((p, idx) => {
+        const t = {
+          id: `holmberg-${timestamp}-${idx}`,
+          fila: p.etapa ?? 0,
+          columna: idx,
+          collar: { x: p.x, y: p.y, z: p.z },
+          fondo: { x: p.x, y: p.y, z: p.z - prof },
+          profundidad_m: prof,
+          diametroMm: p.diametroMm,
+          taco_m: p.cargado ? taco_m : 0,
+          longitudCarga_m: p.cargado ? Math.max(0, prof - taco_m) : 0,
+        } as Taladro;
+        (t as any).zona = p.zona;
+        (t as any).codigo = `${p.zona.toUpperCase().slice(0, 3)}-${idx + 1}`;
+        return t;
+      });
+
+      onGenerarTaladros(taladrosGenerados);
+
+      if (overrideParams?.notificar && mostrarAviso) {
+        mostrarAviso(
+          `✓ Malla 3D generada: ${taladrosGenerados.length} taladros y galería ${secTipo} (${w}×${h}m)`
+        );
+      }
+    }
+
+    if (onAplicarParametros) {
+      onAplicarParametros({
+        ancho: w,
+        alto: h,
+        area: metricasSeccion.area,
+        perimetro: metricasSeccion.perimetro,
+        numAlivios: nAliv,
+        diametroAlivioMm: dAliv,
+        rmr,
+      });
+    }
+  };
+
+  // Reaccionar automáticamente a los cambios de medidas/geometría con debounce suave
+  useEffect(() => {
+    if (!sincronizacionEnVivo || !hasUserInteractedRef.current) return;
+    const timer = setTimeout(() => {
+      sincronizarMallaYTaladros();
+    }, 120);
+    return () => clearTimeout(timer);
+  }, [
+    sincronizacionEnVivo,
+    tipoSeccion,
+    anchoGaleria,
+    altoGaleria,
+    alturaCorona,
+    numAlivios,
+    diametroAlivioMm,
+    diametroCargaMm,
+    avanceM,
+    rmrScore,
+  ]);
+
   // Cargar referencia P&V Jumbo 3.5 x 3.5
   const cargarReferenciaPyV = () => {
+    hasUserInteractedRef.current = true;
     setAnchoGaleria(3.5);
     setAltoGaleria(3.5);
     setAlturaCorona(1.75);
     setNumAlivios(4);
     setDiametroAlivioMm(102);
-    setDiametroProdMm(45);
+    setDiametroCargaMm(45);
+    setAvanceM(3.6);
+    setEficienciaCorte(0.9);
+    setTipoRoca("media");
+    setDensidadRocaGcm3(2.7);
+    setExplosivoIdx(0);
     setRmrScore(35); // RMR 31-40
     setTipoSeccion("herradura");
-    if (mostrarAviso) {
-      mostrarAviso("Referencia cargada: Jumbo 3.5 × 3.5 m | RMR 31-40");
-    }
+
+    sincronizarMallaYTaladros({
+      tipo: "herradura",
+      ancho: 3.5,
+      alto: 3.5,
+      corona: 1.75,
+      alivios: 4,
+      diamAlivio: 102,
+      diamCarga: 45,
+      avance: 3.6,
+      rmr: 35,
+      notificar: true,
+    });
   };
 
   // Restablecer proporciones
   const restablecerProporciones = () => {
+    hasUserInteractedRef.current = true;
     setAnchoGaleria(2.5);
     setAltoGaleria(2.5);
     setAlturaCorona(1.25);
     setNumAlivios(4);
     setDiametroAlivioMm(102);
+    setDiametroCargaMm(45);
     setRmrScore(45);
     setTipoSeccion("herradura");
+
+    sincronizarMallaYTaladros({
+      tipo: "herradura",
+      ancho: 2.5,
+      alto: 2.5,
+      corona: 1.25,
+      alivios: 4,
+      diamAlivio: 102,
+      diamCarga: 45,
+      avance: 3.6,
+      rmr: 45,
+      notificar: true,
+    });
     if (mostrarAviso) {
-      mostrarAviso("Proporciones restablecidas a 2.5 × 2.5 m");
+      mostrarAviso("Proporciones restablecidas a 2.5 × 2.5 m y sincronizadas con 3D");
     }
   };
 
   // Aplicar sugerencia geomecánica
   const aplicarSugerenciaRmr = (aliviosSugeridos: number) => {
+    hasUserInteractedRef.current = true;
     setNumAlivios(aliviosSugeridos);
-    if (onAplicarParametros) {
-      onAplicarParametros({
-        ancho: anchoGaleria,
-        alto: altoGaleria,
-        area: metricasSeccion.area,
-        perimetro: metricasSeccion.perimetro,
-        numAlivios: aliviosSugeridos,
-        diametroAlivioMm,
-        rmr: rmrScore,
-      });
-    }
+    sincronizarMallaYTaladros({ alivios: aliviosSugeridos });
     if (mostrarAviso) {
-      mostrarAviso(`✓ Sugerencia aplicada: ${aliviosSugeridos} taladros de alivio configurados.`);
+      mostrarAviso(`✓ Sugerencia aplicada: ${aliviosSugeridos} taladros de alivio configurados y sincronizados.`);
     }
+  };
+
+  // =========================================================================
+  // GENERAR TALADROS DE RONDA (simulación)
+  // =========================================================================
+  const generarTaladrosRonda = () => {
+    hasUserInteractedRef.current = true;
+    sincronizarMallaYTaladros({ notificar: true });
+    setTab("resultado");
   };
 
   // Navegación secuencial de pestañas
@@ -564,52 +861,98 @@ export default function PanelDatosRmrMetodo({
                     borderLeft: "3px solid var(--acento, #f97316)",
                   }}
                 >
-                  <b>Concepto Minero:</b> La forma de la galería distribuye los esfuerzos del macizo
-                  rocoso. La sección <i>Herradura</i> distribuye favorablemente el esfuerzo tensional
-                  hacia los hastiales, mientras que el <i>Arco rebajado (Tipo D)</i> optimiza el gálibo
-                  en vetas angostas y labores de transporte.
+                  <b>Concepto minero:</b> la forma de la galería distribuye los esfuerzos del macizo
+                  rocoso. La sección <i>Herradura</i> (hastiales rectos + corona semicircular de
+                  radio = ancho/2) distribuye favorablemente el esfuerzo tensional hacia los
+                  hastiales, mientras que el <i>Arco rebajado (Tipo D)</i> optimiza el gálibo en
+                  vetas angostas y labores de transporte. Área/perímetro de Rectangular y Herradura
+                  se calculan con la geometría de López Jimeno, C., López Jimeno, E. &amp; Ayala
+                  Carcedo, F.J. (1995) <i>Drilling and Blasting of Rocks</i>, A.A. Balkema, cap. 22;
+                  Tipo D y Arco personalizado son aproximaciones geométricas propias (segmento
+                  parabólico) sin una fuente única de referencia.
                 </div>
               )}
 
-              {/* Botones de plantilla */}
+              {/* Nota sobre corona y botón de referencia rápida como en la captura */}
+              <p style={{ fontSize: 10.5, color: "#94a3b8", margin: "0 0 10px 0", lineHeight: 1.35 }}>
+                Las plantillas automáticas nunca generan una corona puntiaguda.
+              </p>
+
+              <button
+                type="button"
+                onClick={cargarReferenciaPyV}
+                style={{
+                  width: "100%",
+                  padding: "10px 14px",
+                  fontSize: 11,
+                  fontWeight: 800,
+                  letterSpacing: 0.5,
+                  borderRadius: 999,
+                  border: "1.5px solid #22c55e",
+                  background: "rgba(34, 197, 94, 0.08)",
+                  color: "#4ade80",
+                  cursor: "pointer",
+                  textAlign: "center",
+                  marginBottom: 14,
+                  boxShadow: "0 0 14px rgba(34, 197, 94, 0.18)",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                CARGAR REFERENCIA P&amp;V · JUMBO 3.5 × 3.5 RMR 31-40
+              </button>
+
+              {/* Botones de plantilla en cuadrícula 2x2 con descripciones */}
               <div
                 style={{
                   display: "grid",
                   gridTemplateColumns: "1fr 1fr",
-                  gap: 6,
+                  gap: 8,
                   marginBottom: 12,
                 }}
               >
                 {(
                   [
-                    { id: "rectangular", label: "Rectangular" },
-                    { id: "herradura", label: "Herradura" },
-                    { id: "tipo_d", label: "Tipo D" },
-                    { id: "arco_personalizado", label: "Arco personalizado" },
+                    { id: "rectangular", label: "Rectangular", desc: "Piso, hastiales y techo horizontales." },
+                    { id: "herradura", label: "Herradura", desc: "Hastiales rectos y corona semic..." },
+                    { id: "tipo_d", label: "Tipo D", desc: "Hastiales rectos y corona rebaja..." },
+                    { id: "arco_personalizado", label: "Arco pers...", desc: "Hastiales rectos y altura de corona mo..." },
                   ] as const
                 ).map((sec) => (
                   <button
                     key={sec.id}
                     type="button"
-                    onClick={() => setTipoSeccion(sec.id)}
+                    onClick={() => {
+                      hasUserInteractedRef.current = true;
+                      setTipoSeccion(sec.id);
+                      sincronizarMallaYTaladros({ tipo: sec.id });
+                    }}
                     style={{
-                      padding: "8px 4px",
-                      fontSize: 11,
-                      fontWeight: tipoSeccion === sec.id ? 700 : 500,
-                      borderRadius: 6,
+                      padding: "10px 10px",
+                      borderRadius: 12,
+                      textAlign: "left",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 4,
                       border:
                         tipoSeccion === sec.id
-                          ? "1px solid var(--acento, #f97316)"
-                          : "1px solid #334155",
+                          ? "2px solid #ec4899"
+                          : "1px solid #263348",
                       background:
                         tipoSeccion === sec.id
-                          ? "rgba(249, 115, 22, 0.2)"
-                          : "rgba(15, 23, 42, 0.4)",
+                          ? "rgba(236, 72, 153, 0.16)"
+                          : "rgba(13, 20, 32, 0.6)",
                       color: tipoSeccion === sec.id ? "#ffffff" : "#94a3b8",
                       cursor: "pointer",
+                      transition: "all 0.15s ease",
+                      boxShadow: tipoSeccion === sec.id ? "0 0 16px rgba(236, 72, 153, 0.25)" : "none",
                     }}
                   >
-                    {sec.label}
+                    <span style={{ fontSize: 12.5, fontWeight: 800, color: tipoSeccion === sec.id ? "#ffffff" : "#e2e8f0" }}>
+                      {sec.label}
+                    </span>
+                    <span style={{ fontSize: 9.5, color: "#94a3b8", lineHeight: 1.25 }}>
+                      {sec.desc}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -625,7 +968,10 @@ export default function PanelDatosRmrMetodo({
                     min={0.5}
                     step={0.1}
                     value={anchoGaleria}
-                    onChange={(e) => setAnchoGaleria(Math.max(0.5, Number(e.target.value)))}
+                    onChange={(e) => {
+                      hasUserInteractedRef.current = true;
+                      setAnchoGaleria(Math.max(0.5, Number(e.target.value)));
+                    }}
                     style={{
                       width: "100%",
                       padding: "7px 10px",
@@ -647,7 +993,10 @@ export default function PanelDatosRmrMetodo({
                     min={0.5}
                     step={0.1}
                     value={altoGaleria}
-                    onChange={(e) => setAltoGaleria(Math.max(0.5, Number(e.target.value)))}
+                    onChange={(e) => {
+                      hasUserInteractedRef.current = true;
+                      setAltoGaleria(Math.max(0.5, Number(e.target.value)));
+                    }}
                     style={{
                       width: "100%",
                       padding: "7px 10px",
@@ -672,7 +1021,10 @@ export default function PanelDatosRmrMetodo({
                     min={0.1}
                     step={0.05}
                     value={alturaCorona}
-                    onChange={(e) => setAlturaCorona(Math.max(0.1, Number(e.target.value)))}
+                    onChange={(e) => {
+                      hasUserInteractedRef.current = true;
+                      setAlturaCorona(Math.max(0.1, Number(e.target.value)));
+                    }}
                     style={{
                       width: "100%",
                       padding: "7px 10px",
@@ -711,24 +1063,34 @@ export default function PanelDatosRmrMetodo({
               </div>
             </div>
 
-            {/* BOTONES DE REFERENCIA RÁPIDA */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {/* BOTONES DE REFERENCIA Y ACTUALIZACIÓN 3D */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <button
                 type="button"
-                onClick={cargarReferenciaPyV}
+                onClick={() => {
+                  hasUserInteractedRef.current = true;
+                  sincronizarMallaYTaladros({ notificar: true });
+                }}
                 style={{
-                  padding: "9px 12px",
+                  padding: "10px 14px",
                   fontSize: 11,
-                  fontWeight: 700,
-                  borderRadius: 8,
-                  border: "1px solid rgba(249, 115, 22, 0.4)",
-                  background: "rgba(249, 115, 22, 0.12)",
-                  color: "var(--acento, #f97316)",
+                  fontWeight: 800,
+                  letterSpacing: 0.5,
+                  borderRadius: 10,
+                  border: "1.5px solid #ec4899",
+                  background: "rgba(236, 72, 153, 0.15)",
+                  color: "#f472b6",
                   cursor: "pointer",
                   textAlign: "center",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  transition: "all 0.15s ease",
+                  boxShadow: "0 0 16px rgba(236, 72, 153, 0.2)",
                 }}
               >
-                CARGAR REFERENCIA P&amp;V · JUMBO 3.5 × 3.5 RMR 31-40
+                <span>🔄 ACTUALIZAR CONTORNO Y TALADROS EN 3D</span>
               </button>
               <button
                 type="button"
@@ -899,10 +1261,13 @@ export default function PanelDatosRmrMetodo({
                     borderLeft: "3px solid #38bdf8",
                   }}
                 >
-                  <b>¿Por qué Diámetro Equivalente?</b> En voladura subterránea no hay cara libre. Los
-                  taladros vacíos sin cargar proporcionan el volumen de expansión inicial. Según la
-                  fórmula sueca: <code>De = D · √N</code>. Múltiples alivios pequeños actúan
-                  dinámicamente como un gran cilindro central de alivio.
+                  <b>¿Por qué diámetro equivalente?</b> En voladura subterránea no hay cara libre: el
+                  frente entero está confinado. Los taladros de alivio (vacíos, sin cargar) abren el
+                  volumen de expansión inicial hacia el cual rompe el resto del cuele. Cuando se
+                  agrupan N taladros pequeños en vez de perforar uno grande, el área de alivio
+                  equivalente se calcula como <code>De = D · √N</code> (diámetro individual × raíz
+                  del número de taladros) — López Jimeno et al. (1995) <i>Drilling and Blasting of
+                  Rocks</i>, cap. 22, p. 219.
                 </div>
               )}
 
@@ -971,6 +1336,146 @@ export default function PanelDatosRmrMetodo({
                 <b style={{ color: "#38bdf8", fontSize: 12 }}>
                   De = {diametroEquivalente.deMm.toFixed(1)} mm ({diametroEquivalente.deM.toFixed(3)} m)
                 </b>
+              </div>
+            </div>
+
+            {/* SECCIÓN: ROCA Y EXPLOSIVO (producción, carga y factor de carga) */}
+            <div
+              style={{
+                background: "rgba(15, 23, 42, 0.65)",
+                borderRadius: 12,
+                padding: 14,
+                border: "1px solid #1e293b",
+              }}
+            >
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#e2e8f0", marginBottom: 10 }}>
+                Roca y explosivo (zona de producción)
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+                <div>
+                  <label style={{ fontSize: 10, color: "#94a3b8", display: "block", marginBottom: 4 }}>
+                    Dureza de la roca
+                  </label>
+                  <select
+                    value={tipoRoca}
+                    onChange={(e) => setTipoRoca(e.target.value as TipoRoca)}
+                    style={{
+                      width: "100%",
+                      padding: "7px 10px",
+                      background: "#070c16",
+                      border: "1px solid #334155",
+                      borderRadius: 6,
+                      color: "#ffffff",
+                      fontSize: 12,
+                      boxSizing: "border-box",
+                    }}
+                  >
+                    {TIPOS_ROCA.map((r) => (
+                      <option key={r.valor} value={r.valor}>
+                        {r.etiqueta}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: 10, color: "#94a3b8", display: "block", marginBottom: 4 }}>
+                    Explosivo
+                  </label>
+                  <select
+                    value={explosivoIdx}
+                    onChange={(e) => setExplosivoIdx(Number(e.target.value))}
+                    style={{
+                      width: "100%",
+                      padding: "7px 10px",
+                      background: "#070c16",
+                      border: "1px solid #334155",
+                      borderRadius: 6,
+                      color: "#ffffff",
+                      fontSize: 12,
+                      boxSizing: "border-box",
+                    }}
+                  >
+                    {EXPLOSIVOS_PRESET.map((e, i) => (
+                      <option key={e.nombre} value={i}>
+                        {e.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 8 }}>
+                <div>
+                  <label style={{ fontSize: 10, color: "#94a3b8", display: "block", marginBottom: 4 }}>
+                    Ø carga (mm)
+                  </label>
+                  <input
+                    type="number"
+                    min={25}
+                    step={1}
+                    value={diametroCargaMm}
+                    onChange={(e) => setDiametroCargaMm(Math.max(25, Number(e.target.value)))}
+                    style={{
+                      width: "100%",
+                      padding: "7px 10px",
+                      background: "#070c16",
+                      border: "1px solid #334155",
+                      borderRadius: 6,
+                      color: "#ffffff",
+                      fontSize: 12,
+                      boxSizing: "border-box",
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: 10, color: "#94a3b8", display: "block", marginBottom: 4 }}>
+                    Densidad roca (t/m³)
+                  </label>
+                  <input
+                    type="number"
+                    min={1.5}
+                    max={4}
+                    step={0.05}
+                    value={densidadRocaGcm3}
+                    onChange={(e) => setDensidadRocaGcm3(Math.max(1.5, Number(e.target.value)))}
+                    style={{
+                      width: "100%",
+                      padding: "7px 10px",
+                      background: "#070c16",
+                      border: "1px solid #334155",
+                      borderRadius: 6,
+                      color: "#ffffff",
+                      fontSize: 12,
+                      boxSizing: "border-box",
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: 10, color: "#94a3b8", display: "block", marginBottom: 4 }}>
+                    Eficiencia corte
+                  </label>
+                  <input
+                    type="number"
+                    min={0.5}
+                    max={0.98}
+                    step={0.01}
+                    value={eficienciaCorte}
+                    onChange={(e) => setEficienciaCorte(Math.min(0.98, Math.max(0.5, Number(e.target.value))))}
+                    style={{
+                      width: "100%",
+                      padding: "7px 10px",
+                      background: "#070c16",
+                      border: "1px solid #334155",
+                      borderRadius: 6,
+                      color: "#ffffff",
+                      fontSize: 12,
+                      boxSizing: "border-box",
+                    }}
+                  />
+                </div>
+              </div>
+              <div style={{ fontSize: 10, color: "#64748b", lineHeight: 1.4 }}>
+                Burden/espaciamiento de producción (pestaña Método) usan estos valores con las
+                fórmulas de Ash (1963) y Langefors-Kihlström/Konya ya citadas en @suite/core.
               </div>
             </div>
 
@@ -1081,11 +1586,16 @@ export default function PanelDatosRmrMetodo({
                     borderLeft: "3px solid var(--acento, #f97316)",
                   }}
                 >
-                  <b>Concepto Geomecánico:</b> El sistema RMR (Bieniawski) integra la resistencia de la
-                  roca intacta, RQD, espaciamiento de discontinuidades y presencia de agua. En
-                  voladura, un RMR bajo (roca fracturada o dura y confinada) exige menor espaciamiento
-                  entre barrenos y un mayor factor de roca <i>K</i> para garantizar fragmentación
-                  homogénea sin soplado.
+                  <b>Concepto geomecánico:</b> el índice RMR de Bieniawski, Z.T. (1989)
+                  <i> Engineering Rock Mass Classifications</i>, John Wiley &amp; Sons, resume en
+                  0-100 puntos la resistencia de la roca intacta, el RQD, el espaciamiento y
+                  condición de discontinuidades y la presencia de agua — en esencia, mide qué tan
+                  auto-sostenible es el macizo, no la dureza de la roca intacta frente al explosivo
+                  (eso ya se ingresa aparte, con el tipo de roca/explosivo de la pestaña Datos). Aquí
+                  el RMR se usa solo para lo que sí mide directamente: en macizos de peor clase
+                  (más fracturados, menor tiempo de auto-sostenimiento) conviene un contorno más
+                  cerrado para limitar la sobre-rotura, y un taladro de alivio adicional para abrir
+                  el cuele de forma más gradual y predecible.
                 </div>
               )}
 
@@ -1182,21 +1692,28 @@ export default function PanelDatosRmrMetodo({
                   }}
                 >
                   <div>
-                    Espaciamiento:{" "}
-                    <b style={{ color: "#ffffff" }}>{recomendacionRmr.espaciamiento} m</b>
+                    Espaciamiento contorno:{" "}
+                    <b style={{ color: "#ffffff" }}>{recomendacionRmr.espaciamientoContorno.toFixed(2)} m</b>
                   </div>
                   <div>
-                    Coeficiente K:{" "}
-                    <b style={{ color: "#ffffff" }}>{recomendacionRmr.coeficienteK}</b>
+                    Regla aplicada:{" "}
+                    <b style={{ color: "#ffffff" }}>
+                      {(recomendacionRmr.espaciamientoContorno / (diametroCargaMm / 1000)).toFixed(0)}×Ø
+                    </b>
                   </div>
                   <div>
                     Alivios recomendados:{" "}
                     <b style={{ color: "#ffffff" }}>{recomendacionRmr.aliviosSugeridos} taladros</b>
                   </div>
                   <div>
-                    Factor carga:{" "}
-                    <b style={{ color: "#ffffff" }}>{recomendacionRmr.factorCarga}</b>
+                    Clase Bieniawski:{" "}
+                    <b style={{ color: "#ffffff" }}>{recomendacionRmr.clase.split("(")[0].trim()}</b>
                   </div>
+                </div>
+                <div style={{ fontSize: 10, color: "#64748b", marginBottom: 10, lineHeight: 1.4 }}>
+                  El factor de carga (kg/m³) no se estima aquí desde el RMR: se calcula de abajo
+                  hacia arriba a partir del diámetro, explosivo y geometría real en la pestaña
+                  Resultado (ver tarjeta "Carga explosiva").
                 </div>
 
                 <button
@@ -1229,32 +1746,17 @@ export default function PanelDatosRmrMetodo({
               }}
             >
               <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", marginBottom: 8 }}>
-                Matriz de Recomendaciones por Calidad
+                Matriz de Recomendaciones por Clase Bieniawski (1989)
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {[
-                  {
-                    nombre: "Roca Suave (RMR > 60)",
-                    esp: "0.73 m",
-                    k: "1.10",
-                    alivios: 4,
-                    activo: rmrScore > 60,
-                  },
-                  {
-                    nombre: "Roca Semidura (41-60)",
-                    esp: "0.55 m",
-                    k: "1.65",
-                    alivios: 4,
-                    activo: rmrScore >= 41 && rmrScore <= 60,
-                  },
-                  {
-                    nombre: "Roca Dura (RMR ≤ 40)",
-                    esp: "0.48 m",
-                    k: "2.25",
-                    alivios: 5,
-                    activo: rmrScore <= 40,
-                  },
-                ].map((item, idx) => (
+                {(() => {
+                  const diamM = diametroCargaMm / 1000;
+                  return [
+                    { nombre: "Clase I-II · Buena/Muy buena (RMR > 60)", esp: diamM * 16, alivios: 4, activo: rmrScore > 60 },
+                    { nombre: "Clase III · Media (RMR 41-60)", esp: diamM * 13, alivios: 4, activo: rmrScore >= 41 && rmrScore <= 60 },
+                    { nombre: "Clase IV-V · Mala/Muy mala (RMR ≤ 40)", esp: diamM * 10, alivios: 5, activo: rmrScore <= 40 },
+                  ];
+                })().map((item, idx) => (
                   <div
                     key={idx}
                     style={{
@@ -1275,10 +1777,16 @@ export default function PanelDatosRmrMetodo({
                   >
                     <span>{item.nombre}</span>
                     <span>
-                      E = {item.esp} · K = {item.k} · {item.alivios} Alivios
+                      Contorno {item.esp.toFixed(2)}m · {item.alivios} alivios
                     </span>
                   </div>
                 ))}
+              </div>
+              <div style={{ fontSize: 10, color: "#64748b", marginTop: 8, lineHeight: 1.4 }}>
+                Fuente: Bieniawski, Z.T. (1989) <i>Engineering Rock Mass Classifications</i>, Wiley
+                (clases RMR) — combinado con la regla de espaciamiento de contorno "K×diámetro" de
+                OSMRE (2016) <i>Blast Design — Module 3</i>, U.S. Office of Surface Mining
+                Reclamation and Enforcement.
               </div>
             </div>
           </>
@@ -1379,8 +1887,9 @@ export default function PanelDatosRmrMetodo({
                   marginBottom: conceptoAbierto === "holmberg" ? 10 : 12,
                 }}
               >
-                Se calculan cinco etapas teóricas. La distribución utiliza el tipo de corte elegido
-                y conserva E5 como control de expansión.
+                Se calculan {etapasArranque.length} secciones para un avance de {avanceM.toFixed(2)} m
+                (se detienen cuando el espaciamiento supera √avance = {Math.sqrt(Math.max(0.1, avanceM)).toFixed(2)} m).
+                La última sección queda como control de expansión hacia la zona de producción.
               </div>
 
               {conceptoAbierto === "holmberg" && (
@@ -1396,12 +1905,20 @@ export default function PanelDatosRmrMetodo({
                     borderLeft: "3px solid var(--acento, #f97316)",
                   }}
                 >
-                  <b>Fundamento Físico:</b> Cada cuadrante de taladros abre una cavidad rectangular
-                  hacia la cual rompe el siguiente. El <i>Burden (Bn)</i> es la distancia crítica a la
-                  cara libre para evitar soplado. El <i>Espaciamiento (En)</i> define el lado del
-                  prisma desalojado. En la Etapa 1 se aplica <code>f = 2.00</code> sobre el diámetro
-                  equivalente <code>De</code>, y en las subsiguientes se conserva <code>f = 0.85</code>{" "}
-                  para compensar el ángulo de rotura de 90°.
+                  <b>Fundamento físico:</b> cada sección de taladros rompe hacia un hueco cuadrado
+                  cuyos 4 vértices son los taladros de esa sección; el <i>burden (Bn)</i> es la
+                  distancia crítica desde cada taladro a la cara libre del hueco anterior, y el
+                  <i> espaciamiento (En)</i> es el lado del nuevo hueco que deja esa sección al
+                  romper. Sección 1: <code>B1 = 1.5·De</code>, <code>E1 = B1·√2</code> (diagonal de
+                  un cuadrado de lado B1). Secciones siguientes: <code>Bn = E(n-1)</code> (el burden
+                  usa el hueco ya abierto) y <code>En = 1.5·Bn·√2</code> (el factor 1.5 compensa que
+                  la nueva cara libre, al estar rotada 45°, es más difícil de romper que la cara
+                  original). Se agregan secciones mientras <code>En &lt; √avance</code> — el lado de
+                  la última sección no debería ser menor que la raíz del avance de la tanda.
+                  Fórmula: Holmberg, R. (1982) "Charge calculations for tunnelling", en
+                  <i> Underground Mining Methods Handbook</i>, SME, simplificada por Olofsson, S.
+                  (1990) <i>Applied Explosives Technology for Construction and Mining</i>, APEX
+                  Consultants, y reproducida en López Jimeno et al. (1995) cap. 22, Tabla 22.2.
                 </div>
               )}
 
@@ -1464,6 +1981,75 @@ export default function PanelDatosRmrMetodo({
                   </div>
                 ))}
               </div>
+            </div>
+
+            {/* ZONA DE PRODUCCIÓN (DESTROZA) */}
+            <div
+              style={{
+                background: "rgba(15, 23, 42, 0.65)",
+                borderRadius: 12,
+                padding: 14,
+                border: "1px solid #1e293b",
+              }}
+            >
+              <div style={{ fontSize: 13, fontWeight: 800, color: "#ffffff", marginBottom: 6 }}>
+                Producción (destroza)
+              </div>
+              <div style={{ fontSize: 11, color: "#94a3b8", lineHeight: 1.4, marginBottom: 10 }}>
+                Una vez abierto el arranque, el resto de la ronda se calcula como un banco de altura
+                = avance/eficiencia, con las mismas fórmulas de Ash (1963) / Langefors-Kihlström y
+                espaciamiento de Konya ya usadas para el banco a cielo abierto.
+              </div>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 8,
+                  fontSize: 11,
+                  background: "rgba(7, 12, 22, 0.7)",
+                  padding: 10,
+                  borderRadius: 6,
+                }}
+              >
+                <div>
+                  Burden diseño: <b style={{ color: "#ffffff" }}>{produccionResultado.burden_m.toFixed(3)} m</b>
+                </div>
+                <div>
+                  Espaciamiento: <b style={{ color: "#ffffff" }}>{produccionResultado.espaciamiento_m.toFixed(3)} m</b>
+                </div>
+                <div>
+                  Longitud taladro: <b style={{ color: "#ffffff" }}>{profundidadTaladro_m.toFixed(2)} m</b>
+                </div>
+                <div>
+                  Razón rigidez H/B: <b style={{ color: "#ffffff" }}>{produccionResultado.razonRigidezHB.toFixed(2)}</b>
+                </div>
+              </div>
+            </div>
+
+            {/* GENERAR TALADROS DE RONDA */}
+            <button
+              type="button"
+              onClick={generarTaladrosRonda}
+              style={{
+                padding: "12px 14px",
+                fontSize: 12,
+                fontWeight: 800,
+                borderRadius: 10,
+                border: "1px solid #38bdf8",
+                background: "rgba(56, 189, 248, 0.14)",
+                color: "#38bdf8",
+                cursor: "pointer",
+                textAlign: "center",
+                letterSpacing: "0.03em",
+              }}
+              title="Ubica alivio + arranque + contorno + producción sobre el polígono de galería dibujado"
+            >
+              ⚡ GENERAR TALADROS DE RONDA (SIMULACIÓN)
+            </button>
+            <div style={{ fontSize: 10, color: "#64748b", lineHeight: 1.4 }}>
+              Es una simulación: reemplaza los taladros del editor CAD con la ronda calculada. Para
+              solidificarla como entidades CAD editables, usa después "Convertir malla calculada a
+              CAD editable".
             </div>
           </>
         )}
@@ -1587,6 +2173,53 @@ export default function PanelDatosRmrMetodo({
               </div>
             </div>
 
+            {/* CARGA EXPLOSIVA Y FACTOR DE CARGA (cálculo ascendente) */}
+            <div
+              style={{
+                background: "rgba(15, 23, 42, 0.75)",
+                borderRadius: 12,
+                padding: 14,
+                border: "1px solid #a855f7",
+              }}
+            >
+              <div style={{ fontSize: 12, fontWeight: 800, color: "#a855f7", letterSpacing: "0.05em", marginBottom: 8 }}>
+                CARGA EXPLOSIVA ({explosivo.nombre.toUpperCase()})
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 11, color: "#cbd5e1" }}>
+                <div>
+                  Carga lineal: <b style={{ color: "#ffffff" }}>{cargaExplosiva.cargaLineal_kgm.toFixed(2)} kg/m</b>
+                </div>
+                <div>
+                  Peso por taladro: <b style={{ color: "#ffffff" }}>{cargaExplosiva.pesoPorTaladro_kg.toFixed(2)} kg</b>
+                </div>
+                <div>
+                  Peso total estimado:{" "}
+                  <b style={{ color: "#ffffff" }}>
+                    {(cargaExplosiva.pesoPorTaladro_kg * Math.max(taladrosDetectados.total, 1)).toFixed(0)} kg
+                  </b>
+                </div>
+                <div>
+                  Factor de carga:{" "}
+                  <b style={{ color: "#ffffff" }}>
+                    {cargaExplosiva.volumenRonda_m3 > 0
+                      ? (
+                          (cargaExplosiva.pesoPorTaladro_kg * Math.max(taladrosDetectados.total, 1)) /
+                          cargaExplosiva.volumenRonda_m3
+                        ).toFixed(2)
+                      : "0"}{" "}
+                    kg/m³
+                  </b>
+                </div>
+              </div>
+              <div style={{ fontSize: 10, color: "#64748b", marginTop: 8, lineHeight: 1.4 }}>
+                Carga lineal Mc = (π/4)·d²·ρ_explosivo y factor de carga = peso explosivo / volumen
+                de roca — Ash, R.L. (1963) "The Mechanics of Rock Breakage", <i>Pit &amp; Quarry</i>{" "}
+                (fórmulas ya implementadas y citadas en el motor compartido @suite/core). El peso
+                total usa el conteo real de taladros generados; antes de generar la ronda es solo
+                una estimación por taladro.
+              </div>
+            </div>
+
             {/* DIAGNÓSTICO TÉCNICO DE VOLADURA */}
             <div
               style={{
@@ -1605,12 +2238,12 @@ export default function PanelDatosRmrMetodo({
                 Diagnóstico de Diseño
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Volumen estimado por avance:</span>
-                <b>{(galeriaDetectada.area * avanceM * 0.92).toFixed(2)} m³</b>
+                <span>Volumen roto por avance (eficiencia {(eficienciaCorte * 100).toFixed(0)}%):</span>
+                <b>{(galeriaDetectada.area * avanceM * eficienciaCorte).toFixed(2)} m³</b>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Toneladas rotas (ρ = 2.7 t/m³):</span>
-                <b>{(galeriaDetectada.area * avanceM * 0.92 * 2.7).toFixed(1)} ton</b>
+                <span>Toneladas rotas (ρ = {densidadRocaGcm3.toFixed(2)} t/m³):</span>
+                <b>{(galeriaDetectada.area * avanceM * eficienciaCorte * densidadRocaGcm3).toFixed(1)} ton</b>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span>Densidad de perforación:</span>
@@ -1620,6 +2253,16 @@ export default function PanelDatosRmrMetodo({
                     : "0"}{" "}
                   tal/m²
                 </b>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>Estimación previa de taladros (alivio+arranque+contorno+producción):</span>
+                <b>≈ {estimacionTaladros.total}</b>
+              </div>
+              <div style={{ fontSize: 10, color: "#64748b", marginTop: 2, lineHeight: 1.4 }}>
+                Eficiencia de corte típica de un cuele paralelo bien diseñado: 85-95% (López Jimeno
+                et al., 1995, cap. 22). La estimación de taladros es un conteo propio de este panel
+                (perímetro/espaciamiento de contorno + área/burden·espaciamiento de producción); al
+                generar la ronda real (pestaña Método) se reemplaza por el conteo exacto.
               </div>
             </div>
           </>

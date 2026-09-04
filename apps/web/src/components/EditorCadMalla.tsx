@@ -59,6 +59,8 @@ export interface PuntoCad3D {
   z: number;
   capaId: string;
   tipo?: TipoPuntoCad;
+  etiqueta?: string;
+  color?: string;
 }
 
 export interface LineaCad3D {
@@ -375,6 +377,10 @@ export default function EditorCadMalla({
   // Estado del Panel DATOS / RMR / MÉTODO
   const [panelDatosRmrVisible, setPanelDatosRmrVisible] = usePersistedState<boolean>("cad:panelDatosRmrVisible", false);
 
+  // Estado del Panel 'EDICIÓN' (ED - Exacto a la captura del usuario)
+  const [panelEdicionVisible, setPanelEdicionVisible] = usePersistedState<boolean>("cad:panelEdicionVisible", false);
+  const [panelEdicionMinimizado, setPanelEdicionMinimizado] = usePersistedState<boolean>("cad:panelEdicionMinimizado", false);
+
   // Estado del Panel 'SELECCIONAR' (cerrado por defecto)
   const [panelSelVisible, setPanelSelVisible] = useState(false);
   const [panelSelMinimizado, setPanelSelMinimizado] = usePersistedState<boolean>("cad:panelSelMinimizado", false);
@@ -436,6 +442,7 @@ export default function EditorCadMalla({
   const [cursorGuiaArc, setCursorGuiaArc] = useState<{ x: number; y: number; z: number } | null>(null);
   const [arcosCad, setArcosCad] = usePersistedState<ArcoCad3D[]>("cad:arcos", []);
   const [arcosSeleccionados, setArcosSeleccionados] = useState<string[]>([]);
+  const totalEntidadesCad = puntosCad.length + lineasCad.length + polilineasCad.length + arcosCad.length;
 
   // Estado del Panel 'RECORTAR' (Trim - Exacto al Mockup)
   const [panelRecVisible, setPanelRecVisible] = useState(true);
@@ -1145,6 +1152,147 @@ export default function EditorCadMalla({
     }
   }
 
+  // Convertir Malla Calculada (contorno + taladros) a entidades CAD editables (Exacto a la captura)
+  function handleConvertirMallaACad() {
+    registrarHistorial();
+    let agregadosPuntos = 0;
+    let agregadasPolilineas = 0;
+
+    // 1. Convertir contorno de la galería / cresta a polilínea CAD cerrada
+    if (poligonoCresta && poligonoCresta.length >= 2) {
+      const idPl = `pl-malla-${Date.now()}`;
+      const pts = poligonoCresta.map((p) => ({ x: p.x, y: p.y, z: 0 }));
+      let len = 0;
+      for (let i = 0; i < pts.length; i++) {
+        const next = pts[(i + 1) % pts.length];
+        len += Math.hypot(next.x - pts[i].x, next.y - pts[i].y);
+      }
+      const nuevaPl: PolilineaCad3D = {
+        id: idPl,
+        puntos: pts,
+        cerrada: true,
+        capaId: "capa-dibujo",
+        tipo: "continua",
+        rol: "galeria",
+        longitud: Math.round(len * 100) / 100,
+      };
+      setPolilineasCad((prev) => [...prev, nuevaPl]);
+      agregadasPolilineas++;
+    }
+
+    // 2. Convertir taladros calculados de Holmberg a puntos CAD editables
+    if (taladros && taladros.length > 0) {
+      const timestamp = Date.now();
+      const nuevosPuntos: PuntoCad3D[] = taladros.map((t, idx) => {
+        const tx = t.collar ? t.collar.x : ((t as any).cuello?.x ?? (t as any).x ?? 0);
+        const ty = t.collar ? t.collar.y : ((t as any).cuello?.y ?? (t as any).y ?? 0);
+        const tz = t.collar ? (t.collar.z ?? 0) : ((t as any).cuello?.z ?? (t as any).z ?? 0);
+        const zonaTal = ((t as any).zona || "arranque") as GrupoTaladroCad;
+        const infoG = GRUPOS_TALADRO_CONFIG.find((g) => g.id === zonaTal);
+        const colTal = infoG?.colorDefecto || (t as any).color || "#06b6d4";
+
+        return {
+          id: `pto-tal-${t.id || idx}-${timestamp}-${idx}`,
+          x: Math.round(tx * 1000) / 1000,
+          y: Math.round(ty * 1000) / 1000,
+          z: Math.round(tz * 1000) / 1000,
+          tipo: "circulo_x",
+          etiqueta: (t as any).codigo || `T${(t as any).numero || idx + 1}`,
+          color: colTal,
+          capaId: "capa-dibujo",
+        };
+      });
+
+      setPuntosCad((prev) => [...prev, ...nuevosPuntos]);
+      agregadosPuntos += nuevosPuntos.length;
+    }
+
+    // Activar y asegurar visibilidad de la capa "Dibujo CAD"
+    setCapaActivaId("capa-dibujo");
+    setCapas((prev) =>
+      prev.map((c) => (c.id === "capa-dibujo" ? { ...c, visible: true } : c))
+    );
+
+    if (agregadosPuntos > 0 || agregadasPolilineas > 0) {
+      mostrarAviso(
+        `✓ Malla convertida a CAD: ${agregadosPuntos} taladros y ${agregadasPolilineas > 0 ? "contorno" : ""} como entidades editables`
+      );
+    } else {
+      mostrarAviso("No se encontraron taladros ni geometría calculada para convertir");
+    }
+  }
+
+  // Publicar cambios realizados en CAD hacia la Malla Final
+  function handlePublicarCadAMalla() {
+    if (puntosCad.length === 0 && polilineasCad.length === 0) {
+      mostrarAviso("No hay entidades CAD para publicar como Malla final");
+      return;
+    }
+
+    registrarHistorial();
+    let taladrosActualizados = 0;
+    let contornoActualizado = 0;
+
+    // Sincronizar taladros con puntos CAD
+    if (puntosCad.length > 0 && onCambiarTaladros) {
+      const nuevosTaladros: Taladro[] = puntosCad.map((p, idx) => {
+        const original = taladros.find((t) => t.id === p.id || (t as any).codigo === p.etiqueta);
+        const diam = original?.diametroMm || 45;
+        const prof = original?.profundidad_m || 3.6;
+        const tObj = {
+          id: p.id,
+          fila: original?.fila ?? 0,
+          columna: original?.columna ?? idx,
+          numero: idx + 1,
+          collar: { x: p.x, y: p.y, z: p.z || 0 },
+          fondo: original?.fondo || { x: p.x, y: p.y, z: (p.z || 0) - prof },
+          profundidad_m: prof,
+          diametroMm: diam,
+          taco_m: original?.taco_m ?? 1.0,
+          longitudCarga_m: original?.longitudCarga_m ?? Math.max(0, prof - 1.0),
+        } as unknown as Taladro;
+        (tObj as any).codigo = p.etiqueta || `T${idx + 1}`;
+        (tObj as any).color = p.color || "#06b6d4";
+        (tObj as any).tipo = (original as any)?.tipo || "produccion";
+        return tObj;
+      });
+      onCambiarTaladros(nuevosTaladros);
+      taladrosActualizados = nuevosTaladros.length;
+    }
+
+    // Sincronizar contorno con polilínea CAD cerrada si existe
+    const plCerrada = polilineasCad.find((pl) => pl.cerrada && pl.puntos.length >= 3);
+    if (plCerrada && onCambiarPoligono) {
+      onCambiarPoligono(plCerrada.puntos.map((pt) => ({ x: pt.x, y: pt.y })));
+      contornoActualizado = plCerrada.puntos.length;
+    }
+
+    mostrarAviso(
+      `✓ Publicado a Malla final: ${taladrosActualizados} taladros y ${contornoActualizado > 0 ? contornoActualizado + " vértices de contorno" : "geometría"}`
+    );
+  }
+
+  // Limpiar dibujo CAD
+  function handleLimpiarCad() {
+    if (totalEntidadesCad === 0) {
+      mostrarAviso("El dibujo CAD ya está vacío");
+      return;
+    }
+    if (window.confirm("¿Deseas limpiar todas las entidades de Dibujo CAD?")) {
+      registrarHistorial();
+      setPuntosCad([]);
+      setLineasCad([]);
+      setPolilineasCad([]);
+      setArcosCad([]);
+      setIndicesSeleccionados([]);
+      setPuntosSeleccionados([]);
+      setLineasSeleccionadas([]);
+      setPolilineasSeleccionadas([]);
+      setArcosSeleccionados([]);
+      mostrarAviso("Dibujo CAD limpiado");
+    }
+  }
+
   // Crear nueva carpeta
   function handleCrearNuevaCarpeta() {
     const nombre = window.prompt("Nombre de la carpeta de capas:", "Nueva Carpeta");
@@ -1697,7 +1845,7 @@ export default function EditorCadMalla({
       group.remove(obj);
     }
 
-    const capaCresta = capas.find((c) => c.id === "capa-cresta");
+    const capaCresta = capas.find((c) => c.id === "capa-cresta" || c.id === "capa-base") ?? { visible: true, color: "#22c55e" };
     const capaTaladros = capas.find((c) => c.id === "capa-taladros");
 
     // 1. Polígono y Puntos de Cresta
@@ -5549,11 +5697,11 @@ export default function EditorCadMalla({
 
           <button
             type="button"
-            className="btn-dock-circle-exact"
+            className={`btn-dock-circle-exact ${panelEdicionVisible ? "tool-active-pink" : ""}`}
             onClick={() => {
-              setPanelSelVisible(!panelSelVisible);
+              setPanelEdicionVisible(!panelEdicionVisible);
             }}
-            title="Edición (ED)"
+            title="Edición CAD (ED)"
           >
             ED
           </button>
@@ -8670,14 +8818,128 @@ export default function EditorCadMalla({
           visible={panelDatosRmrVisible}
           onOcultar={() => setPanelDatosRmrVisible(false)}
           poligonoCresta={poligonoCresta}
+          onCambiarPoligono={onCambiarPoligono}
           lineasCad={lineasCad}
           polilineasCad={polilineasCad}
           taladros={taladros}
           onAplicarParametros={(params) => {
             mostrarAviso(`Parámetros aplicados: ${params.ancho}x${params.alto}m | RMR ${params.rmr}`);
           }}
+          onGenerarTaladros={(nuevos) => {
+            registrarHistorial();
+            if (onCambiarTaladros) {
+              onCambiarTaladros(nuevos);
+            }
+          }}
           mostrarAviso={mostrarAviso}
         />
+
+        {/* =========================================================================
+            PANEL EDICIÓN (ACTIVADO POR EL BOTÓN 'ED' EN EL DOCK DERECHO)
+           ========================================================================= */}
+        {panelEdicionVisible && (
+          <div
+            className={`cad-panel-edicion-exact ${panelEdicionMinimizado ? "panel-comprimido" : ""}`}
+            onPointerDown={(e) => e.stopPropagation()}
+            onPointerUp={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {panelEdicionMinimizado ? (
+              <div className="panel-mini-strip">
+                <div className="mini-coords-info">
+                  <strong>EDICIÓN:</strong> {totalEntidadesCad} ents
+                </div>
+                <div className="mini-actions">
+                  <button type="button" className="btn-mini-expand" onClick={() => setPanelEdicionMinimizado(false)}>
+                    ⤢ Expandir
+                  </button>
+                  <button type="button" className="btn-header-round-close" onClick={() => setPanelEdicionVisible(false)}>
+                    ✕
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Header exacto: EDICIÓN / Edición manual sobre la geometría real. / > OCULTAR */}
+                <div className="panel-edicion-header">
+                  <div className="panel-edicion-title-col">
+                    <h2 className="panel-edicion-title">EDICIÓN</h2>
+                    <p className="panel-edicion-subtitle">Edición manual sobre la geometría real.</p>
+                  </div>
+                  <div className="panel-edicion-header-actions">
+                    <button
+                      type="button"
+                      className="btn-header-round-min"
+                      onClick={() => setPanelEdicionMinimizado(true)}
+                      title="Minimizar panel (−)"
+                    >
+                      −
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-ocultar-exact"
+                      onClick={() => setPanelEdicionVisible(false)}
+                      title="Ocultar panel"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" strokeWidth="2.5">
+                        <polyline points="9 18 15 12 9 6" />
+                      </svg>
+                      <span>OCULTAR</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Badge/Input Capa Activa */}
+                <div className="panel-edicion-capa-box">
+                  <span className="panel-edicion-capa-text">
+                    CAPA ACTIVA · {capas.find((c) => c.id === capaActivaId)?.nombre || "Dibujo CAD"}
+                  </span>
+                </div>
+
+                {/* Contador de Entidades CAD */}
+                <div className="panel-edicion-entidades-count">
+                  Entidades CAD: {totalEntidadesCad}
+                </div>
+
+                {/* Botón Principal: CONVERTIR MALLA CALCULADA A CAD EDITABLE */}
+                <button
+                  type="button"
+                  className="btn-convertir-malla-cad"
+                  onClick={handleConvertirMallaACad}
+                >
+                  CONVERTIR MALLA CALCULADA A CAD EDITABLE
+                </button>
+
+                {/* Texto explicativo fiel a la imagen */}
+                <p className="panel-edicion-descripcion">
+                  Holmberg solo genera una propuesta. Después de convertirla, la geometría CAD es editable y puede publicarse exactamente como Malla final.
+                </p>
+
+                {/* Acciones para cerrar el ciclo si ya hay entidades CAD creadas */}
+                {totalEntidadesCad > 0 && (
+                  <div className="panel-edicion-secondary-actions">
+                    <button
+                      type="button"
+                      className="btn-publicar-cad-malla"
+                      onClick={handlePublicarCadAMalla}
+                      title="Publicar los cambios de CAD de vuelta como la Malla final"
+                    >
+                      ✓ PUBLICAR CAD A MALLA FINAL
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-limpiar-cad"
+                      onClick={handleLimpiarCad}
+                      title="Limpiar todas las entidades de CAD"
+                    >
+                      Limpiar CAD
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* 3. Barra Inferior de Escena */}

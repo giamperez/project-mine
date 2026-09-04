@@ -2432,6 +2432,203 @@ table.tabla-taladros td:first-child {
   }
 }
 
+/* ==========================================================================
+   PANEL EDICIÓN (ED) - DOCK DERECHO (FIDELIDAD EXACTA A CAPTURA)
+   ========================================================================== */
+
+.cad-panel-edicion-exact {
+  position: absolute;
+  top: 130px;
+  right: 58px;
+  width: min(310px, calc(100% - 110px));
+  background: #0d121d;
+  border: 1px solid rgba(236, 72, 153, 0.45);
+  border-radius: 20px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 30;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(236, 72, 153, 0.2);
+  backdrop-filter: blur(16px);
+  animation: fadeIn 0.15s ease-out;
+  max-height: calc(100% - 170px);
+  overflow-y: auto;
+}
+
+@media (max-width: 600px) {
+  .cad-panel-edicion-exact {
+    top: 96px;
+    right: 52px;
+    width: min(295px, calc(100% - 96px));
+    max-height: calc(100% - 140px);
+    padding: 14px 16px;
+    gap: 10px;
+    border-radius: 16px;
+  }
+}
+
+.panel-edicion-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.panel-edicion-title-col {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.panel-edicion-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: #ffffff;
+  margin: 0;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.panel-edicion-subtitle {
+  font-size: 11px;
+  color: #94a3b8;
+  margin: 0;
+  line-height: 1.35;
+}
+
+.panel-edicion-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.btn-ocultar-exact {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #ec4899;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.btn-ocultar-exact:hover {
+  background: rgba(236, 72, 153, 0.12);
+}
+
+.panel-edicion-capa-box {
+  background: #090e17;
+  border: 1px solid rgba(14, 165, 233, 0.35);
+  border-radius: 10px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+}
+
+.panel-edicion-capa-text {
+  font-size: 11px;
+  font-weight: 700;
+  color: #38bdf8;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+}
+
+.panel-edicion-entidades-count {
+  font-size: 19px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.2px;
+  margin-top: 2px;
+}
+
+.btn-convertir-malla-cad {
+  background: #ec4899;
+  background: linear-gradient(135deg, #f43f5e 0%, #e11d48 50%, #ec4899 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 999px;
+  padding: 13px 16px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  cursor: pointer;
+  text-align: center;
+  box-shadow: 0 4px 18px rgba(236, 72, 153, 0.45);
+  transition: all 0.15s ease;
+  line-height: 1.25;
+}
+
+.btn-convertir-malla-cad:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 22px rgba(236, 72, 153, 0.6);
+}
+
+.btn-convertir-malla-cad:active {
+  transform: scale(0.98);
+}
+
+.panel-edicion-descripcion {
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: #94a3b8;
+  margin: 0;
+}
+
+.panel-edicion-secondary-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.btn-publicar-cad-malla {
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  color: #4ade80;
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+
+.btn-publicar-cad-malla:hover {
+  background: rgba(34, 197, 94, 0.22);
+  border-color: #4ade80;
+}
+
+.btn-limpiar-cad {
+  background: transparent;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #f87171;
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+
+.btn-limpiar-cad:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: #f87171;
+}
+
 /* Modo Comprimido / Minimizado: Ocupa una tira mínima sin tapar la pantalla */
 .panel-comprimido {
   display: flex !important;

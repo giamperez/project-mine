@@ -89,3 +89,53 @@ export interface TaladroTunel {
   y: number;
   zona: ZonaTaladroTunel;
 }
+
+/**
+ * Zonas de una ronda (round) de frente para el generador de layout `generarTaladrosFrenteTunel`.
+ * Vocabulario reducido a 7 grupos (a diferencia de `ZonaTaladroTunel`, mas granular) porque asi
+ * es como el editor CAD agrupa/colorea taladros (ver `GrupoTaladroCad` en EditorCadMalla.tsx).
+ */
+export type ZonaTaladroFrente =
+  | "alivio"
+  | "arranque"
+  | "cuadrante"
+  | "produccion"
+  | "corona"
+  | "hastial"
+  | "arrastre";
+
+export interface PuntoTaladroFrente {
+  id: string;
+  x: number;
+  y: number;
+  z: number;
+  zona: ZonaTaladroFrente;
+  diametroMm: number;
+  cargado: boolean;
+  /** Numero de seccion del arranque (1..N), solo para zona "arranque"/"cuadrante". */
+  etapa?: number;
+}
+
+export interface EntradaTaladrosFrente {
+  /** Vertices del contorno de la galeria (plano XY), en orden, >=3. */
+  poligonoCresta: Array<{ x: number; y: number }>;
+  /** Cota Z de la cara del frente (donde se ubican los collares). Default 0. */
+  cotaFrente_m?: number;
+  /** Secciones del arranque ya calculadas por `calcularArranqueHolmberg`. */
+  secciones: SeccionArranque[];
+  diametroIndividualAlivio_mm: number;
+  numeroTaladrosAlivio: number;
+  /** Diametro de los taladros cargados (cuadrante/produccion/contorno/arrastre), mm. */
+  diametroCargaMm: number;
+  /** Burden y espaciamiento de la zona de produccion/destroza, m. */
+  burdenProduccion_m: number;
+  espaciamientoProduccion_m: number;
+  /** Espaciamiento de los taladros de contorno (corona/hastial/arrastre), m — ver regla de
+   * voladura controlada (smooth blasting) en `generarTaladrosFrenteTunel`. */
+  espaciamientoContorno_m: number;
+}
+
+export interface ResultadoTaladrosFrente {
+  puntos: PuntoTaladroFrente[];
+  advertencias: string[];
+}
