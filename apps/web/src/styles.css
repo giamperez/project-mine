@@ -2329,20 +2329,20 @@ table.tabla-taladros td:first-child {
 .cad-panel-grilla-exact {
   position: absolute;
   top: 14px;
-  right: 64px;
-  width: min(280px, calc(100% - 76px));
+  left: 62px;
+  width: min(290px, calc(100% - 116px));
   background: #0b111c;
   border: 1px solid rgba(6, 182, 212, 0.25);
   border-radius: 16px;
-  padding: 10px 12px;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 8px;
   z-index: 30;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.85);
   backdrop-filter: blur(14px);
   animation: fadeIn 0.15s ease-out;
-  max-height: calc(100% - 28px);
+  max-height: calc(100% - 68px);
   overflow-y: auto;
 }
 
@@ -2360,31 +2360,37 @@ table.tabla-taladros td:first-child {
   .cad-panel-taladro-exact,
   .cad-panel-solido-exact,
   .cad-panel-grilla-exact {
-    top: auto;
-    bottom: 58px;
-    right: 50%;
-    transform: translateX(50%);
-    width: min(300px, calc(100% - 24px));
-    max-height: 48vh;
-    padding: 8px 10px;
-    gap: 6px;
+    top: 14px;
+    left: 56px;
+    right: auto;
+    transform: none;
+    width: min(280px, calc(100% - 108px));
+    max-height: calc(100% - 74px);
+    padding: 10px 12px;
+    gap: 7px;
   }
 }
 
 /* Modo Comprimido / Minimizado: Ocupa una tira mínima sin tapar la pantalla */
 .panel-comprimido {
-  padding: 8px 14px !important;
+  padding: 6px 12px !important;
   border-radius: 999px !important;
-  max-height: 48px !important;
+  height: 42px !important;
+  max-height: 42px !important;
+  width: auto !important;
+  min-width: 220px !important;
+  max-width: 320px !important;
   overflow: hidden !important;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6) !important;
-  border-color: rgba(225, 29, 72, 0.5) !important;
+  border-color: rgba(244, 63, 94, 0.6) !important;
+  background: #0b111c !important;
 }
 
 @media (max-width: 600px) {
   .panel-comprimido {
-    bottom: 64px !important;
-    width: calc(100% - 40px) !important;
+    top: 14px !important;
+    left: 56px !important;
+    width: min(280px, calc(100% - 108px)) !important;
   }
 }
 
@@ -3713,41 +3719,48 @@ table.tabla-taladros td:first-child {
 /* ==========================================================================
    PANEL SÓLIDO (EXTRUIR POLILÍNEA CERRADA EN 3D - EXACTO A LA CAPTURA)
    ========================================================================== */
-.panel-solido-header {
+.panel-solido-header,
+.panel-component-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 8px;
 }
 
-.panel-solido-title-col {
+.panel-solido-title-col,
+.panel-component-title-col {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.panel-solido-title {
+.panel-solido-title,
+.panel-component-title {
   font-size: 15px;
   font-weight: 800;
   color: #ffffff;
   margin: 0;
   letter-spacing: 0.5px;
+  text-transform: uppercase;
 }
 
-.panel-solido-subtitle {
+.panel-solido-subtitle,
+.panel-component-subtitle {
   font-size: 11px;
   color: #94a3b8;
   margin: 0;
   line-height: 1.35;
 }
 
-.panel-solido-header-actions {
+.panel-solido-header-actions,
+.panel-component-header-actions {
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
-.btn-solido-ocultar {
+.btn-solido-ocultar,
+.btn-panel-ocultar {
   background: transparent;
   border: none;
   color: #f43f5e;
@@ -3763,7 +3776,13 @@ table.tabla-taladros td:first-child {
   transition: all 0.15s ease;
 }
 
-.btn-solido-ocultar .chevron-left {
+.btn-solido-ocultar:hover,
+.btn-panel-ocultar:hover {
+  background: rgba(244, 63, 94, 0.12);
+}
+
+.btn-solido-ocultar .chevron-left,
+.btn-panel-ocultar .chevron-left {
   font-size: 16px;
   line-height: 1;
   font-weight: 900;
