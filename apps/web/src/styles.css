@@ -2263,26 +2263,39 @@ table.tabla-taladros td:first-child {
 }
 
 .cad-tab-pill-exact {
-  background: #101624;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #111520;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   color: #94a3b8;
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 700;
-  padding: 6px 18px;
-  border-radius: 999px;
+  padding: 7px 18px;
+  border-radius: 12px;
   cursor: pointer;
   transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .cad-tab-pill-exact:hover {
   color: #fff;
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .cad-tab-pill-exact.tab-active-pink {
-  background: rgba(225, 29, 72, 0.15);
-  border-color: #e11d48;
+  background: #1c0a15;
+  border: 1.5px solid #e11d48;
   color: #ffffff;
-  box-shadow: 0 0 12px rgba(225, 29, 72, 0.35);
+  box-shadow: 0 0 14px rgba(225, 29, 72, 0.35);
+}
+
+.cad-tab-pill-exact.btn-tab-add {
+  background: #1c0a15;
+  border: 1.5px solid #e11d48;
+  color: #f43f5e;
+  font-size: 16px;
+  font-weight: 800;
+  padding: 5px 14px;
 }
 
 .btn-cad-plus-exact {
@@ -2867,180 +2880,304 @@ table.tabla-taladros td:first-child {
 }
 
 /* ==========================================================================
-   GESTOR DE CAPAS Y CARPETAS (ESTILO AUTOCAD)
+   GESTOR DE CAPAS Y CARPETAS (ESTILO CAPTURA DE REFERENCIA)
    ========================================================================== */
 
 .cad-panel-capas-autocad {
   position: absolute;
-  top: 18px;
-  right: 64px;
-  width: min(340px, calc(100% - 84px));
-  background: #0b111c;
-  border: 1px solid rgba(56, 189, 248, 0.3);
-  border-radius: 20px;
-  padding: 16px 18px;
+  bottom: 8px;
+  left: 14px;
+  width: min(440px, calc(100% - 28px));
+  max-height: calc(100% - 64px);
+  background: #080c15;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  z-index: 30;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(14px);
-  animation: fadeIn 0.15s ease-out;
-  max-height: calc(100% - 36px);
-  overflow-y: auto;
+  gap: 10px;
+  z-index: 35;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9), 0 0 1px rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(16px);
+  animation: slideUpFade 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+@keyframes slideUpFade {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @media (max-width: 600px) {
   .cad-panel-capas-autocad {
-    top: auto;
-    bottom: 60px;
-    right: 50%;
-    transform: translateX(50%);
-    width: calc(100% - 24px);
-    max-height: 65vh;
+    left: 8px;
+    right: 8px;
+    width: calc(100% - 16px);
+    max-height: 72vh;
   }
 }
 
-.capas-actions-bar {
-  display: flex;
-  gap: 8px;
-}
-
-.btn-capa-action {
-  flex: 1;
-  background: #111a2a;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
-  color: #cbd5e1;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 7px;
-  cursor: pointer;
-  transition: all 0.15s;
-  text-align: center;
-}
-
-.btn-capa-action:hover {
-  background: #1a273f;
-  color: #fff;
-  border-color: #38bdf8;
-}
-
-.capas-tree-container {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-height: 280px;
-  overflow-y: auto;
-}
-
-.carpeta-block {
-  background: #080d17;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 10px;
-  overflow: hidden;
-}
-
-.carpeta-header {
+/* Banner Superior CAPA ACTIVA */
+.capas-banner-activa-exact {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 10px;
-  background: rgba(255, 255, 255, 0.03);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-}
-
-.btn-toggle-carp {
-  background: none;
-  border: none;
-  color: #f8fafc;
-  font-size: 12px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.btn-carp-eye {
-  background: none;
-  border: none;
-  font-size: 13px;
-  cursor: pointer;
-  padding: 2px;
-}
-
-.capas-items-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 4px;
-}
-
-.capa-item-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 10px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.capa-item-row:hover {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.capa-row-activa {
-  background: rgba(6, 182, 212, 0.12);
-  border: 1px solid rgba(6, 182, 212, 0.35);
-}
-
-.capa-item-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.capa-color-swatch {
-  width: 12px;
-  height: 12px;
-  border-radius: 3px;
+  background: #170712;
+  border: 1px solid rgba(244, 63, 94, 0.28);
+  border-radius: 12px;
+  padding: 8px 12px;
+  box-shadow: inset 0 0 12px rgba(244, 63, 94, 0.08);
   flex-shrink: 0;
 }
 
-.capa-text-wrap {
+.capas-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.capa-activa-check-circle {
+  width: 18px;
+  height: 18px;
+  color: #22c55e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.capas-banner-text {
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  color: #ffffff;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Barra de Filtro / Chips de Carpetas */
+.capas-carpetas-scroll-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  flex-shrink: 0;
+  scrollbar-width: thin;
+}
+
+.capas-carpetas-scroll-bar::-webkit-scrollbar {
+  height: 3px;
+}
+
+.capas-carpetas-scroll-bar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+
+.btn-capa-carpeta-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: #0f1522;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+
+.btn-capa-carpeta-pill:hover {
+  background: #182236;
+  color: #ffffff;
+}
+
+.btn-capa-carpeta-pill.active {
+  background: #16243b;
+  border-color: #38bdf8;
+  color: #38bdf8;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
+}
+
+.pill-badge-num {
+  font-size: 9.5px;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 1px 5px;
+  border-radius: 999px;
+  color: #cbd5e1;
+}
+
+.btn-capa-carpeta-pill-add {
+  background: transparent;
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 9px;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+
+.btn-capa-carpeta-pill-add:hover {
+  border-color: #22c55e;
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.08);
+}
+
+/* Contenedor de Tarjetas de Capas */
+.capas-cards-container {
   display: flex;
   flex-direction: column;
+  gap: 7px;
+  overflow-y: auto;
+  max-height: 290px;
+  padding-right: 2px;
 }
 
-.capa-name {
-  font-size: 11.5px;
-  font-weight: 700;
-  color: #f8fafc;
+.capas-cards-container::-webkit-scrollbar {
+  width: 4px;
 }
 
-.capa-count {
+.capas-cards-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+}
+
+/* Tarjeta individual de capa */
+.capa-modern-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #0e131d;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  padding: 9px 12px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  user-select: none;
+}
+
+.capa-modern-card:hover {
+  background: #141c2b;
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.capa-modern-card.capa-card-activa {
+  background: #0c1827;
+  border: 1.5px solid #06b6d4;
+  box-shadow: 0 0 16px rgba(6, 182, 212, 0.22), inset 0 0 8px rgba(6, 182, 212, 0.06);
+}
+
+.capa-card-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.capa-swatch-box {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  cursor: pointer;
+  position: relative;
+  transition: transform 0.15s;
+}
+
+.capa-swatch-box:hover {
+  transform: scale(1.15);
+}
+
+.capa-swatch-input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+  pointer-events: none;
+}
+
+.capa-title-wrap {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.capa-card-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #e2e8f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.capa-card-sub {
   font-size: 9.5px;
   color: #64748b;
 }
 
-.capa-item-controls {
+.capa-card-right {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
-.btn-layer-toggle {
-  background: none;
+.capa-badge-activa {
+  font-size: 9.5px;
+  font-weight: 800;
+  color: #22c55e;
+  letter-spacing: 0.8px;
+  margin-right: 4px;
+}
+
+.btn-capa-card-icon {
+  background: transparent;
   border: none;
-  font-size: 13px;
+  color: #94a3b8;
   cursor: pointer;
-  padding: 2px;
-  transition: transform 0.15s;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.15s;
 }
 
-.btn-layer-toggle:hover {
-  transform: scale(1.15);
+.btn-capa-card-icon:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+  transform: scale(1.1);
+}
+
+.btn-capa-card-icon.eye-off {
+  color: #475569;
+  opacity: 0.6;
+}
+
+.btn-capa-card-icon.btn-capa-trash {
+  color: #f43f5e;
+}
+
+.btn-capa-card-icon.btn-capa-trash:hover {
+  color: #fb7185;
+  background: rgba(244, 63, 94, 0.12);
 }
 
 /* ==========================================================================

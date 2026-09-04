@@ -510,6 +510,7 @@ export default function EditorCadMalla({
   const [panelCapasVisible, setPanelCapasVisible] = useState(false);
   const [panelCapasMinimizado, setPanelCapasMinimizado] = usePersistedState<boolean>("cad:panelCapasMinimizado", false);
   const [capaActivaId, setCapaActivaId] = usePersistedState<string>("cad:capaActivaId", "capa-dibujo");
+  const [filtroCarpeta, setFiltroCarpeta] = useState<string | null>(null);
 
   const [carpetas, setCarpetas] = usePersistedState<CarpetaCad[]>("cad:carpetas", [
     { id: "carp-malla", nombre: "Malla de Perforación", abierta: true, visible: true },
@@ -1063,20 +1064,81 @@ export default function EditorCadMalla({
 
   // Crear nueva capa
   function handleCrearNuevaCapa() {
-    const nombre = window.prompt("Nombre de la nueva capa (ej. Fila Auxiliar, Delineación):", "Nueva Capa");
+    const nombre = window.prompt("Nombre de la nueva capa (ej. Fila Auxiliar, Delineación, Relleno):", "Nueva Capa");
     if (!nombre || !nombre.trim()) return;
+    const colores = ["#ec4899", "#38bdf8", "#facc15", "#a855f7", "#22c55e", "#f97316", "#ffffff"];
+    const color = colores[capas.length % colores.length];
+    const carpId = filtroCarpeta || (carpetas[0]?.id ?? "carp-malla");
     const nueva: CapaCad = {
       id: `capa-${Date.now()}`,
       nombre: nombre.trim(),
-      color: "#38bdf8",
+      color,
       visible: true,
       bloqueada: false,
-      carpetaId: "carp-malla",
+      carpetaId: carpId,
       elementosCount: 0,
     };
     setCapas((prev) => [...prev, nueva]);
     setCapaActivaId(nueva.id);
-    mostrarAviso(`Capa "${nueva.nombre}" creada`);
+    mostrarAviso(`Capa "${nueva.nombre}" creada y activada`);
+  }
+
+  // Eliminar capa (protegiendo capa base)
+  function handleEliminarCapa(capaId: string) {
+    if (capaId === "capa-base") {
+      mostrarAviso("La capa base de la malla es del sistema y no se puede eliminar");
+      return;
+    }
+    const capaTarget = capas.find((c) => c.id === capaId);
+    if (!capaTarget) return;
+
+    if (!window.confirm(`¿Deseas eliminar la capa "${capaTarget.nombre}"?`)) {
+      return;
+    }
+
+    setCapas((prev) => prev.filter((c) => c.id !== capaId));
+    if (capaActivaId === capaId) {
+      setCapaActivaId("capa-dibujo");
+    }
+    mostrarAviso(`Capa "${capaTarget.nombre}" eliminada`);
+  }
+
+  // Reasignar entidades seleccionadas a la capa activa
+  function handleReasignarSeleccionACapaActiva() {
+    const idActiva = capaActivaId || "capa-dibujo";
+    const nombreActiva = capas.find((c) => c.id === idActiva)?.nombre || "Capa Activa";
+    let cont = 0;
+
+    if (puntosSeleccionados.length > 0) {
+      setPuntosCad((prev) =>
+        prev.map((p) => (puntosSeleccionados.includes(p.id) ? { ...p, capaId: idActiva } : p))
+      );
+      cont += puntosSeleccionados.length;
+    }
+    if (lineasSeleccionadas.length > 0) {
+      setLineasCad((prev) =>
+        prev.map((l) => (lineasSeleccionadas.includes(l.id) ? { ...l, capaId: idActiva } : l))
+      );
+      cont += lineasSeleccionadas.length;
+    }
+    if (polilineasSeleccionadas.length > 0) {
+      setPolilineasCad((prev) =>
+        prev.map((pl) => (polilineasSeleccionadas.includes(pl.id) ? { ...pl, capaId: idActiva } : pl))
+      );
+      cont += polilineasSeleccionadas.length;
+    }
+    if (cotasSeleccionadas.length > 0) {
+      setCotasCad((prev) =>
+        prev.map((ct) => (cotasSeleccionadas.includes(ct.id) ? { ...ct, capaId: idActiva } : ct))
+      );
+      cont += cotasSeleccionadas.length;
+    }
+
+    if (cont > 0) {
+      mostrarAviso(`${cont} entidad(es) reasignada(s) a "${nombreActiva}"`);
+    } else {
+      mostrarAviso(`Capa activa actual: "${nombreActiva}"`);
+    }
   }
 
   // Crear nueva carpeta
@@ -1090,6 +1152,7 @@ export default function EditorCadMalla({
       visible: true,
     };
     setCarpetas((prev) => [...prev, nueva]);
+    setFiltroCarpeta(nueva.id);
     mostrarAviso(`Carpeta "${nueva.nombre}" creada`);
   }
 
@@ -7184,7 +7247,7 @@ export default function EditorCadMalla({
             {panelCapasMinimizado ? (
               <div className="panel-mini-strip">
                 <div className="mini-coords-info">
-                  <strong>Capas:</strong> {capas.length} activas
+                  <strong>Capas:</strong> {capas.length} activas · {capas.find((c) => c.id === capaActivaId)?.nombre || "Dibujo CAD"}
                 </div>
                 <div className="mini-actions">
                   <button type="button" className="btn-mini-expand" onClick={() => setPanelCapasMinimizado(false)}>
@@ -7197,105 +7260,158 @@ export default function EditorCadMalla({
               </div>
             ) : (
               <>
-                <div className="panel-sel-header">
-                  <div className="panel-sel-titles">
-                    <h2>ÁRBOL DE CAPAS (AUTOCAD)</h2>
-                    <p>Organiza entidades en carpetas y capas. Oculta, muestra o bloquea.</p>
+                {/* 1. Banner Superior CAPA ACTIVA idéntico a la referencia */}
+                <div className="capas-banner-activa-exact">
+                  <div className="capas-banner-left">
+                    <div className="capa-activa-check-circle">
+                      <svg viewBox="0 0 20 20" width="18" height="18" fill="currentColor">
+                        <path
+                          fillRule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </div>
+                    <span className="capas-banner-text">
+                      CAPA ACTIVA · {capas.find((c) => c.id === capaActivaId)?.nombre || "Dibujo CAD"}
+                    </span>
                   </div>
                   <div className="panel-header-buttons">
-                    <button type="button" className="btn-header-round-min" onClick={() => setPanelCapasMinimizado(true)} title="Minimizar">
+                    <button
+                      type="button"
+                      className="btn-header-round-min"
+                      onClick={() => setPanelCapasMinimizado(true)}
+                      title="Minimizar panel (−)"
+                    >
                       −
                     </button>
-                    <button type="button" className="btn-header-round-close" onClick={() => setPanelCapasVisible(false)} title="Cerrar">
+                    <button
+                      type="button"
+                      className="btn-header-round-close"
+                      onClick={() => setPanelCapasVisible(false)}
+                      title="Cerrar panel (✕)"
+                    >
                       ✕
                     </button>
                   </div>
                 </div>
 
-                {/* Barra de Acciones de Capas */}
-                <div className="capas-actions-bar">
-                  <button type="button" className="btn-capa-action" onClick={handleCrearNuevaCapa}>
-                    + Nueva Capa
+                {/* 2. Filtro horizontal de carpetas */}
+                <div className="capas-carpetas-scroll-bar">
+                  <button
+                    type="button"
+                    className={`btn-capa-carpeta-pill ${filtroCarpeta === null ? "active" : ""}`}
+                    onClick={() => setFiltroCarpeta(null)}
+                    title="Ver todas las capas"
+                  >
+                    Todas ({capas.length})
                   </button>
-                  <button type="button" className="btn-capa-action" onClick={handleCrearNuevaCarpeta}>
-                    + Nueva Carpeta
+                  {carpetas.map((carp) => {
+                    const enCarp = capas.filter((c) => c.carpetaId === carp.id).length;
+                    return (
+                      <button
+                        key={carp.id}
+                        type="button"
+                        className={`btn-capa-carpeta-pill ${filtroCarpeta === carp.id ? "active" : ""}`}
+                        onClick={() => setFiltroCarpeta(filtroCarpeta === carp.id ? null : carp.id)}
+                        title={`Filtrar por carpeta: ${carp.nombre}`}
+                      >
+                        <span>📁 {carp.nombre}</span>
+                        <span className="pill-badge-num">{enCarp}</span>
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    className="btn-capa-carpeta-pill-add"
+                    onClick={handleCrearNuevaCarpeta}
+                    title="Crear nueva carpeta (+)"
+                  >
+                    + Carpeta
                   </button>
                 </div>
 
-                {/* Lista Jerárquica de Carpetas y Capas */}
-                <div className="capas-tree-container">
-                  {carpetas.map((carp) => {
-                    const capasDeCarpeta = capas.filter((c) => c.carpetaId === carp.id);
-                    return (
-                      <div key={carp.id} className="carpeta-block">
-                        <div className="carpeta-header">
-                          <button
-                            type="button"
-                            className="btn-toggle-carp"
-                            onClick={() =>
-                              setCarpetas((prev) =>
-                                prev.map((c) => (c.id === carp.id ? { ...c, abierta: !c.abierta } : c))
-                              )
-                            }
-                          >
-                            {carp.abierta ? "▾" : "▸"} 📁 <strong>{carp.nombre}</strong>
-                          </button>
+                {/* 3. Lista de Capas en tarjetas estilizadas */}
+                <div className="capas-cards-container">
+                  {capas
+                    .filter((c) => !filtroCarpeta || c.carpetaId === filtroCarpeta)
+                    .map((capa) => {
+                      const esActiva = capa.id === capaActivaId;
+                      return (
+                        <div
+                          key={capa.id}
+                          className={`capa-modern-card ${esActiva ? "capa-card-activa" : ""}`}
+                          onClick={() => handleAsignarACapa(capa.id)}
+                        >
+                          <div className="capa-card-left">
+                            {/* Color swatch interactivo */}
+                            <label
+                              className="capa-swatch-box"
+                              style={{ background: capa.color, boxShadow: `0 0 8px ${capa.color}55` }}
+                              title={`Color: ${capa.color} (clic para cambiar)`}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <input
+                                type="color"
+                                value={capa.color.startsWith("#") && capa.color.length === 7 ? capa.color : "#38bdf8"}
+                                onChange={(e) => {
+                                  const nuevoCol = e.target.value;
+                                  setCapas((prev) => prev.map((c) => (c.id === capa.id ? { ...c, color: nuevoCol } : c)));
+                                }}
+                                className="capa-swatch-input"
+                              />
+                            </label>
 
-                          <button
-                            type="button"
-                            className={`btn-carp-eye ${carp.visible ? "eye-on" : "eye-off"}`}
-                            onClick={() => handleToggleVisibilidadCarpeta(carp.id)}
-                            title={carp.visible ? "Ocultar carpeta completa" : "Mostrar carpeta completa"}
-                          >
-                            {carp.visible ? "👁️" : "🚫"}
-                          </button>
-                        </div>
-
-                        {carp.abierta && (
-                          <div className="capas-items-list">
-                            {capasDeCarpeta.map((capa) => {
-                              const esActiva = capa.id === capaActivaId;
-                              return (
-                                <div
-                                  key={capa.id}
-                                  className={`capa-item-row ${esActiva ? "capa-row-activa" : ""}`}
-                                  onClick={() => handleAsignarACapa(capa.id)}
-                                >
-                                  <div className="capa-item-left">
-                                    <span className="capa-color-swatch" style={{ background: capa.color }} />
-                                    <div className="capa-text-wrap">
-                                      <span className="capa-name">{capa.nombre}</span>
-                                      <span className="capa-count">{capa.elementosCount} entidades</span>
-                                    </div>
-                                  </div>
-
-                                  <div className="capa-item-controls" onClick={(e) => e.stopPropagation()}>
-                                    <button
-                                      type="button"
-                                      className={`btn-layer-toggle ${capa.visible ? "eye-on" : "eye-off"}`}
-                                      onClick={() => handleToggleVisibilidadCapa(capa.id)}
-                                      title={capa.visible ? "Ocultar capa" : "Mostrar capa"}
-                                    >
-                                      {capa.visible ? "👁️" : "🚫"}
-                                    </button>
-
-                                    <button
-                                      type="button"
-                                      className={`btn-layer-toggle ${capa.bloqueada ? "lock-on" : ""}`}
-                                      onClick={() => handleToggleBloqueoCapa(capa.id)}
-                                      title={capa.bloqueada ? "Desbloquear capa" : "Bloquear capa"}
-                                    >
-                                      {capa.bloqueada ? "🔒" : "🔓"}
-                                    </button>
-                                  </div>
-                                </div>
-                              );
-                            })}
+                            <div className="capa-title-wrap">
+                              <span className="capa-card-title">{capa.nombre}</span>
+                              {capa.carpetaId && (
+                                <span className="capa-card-sub">
+                                  {carpetas.find((k) => k.id === capa.carpetaId)?.nombre || "General"}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                        )}
-                      </div>
-                    );
-                  })}
+
+                          <div className="capa-card-right" onClick={(e) => e.stopPropagation()}>
+                            {esActiva && <span className="capa-badge-activa">ACTIVA</span>}
+
+                            {/* Botón de visibilidad ojo */}
+                            <button
+                              type="button"
+                              className={`btn-capa-card-icon ${capa.visible ? "eye-on" : "eye-off"}`}
+                              onClick={() => handleToggleVisibilidadCapa(capa.id)}
+                              title={capa.visible ? "Ocultar capa" : "Mostrar capa"}
+                            >
+                              {capa.visible ? (
+                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                  <circle cx="12" cy="12" r="3" fill="currentColor" />
+                                </svg>
+                              ) : (
+                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                                  <line x1="1" y1="1" x2="23" y2="23" />
+                                </svg>
+                              )}
+                            </button>
+
+                            {/* Botón eliminar basura (solo no-base) */}
+                            {capa.id !== "capa-base" && (
+                              <button
+                                type="button"
+                                className="btn-capa-card-icon btn-capa-trash"
+                                onClick={() => handleEliminarCapa(capa.id)}
+                                title={`Eliminar capa "${capa.nombre}"`}
+                              >
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                                  <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                 </div>
               </>
             )}
@@ -8502,35 +8618,56 @@ export default function EditorCadMalla({
         </div>
 
         <div className="scene-exact-tools">
-          <button type="button" className="btn-scene-exact-tool" onClick={() => setPanelCapasVisible(!panelCapasVisible)} title="Ver Árbol de Capas AutoCAD">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#38bdf8" strokeWidth="2">
+          <button
+            type="button"
+            className="btn-scene-exact-tool"
+            onClick={handleCrearNuevaCarpeta}
+            title="Nueva Carpeta de Capas (📁+)"
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#f8fafc" strokeWidth="2">
               <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
               <line x1="12" y1="11" x2="12" y2="17" />
               <line x1="9" y1="14" x2="15" y2="14" />
             </svg>
           </button>
-          <button type="button" className="btn-scene-exact-tool" onClick={handleCrearRectangulo} title="Banco rectangular">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#22c55e" strokeWidth="2.5">
+          <button
+            type="button"
+            className="btn-scene-exact-tool"
+            onClick={handleCrearNuevaCapa}
+            title="Nueva Capa (+)"
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#22c55e" strokeWidth="2.8">
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
           </button>
-          <button type="button" className="btn-scene-exact-tool" onClick={() => mostrarAviso(`Perímetro: ${perimetro.toFixed(1)}m`)} title="Medir">
-            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="#e11d48" strokeWidth="2.5">
-              <path d="M19 5L5 19" />
-              <circle cx="5" cy="19" r="2" />
-              <circle cx="19" cy="5" r="2" />
+          <button
+            type="button"
+            className="btn-scene-exact-tool"
+            onClick={handleReasignarSeleccionACapaActiva}
+            title="Reasignar selección a capa activa"
+          >
+            <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="#f43f5e" strokeWidth="2.5">
+              <line x1="6" y1="3" x2="6" y2="15" />
+              <circle cx="18" cy="6" r="3" />
+              <circle cx="6" cy="18" r="3" />
+              <path d="M18 9a9 9 0 0 1-9 9" />
             </svg>
           </button>
-          <button type="button" className="btn-scene-exact-tool" onClick={onVolver} title="Colapsar">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#94a3b8" strokeWidth="2">
-              <polyline points="15 18 9 12 15 6" />
+          <button
+            type="button"
+            className="btn-scene-exact-tool"
+            onClick={() => setPanelCapasVisible(!panelCapasVisible)}
+            title={panelCapasVisible ? "Ocultar panel de capas" : "Mostrar panel de capas"}
+          >
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#94a3b8" strokeWidth="2.5">
+              <polyline points="9 18 15 12 9 6" />
             </svg>
           </button>
         </div>
       </div>
 
-      {/* 4. Barra de Pestañas Inferior (Dibujo | Render | +) */}
+      {/* 4. Barra de Pestañas Inferior (Dibujo | Render | +) idéntica a la captura */}
       <footer className="cad-bottom-tabs-exact">
         <div className="cad-tabs-group-exact">
           <button type="button" className="cad-tab-pill-exact tab-active-pink">
@@ -8539,11 +8676,15 @@ export default function EditorCadMalla({
           <button type="button" className="cad-tab-pill-exact" onClick={onIrARender}>
             Render
           </button>
+          <button
+            type="button"
+            className="cad-tab-pill-exact btn-tab-add"
+            onClick={() => mostrarAviso("Nueva escena CAD creada")}
+            title="Agregar escena (+)"
+          >
+            +
+          </button>
         </div>
-
-        <button type="button" className="btn-cad-plus-exact" onClick={() => mostrarAviso("Nueva escena CAD creada")} title="Agregar escena">
-          +
-        </button>
       </footer>
     </div>
   );
