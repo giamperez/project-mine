@@ -61,6 +61,10 @@ export interface PuntoCad3D {
   tipo?: TipoPuntoCad;
   etiqueta?: string;
   color?: string;
+  /** Si viene de un taladro (vía "Convertir malla calculada a CAD editable"), su zona original —
+   * para seguir dibujando el símbolo técnico de esa zona (rombo, flecha, etc.) en vez de un
+   * círculo genérico, y que la malla se vea igual antes y después de convertirla. */
+  grupoTaladro?: GrupoTaladroCad;
 }
 
 export interface LineaCad3D {
@@ -309,6 +313,200 @@ export const GRUPOS_TALADRO_CONFIG: InfoGrupoTaladro[] = [
     cargadoDefecto: true,
   },
 ];
+
+/** Círculo vectorial con grosor visible (multi-stroke concéntrico) — compartido por los íconos de taladro. */
+function crearCirculoVectorTaladro(r: number, seg = 24): THREE.BufferGeometry {
+  const pts: THREE.Vector3[] = [];
+  [-0.006, 0, 0.006].forEach((dr) => {
+    const rEff = Math.max(0.01, r + dr);
+    for (let i = 0; i <= seg; i++) {
+      const th = (i / seg) * Math.PI * 2;
+      pts.push(new THREE.Vector3(rEff * Math.cos(th), 0, rEff * Math.sin(th)));
+    }
+  });
+  return new THREE.BufferGeometry().setFromPoints(pts);
+}
+
+/**
+ * Dibuja el símbolo técnico de un taladro (círculo+rombo+espiga según su zona/grupo) dentro del
+ * grupo dado. Compartido entre los taladros "vivos" (`Taladro[]`) y los puntos CAD ya convertidos
+ * (`PuntoCad3D` con `grupoTaladro`) para que la malla se vea igual antes y después de
+ * "Convertir malla calculada a CAD editable" — antes, al convertir, todos los puntos quedaban con
+ * el mismo símbolo genérico "circulo_x" (solo el color distinguía la zona), lo que hacía que el
+ * cuele y el contorno perdieran su forma reconocible (rombos, flechas, etc.) y se vieran como una
+ * nube de puntos sin estructura.
+ */
+function dibujarIconoTaladro(
+  grupoObj: THREE.Group,
+  zona: GrupoTaladroCad | string,
+  x: number,
+  matColor: THREE.LineBasicMaterial,
+  matFill: THREE.MeshBasicMaterial,
+  esCargado: boolean
+) {
+  switch (zona) {
+    case "alivio": {
+      const rExt = 0.085;
+      const rInt = 0.055;
+      grupoObj.add(new THREE.Line(crearCirculoVectorTaladro(rExt, 24), matColor));
+      grupoObj.add(new THREE.Line(crearCirculoVectorTaladro(rInt, 20), matColor));
+      const cruzGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(-rInt * 0.7, 0, -rInt * 0.7),
+        new THREE.Vector3(rInt * 0.7, 0, rInt * 0.7),
+        new THREE.Vector3(-rInt * 0.7, 0, rInt * 0.7),
+        new THREE.Vector3(rInt * 0.7, 0, -rInt * 0.7),
+      ]);
+      grupoObj.add(new THREE.LineSegments(cruzGeo, matColor));
+      break;
+    }
+
+    case "arranque": {
+      const r = 0.055;
+      grupoObj.add(new THREE.Line(crearCirculoVectorTaladro(r, 24), matColor));
+      const romboGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0, 0, r * 0.8),
+        new THREE.Vector3(r * 0.8, 0, 0),
+        new THREE.Vector3(0, 0, -r * 0.8),
+        new THREE.Vector3(-r * 0.8, 0, 0),
+        new THREE.Vector3(0, 0, r * 0.8),
+      ]);
+      grupoObj.add(new THREE.Line(romboGeo, matColor));
+      if (esCargado) {
+        const dot = new THREE.Mesh(new THREE.CircleGeometry(0.018, 10), matFill);
+        dot.rotation.x = -Math.PI / 2;
+        grupoObj.add(dot);
+      }
+      break;
+    }
+
+    case "cuadrante":
+    case "cuadrante1":
+    case "cuadrante2":
+    case "cuadrante3":
+    case "cuadrante4": {
+      const r = 0.055;
+      const romboGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0, 0, r),
+        new THREE.Vector3(r, 0, 0),
+        new THREE.Vector3(0, 0, -r),
+        new THREE.Vector3(-r, 0, 0),
+        new THREE.Vector3(0, 0, r),
+      ]);
+      grupoObj.add(new THREE.Line(romboGeo, matColor));
+      const cruzGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(-r * 0.5, 0, -r * 0.5),
+        new THREE.Vector3(r * 0.5, 0, r * 0.5),
+        new THREE.Vector3(-r * 0.5, 0, r * 0.5),
+        new THREE.Vector3(r * 0.5, 0, -r * 0.5),
+      ]);
+      grupoObj.add(new THREE.LineSegments(cruzGeo, matColor));
+      if (esCargado) {
+        const dot = new THREE.Mesh(new THREE.CircleGeometry(0.016, 8), matFill);
+        dot.rotation.x = -Math.PI / 2;
+        grupoObj.add(dot);
+      }
+      break;
+    }
+
+    case "produccion": {
+      const r = 0.05;
+      grupoObj.add(new THREE.Line(crearCirculoVectorTaladro(r, 20), matColor));
+      const cruzGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(-r * 1.35, 0, 0),
+        new THREE.Vector3(r * 1.35, 0, 0),
+        new THREE.Vector3(0, 0, -r * 1.35),
+        new THREE.Vector3(0, 0, r * 1.35),
+      ]);
+      grupoObj.add(new THREE.LineSegments(cruzGeo, matColor));
+      if (esCargado) {
+        const dot = new THREE.Mesh(new THREE.CircleGeometry(0.016, 8), matFill);
+        dot.rotation.x = -Math.PI / 2;
+        grupoObj.add(dot);
+      }
+      break;
+    }
+
+    case "corona": {
+      const r = 0.05;
+      grupoObj.add(new THREE.Line(crearCirculoVectorTaladro(r, 20), matColor));
+      const espigaGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0, 0, r),
+        new THREE.Vector3(0, 0, r + 0.06),
+        new THREE.Vector3(-0.02, 0, r + 0.04),
+        new THREE.Vector3(0, 0, r + 0.06),
+        new THREE.Vector3(0.02, 0, r + 0.04),
+      ]);
+      grupoObj.add(new THREE.Line(espigaGeo, matColor));
+      if (esCargado) {
+        const dot = new THREE.Mesh(new THREE.CircleGeometry(0.016, 8), matFill);
+        dot.rotation.x = -Math.PI / 2;
+        grupoObj.add(dot);
+      }
+      break;
+    }
+
+    case "recorte":
+    case "contorno": {
+      const r = 0.048;
+      grupoObj.add(new THREE.Line(crearCirculoVectorTaladro(r, 20), matColor));
+      const cruzRecGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(-r * 0.6, 0, -r * 0.6),
+        new THREE.Vector3(r * 0.6, 0, r * 0.6),
+        new THREE.Vector3(-r * 0.6, 0, r * 0.6),
+        new THREE.Vector3(r * 0.6, 0, -r * 0.6),
+      ]);
+      grupoObj.add(new THREE.LineSegments(cruzRecGeo, matColor));
+      if (esCargado) {
+        const dot = new THREE.Mesh(new THREE.CircleGeometry(0.014, 8), matFill);
+        dot.rotation.x = -Math.PI / 2;
+        grupoObj.add(dot);
+      }
+      break;
+    }
+
+    case "cuadradores":
+    case "hastial": {
+      const r = 0.05;
+      grupoObj.add(new THREE.Line(crearCirculoVectorTaladro(r, 20), matColor));
+      const dirX = x >= 0 ? 1 : -1;
+      const espigaGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(dirX * r, 0, 0),
+        new THREE.Vector3(dirX * (r + 0.06), 0, 0),
+        new THREE.Vector3(dirX * (r + 0.04), 0, 0.02),
+        new THREE.Vector3(dirX * (r + 0.06), 0, 0),
+        new THREE.Vector3(dirX * (r + 0.04), 0, -0.02),
+      ]);
+      grupoObj.add(new THREE.Line(espigaGeo, matColor));
+      if (esCargado) {
+        const dot = new THREE.Mesh(new THREE.CircleGeometry(0.016, 8), matFill);
+        dot.rotation.x = -Math.PI / 2;
+        grupoObj.add(dot);
+      }
+      break;
+    }
+
+    case "arrastre": {
+      const r = 0.05;
+      const dot = new THREE.Mesh(new THREE.CircleGeometry(r, 16), matFill);
+      dot.rotation.x = -Math.PI / 2;
+      grupoObj.add(dot);
+      const espigaGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0, 0, -r),
+        new THREE.Vector3(0, 0, -r - 0.06),
+      ]);
+      grupoObj.add(new THREE.Line(espigaGeo, matColor));
+      break;
+    }
+
+    default: {
+      // Zona no reconocida: círculo simple relleno, para que nunca quede invisible.
+      const dot = new THREE.Mesh(new THREE.CircleGeometry(0.05, 16), matFill);
+      dot.rotation.x = -Math.PI / 2;
+      grupoObj.add(dot);
+      grupoObj.add(new THREE.Line(crearCirculoVectorTaladro(0.07, 16), matColor));
+    }
+  }
+}
 
 export interface CapaCad {
   id: string;
@@ -1395,6 +1593,11 @@ export default function EditorCadMalla({
           etiqueta: etiq,
           color: colTal,
           capaId: "capa-puntos",
+          // Conserva la zona para seguir dibujando su símbolo técnico (rombo, flecha, etc.) en vez
+          // de un círculo genérico — antes, al convertir, todos los puntos quedaban con el mismo
+          // ícono y solo el color distinguía la zona, así que el cuele/contorno perdía su forma
+          // reconocible y se veía como una nube de puntos sin estructura.
+          grupoTaladro: zonaTal,
         };
       });
 
@@ -2228,20 +2431,6 @@ export default function EditorCadMalla({
           depthTest: true,
         });
 
-        // Helper para generar círculo vectorial nítido con grosor visible en el plano de collar
-        const crearCirculoVector = (r: number, seg = 24) => {
-          const pts: THREE.Vector3[] = [];
-          // Multi-stroke concéntrico continuo para grosor visible sin depender del driver WebGL
-          [-0.006, 0, 0.006].forEach((dr) => {
-            const rEff = Math.max(0.01, r + dr);
-            for (let i = 0; i <= seg; i++) {
-              const th = (i / seg) * Math.PI * 2;
-              pts.push(new THREE.Vector3(rEff * Math.cos(th), 0, rEff * Math.sin(th)));
-            }
-          });
-          return new THREE.BufferGeometry().setFromPoints(pts);
-        };
-
         // Halo de selección activo si el taladro está seleccionado
         if (esSeleccionado) {
           const selHaloGeo = new THREE.RingGeometry(0.08, 0.11, 24);
@@ -2256,182 +2445,7 @@ export default function EditorCadMalla({
           talGroupObj.add(selHalo);
         }
 
-        switch (zonaTal) {
-          case "alivio": {
-            // 1. ALIVIO: Doble anillo concéntrico técnico (Hueco de alivio vacío sin sobretamaño)
-            const rExt = 0.085;
-            const rInt = 0.055;
-            talGroupObj.add(new THREE.Line(crearCirculoVector(rExt, 24), matColor));
-            talGroupObj.add(new THREE.Line(crearCirculoVector(rInt, 20), matColor));
-
-            const cruzGeo = new THREE.BufferGeometry().setFromPoints([
-              new THREE.Vector3(-rInt * 0.7, 0, -rInt * 0.7),
-              new THREE.Vector3(rInt * 0.7, 0, rInt * 0.7),
-              new THREE.Vector3(-rInt * 0.7, 0, rInt * 0.7),
-              new THREE.Vector3(rInt * 0.7, 0, -rInt * 0.7),
-            ]);
-            talGroupObj.add(new THREE.LineSegments(cruzGeo, matColor));
-            break;
-          }
-
-          case "arranque": {
-            // 2. ARRANQUE: Círculo exterior con ROMBO concéntrico inscrito y núcleo
-            const r = 0.055;
-            talGroupObj.add(new THREE.Line(crearCirculoVector(r, 24), matColor));
-
-            const romboGeo = new THREE.BufferGeometry().setFromPoints([
-              new THREE.Vector3(0, 0, r * 0.8),
-              new THREE.Vector3(r * 0.8, 0, 0),
-              new THREE.Vector3(0, 0, -r * 0.8),
-              new THREE.Vector3(-r * 0.8, 0, 0),
-              new THREE.Vector3(0, 0, r * 0.8),
-            ]);
-            talGroupObj.add(new THREE.Line(romboGeo, matColor));
-
-            if (esCargado) {
-              const dot = new THREE.Mesh(new THREE.CircleGeometry(0.018, 10), matFill);
-              dot.rotation.x = -Math.PI / 2;
-              talGroupObj.add(dot);
-            }
-            break;
-          }
-
-          case "cuadrante":
-          case "cuadrante1":
-          case "cuadrante2":
-          case "cuadrante3":
-          case "cuadrante4": {
-            // 3. CUADRANTE: Rombo rotado a 45° con cruz central en 'X'
-            const r = 0.055;
-            const romboGeo = new THREE.BufferGeometry().setFromPoints([
-              new THREE.Vector3(0, 0, r),
-              new THREE.Vector3(r, 0, 0),
-              new THREE.Vector3(0, 0, -r),
-              new THREE.Vector3(-r, 0, 0),
-              new THREE.Vector3(0, 0, r),
-            ]);
-            talGroupObj.add(new THREE.Line(romboGeo, matColor));
-
-            const cruzGeo = new THREE.BufferGeometry().setFromPoints([
-              new THREE.Vector3(-r * 0.5, 0, -r * 0.5),
-              new THREE.Vector3(r * 0.5, 0, r * 0.5),
-              new THREE.Vector3(-r * 0.5, 0, r * 0.5),
-              new THREE.Vector3(r * 0.5, 0, -r * 0.5),
-            ]);
-            talGroupObj.add(new THREE.LineSegments(cruzGeo, matColor));
-
-            if (esCargado) {
-              const dot = new THREE.Mesh(new THREE.CircleGeometry(0.016, 8), matFill);
-              dot.rotation.x = -Math.PI / 2;
-              talGroupObj.add(dot);
-            }
-            break;
-          }
-
-          case "produccion": {
-            // 4. PRODUCCIÓN: Círculo con mira ortogonal '+' completa
-            const r = 0.05;
-            talGroupObj.add(new THREE.Line(crearCirculoVector(r, 20), matColor));
-
-            const cruzGeo = new THREE.BufferGeometry().setFromPoints([
-              new THREE.Vector3(-r * 1.35, 0, 0),
-              new THREE.Vector3(r * 1.35, 0, 0),
-              new THREE.Vector3(0, 0, -r * 1.35),
-              new THREE.Vector3(0, 0, r * 1.35),
-            ]);
-            talGroupObj.add(new THREE.LineSegments(cruzGeo, matColor));
-
-            if (esCargado) {
-              const dot = new THREE.Mesh(new THREE.CircleGeometry(0.016, 8), matFill);
-              dot.rotation.x = -Math.PI / 2;
-              talGroupObj.add(dot);
-            }
-            break;
-          }
-
-          case "corona": {
-            // 5. CORONA: Círculo con flecha/espiga apuntando hacia el TECHO (+Y en CAD)
-            const r = 0.05;
-            talGroupObj.add(new THREE.Line(crearCirculoVector(r, 20), matColor));
-
-            const espigaGeo = new THREE.BufferGeometry().setFromPoints([
-              new THREE.Vector3(0, 0, r),
-              new THREE.Vector3(0, 0, r + 0.06),
-              new THREE.Vector3(-0.02, 0, r + 0.04),
-              new THREE.Vector3(0, 0, r + 0.06),
-              new THREE.Vector3(0.02, 0, r + 0.04),
-            ]);
-            talGroupObj.add(new THREE.Line(espigaGeo, matColor));
-
-            if (esCargado) {
-              const dot = new THREE.Mesh(new THREE.CircleGeometry(0.016, 8), matFill);
-              dot.rotation.x = -Math.PI / 2;
-              talGroupObj.add(dot);
-            }
-            break;
-          }
-
-          case "recorte":
-          case "contorno": {
-            // 5b. RECORTE / CONTROL: Anillo blanco técnico con cruz diagonal fina
-            const r = 0.048;
-            talGroupObj.add(new THREE.Line(crearCirculoVector(r, 20), matColor));
-
-            const cruzRecGeo = new THREE.BufferGeometry().setFromPoints([
-              new THREE.Vector3(-r * 0.6, 0, -r * 0.6),
-              new THREE.Vector3(r * 0.6, 0, r * 0.6),
-              new THREE.Vector3(-r * 0.6, 0, r * 0.6),
-              new THREE.Vector3(r * 0.6, 0, -r * 0.6),
-            ]);
-            talGroupObj.add(new THREE.LineSegments(cruzRecGeo, matColor));
-
-            if (esCargado) {
-              const dot = new THREE.Mesh(new THREE.CircleGeometry(0.014, 8), matFill);
-              dot.rotation.x = -Math.PI / 2;
-              talGroupObj.add(dot);
-            }
-            break;
-          }
-
-          case "cuadradores":
-          case "hastial": {
-            // 6. HASTIAL / CUADRADORES: Círculo con espiga lateral horizontal hacia la pared
-            const r = 0.05;
-            talGroupObj.add(new THREE.Line(crearCirculoVector(r, 20), matColor));
-
-            const dirX = cx >= 0 ? 1 : -1;
-            const espigaGeo = new THREE.BufferGeometry().setFromPoints([
-              new THREE.Vector3(dirX * r, 0, 0),
-              new THREE.Vector3(dirX * (r + 0.06), 0, 0),
-              new THREE.Vector3(dirX * (r + 0.04), 0, 0.02),
-              new THREE.Vector3(dirX * (r + 0.06), 0, 0),
-              new THREE.Vector3(dirX * (r + 0.04), 0, -0.02),
-            ]);
-            talGroupObj.add(new THREE.Line(espigaGeo, matColor));
-
-            if (esCargado) {
-              const dot = new THREE.Mesh(new THREE.CircleGeometry(0.016, 8), matFill);
-              dot.rotation.x = -Math.PI / 2;
-              talGroupObj.add(dot);
-            }
-            break;
-          }
-
-          case "arrastre": {
-            // 7. ARRASTRE: Disco macizo con pin/espiga diagonal hacia el piso (Zapatera)
-            const r = 0.05;
-            const dot = new THREE.Mesh(new THREE.CircleGeometry(r, 16), matFill);
-            dot.rotation.x = -Math.PI / 2;
-            talGroupObj.add(dot);
-
-            const espigaGeo = new THREE.BufferGeometry().setFromPoints([
-              new THREE.Vector3(0, 0, -r),
-              new THREE.Vector3(0, 0, -r - 0.06),
-            ]);
-            talGroupObj.add(new THREE.Line(espigaGeo, matColor));
-            break;
-          }
-        }
+        dibujarIconoTaladro(talGroupObj, zonaTal, cx, matColor, matFill, esCargado);
 
         group.add(talGroupObj);
 
@@ -2454,24 +2468,30 @@ export default function EditorCadMalla({
             group.add(stickMesh);
           }
 
-          // 2. Línea central y marcadores
-          const stickGeo = new THREE.BufferGeometry().setFromPoints([pCollar, pFondo]);
-          const stickMat = new THREE.LineBasicMaterial({
-            color: colorHex,
-            depthTest: true,
-          });
-          const stickLine = new THREE.Line(stickGeo, stickMat);
-          group.add(stickLine);
+          // 2. Línea central y marcador de punta — solo si el taladro tiene largo real. Cuando
+          // fondo == collar (mallas esquemáticas 2D, ver PanelDatosRmrMetodo.tsx) dibujar esto
+          // igual crea una cruz "+" flotando sobre el símbolo de zona (o sola, si la zona no
+          // coincide con ningún caso del switch de arriba) — un mismo taladro no debería mostrar
+          // dos marcas en el mismo punto.
+          if (len > 0.01) {
+            const stickGeo = new THREE.BufferGeometry().setFromPoints([pCollar, pFondo]);
+            const stickMat = new THREE.LineBasicMaterial({
+              color: colorHex,
+              depthTest: true,
+            });
+            const stickLine = new THREE.Line(stickGeo, stickMat);
+            group.add(stickLine);
 
-          // Marcador de fondo (toe) reforzado
-          const sToe = 0.04;
-          const toeGeo = new THREE.BufferGeometry().setFromPoints([
-            new THREE.Vector3(pFondo.x - sToe, pFondo.y, pFondo.z),
-            new THREE.Vector3(pFondo.x + sToe, pFondo.y, pFondo.z),
-            new THREE.Vector3(pFondo.x, pFondo.y, pFondo.z - sToe),
-            new THREE.Vector3(pFondo.x, pFondo.y, pFondo.z + sToe),
-          ]);
-          group.add(new THREE.LineSegments(toeGeo, stickMat));
+            // Marcador de fondo (toe) reforzado
+            const sToe = 0.04;
+            const toeGeo = new THREE.BufferGeometry().setFromPoints([
+              new THREE.Vector3(pFondo.x - sToe, pFondo.y, pFondo.z),
+              new THREE.Vector3(pFondo.x + sToe, pFondo.y, pFondo.z),
+              new THREE.Vector3(pFondo.x, pFondo.y, pFondo.z - sToe),
+              new THREE.Vector3(pFondo.x, pFondo.y, pFondo.z + sToe),
+            ]);
+            group.add(new THREE.LineSegments(toeGeo, stickMat));
+          }
         }
       });
     }
@@ -2496,48 +2516,57 @@ export default function EditorCadMalla({
         const tipoActual = p.tipo || "circulo_x";
         const tam = 0.10;
 
-        // Estilo 1: Cruz diagonal "X" (estilo clásico de AutoCAD)
-        if (tipoActual === "cruz_x" || tipoActual === "circulo_x") {
-          const matCruz = new THREE.LineBasicMaterial({ color: colorPto, linewidth: 2 });
-          const geoX1 = new THREE.BufferGeometry().setFromPoints([
-            new THREE.Vector3(-tam, 0, -tam),
-            new THREE.Vector3(tam, 0, tam),
-          ]);
-          const geoX2 = new THREE.BufferGeometry().setFromPoints([
-            new THREE.Vector3(-tam, 0, tam),
-            new THREE.Vector3(tam, 0, -tam),
-          ]);
-          ptoGroup.add(new THREE.Line(geoX1, matCruz));
-          ptoGroup.add(new THREE.Line(geoX2, matCruz));
-        }
+        if (p.grupoTaladro) {
+          // Viene de un taladro convertido: dibuja el mismo símbolo técnico por zona (rombo,
+          // flecha, etc.) que usan los taladros "vivos", en vez del círculo genérico de abajo —
+          // así la malla se ve igual antes y después de "Convertir a CAD editable".
+          const matColorPto = new THREE.LineBasicMaterial({ color: colorPto, linewidth: esSeleccionado ? 3 : 2 });
+          const matFillPto = new THREE.MeshBasicMaterial({ color: colorPto, side: THREE.DoubleSide });
+          dibujarIconoTaladro(ptoGroup, p.grupoTaladro, p.x, matColorPto, matFillPto, true);
+        } else {
+          // Estilo 1: Cruz diagonal "X" (estilo clásico de AutoCAD)
+          if (tipoActual === "cruz_x" || tipoActual === "circulo_x") {
+            const matCruz = new THREE.LineBasicMaterial({ color: colorPto, linewidth: 2 });
+            const geoX1 = new THREE.BufferGeometry().setFromPoints([
+              new THREE.Vector3(-tam, 0, -tam),
+              new THREE.Vector3(tam, 0, tam),
+            ]);
+            const geoX2 = new THREE.BufferGeometry().setFromPoints([
+              new THREE.Vector3(-tam, 0, tam),
+              new THREE.Vector3(tam, 0, -tam),
+            ]);
+            ptoGroup.add(new THREE.Line(geoX1, matCruz));
+            ptoGroup.add(new THREE.Line(geoX2, matCruz));
+          }
 
-        // Estilo 2: Cruz ortogonal "+"
-        if (tipoActual === "cruz_mas") {
-          const matCruz = new THREE.LineBasicMaterial({ color: colorPto, linewidth: 2 });
-          const geoM1 = new THREE.BufferGeometry().setFromPoints([
-            new THREE.Vector3(-tam, 0, 0),
-            new THREE.Vector3(tam, 0, 0),
-          ]);
-          const geoM2 = new THREE.BufferGeometry().setFromPoints([
-            new THREE.Vector3(0, 0, -tam),
-            new THREE.Vector3(0, 0, tam),
-          ]);
-          ptoGroup.add(new THREE.Line(geoM1, matCruz));
-          ptoGroup.add(new THREE.Line(geoM2, matCruz));
-        }
+          // Estilo 2: Cruz ortogonal "+"
+          if (tipoActual === "cruz_mas") {
+            const matCruz = new THREE.LineBasicMaterial({ color: colorPto, linewidth: 2 });
+            const geoM1 = new THREE.BufferGeometry().setFromPoints([
+              new THREE.Vector3(-tam, 0, 0),
+              new THREE.Vector3(tam, 0, 0),
+            ]);
+            const geoM2 = new THREE.BufferGeometry().setFromPoints([
+              new THREE.Vector3(0, 0, -tam),
+              new THREE.Vector3(0, 0, tam),
+            ]);
+            ptoGroup.add(new THREE.Line(geoM1, matCruz));
+            ptoGroup.add(new THREE.Line(geoM2, matCruz));
+          }
 
-        // Círculo / Retícula para "circulo_x" y "punto"
-        if (tipoActual === "circulo_x" || tipoActual === "punto") {
-          const ringGeo = new THREE.RingGeometry(0.09, 0.13, 16);
-          const ringMat = new THREE.MeshBasicMaterial({
-            color: esSeleccionado ? 0xf97316 : 0xffffff,
-            side: THREE.DoubleSide,
-            transparent: true,
-            opacity: 0.8,
-          });
-          const ring = new THREE.Mesh(ringGeo, ringMat);
-          ring.rotation.x = Math.PI / 2;
-          ptoGroup.add(ring);
+          // Círculo / Retícula para "circulo_x" y "punto"
+          if (tipoActual === "circulo_x" || tipoActual === "punto") {
+            const ringGeo = new THREE.RingGeometry(0.09, 0.13, 16);
+            const ringMat = new THREE.MeshBasicMaterial({
+              color: esSeleccionado ? 0xf97316 : 0xffffff,
+              side: THREE.DoubleSide,
+              transparent: true,
+              opacity: 0.8,
+            });
+            const ring = new THREE.Mesh(ringGeo, ringMat);
+            ring.rotation.x = Math.PI / 2;
+            ptoGroup.add(ring);
+          }
         }
 
         // Nodo central

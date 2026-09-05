@@ -161,6 +161,77 @@ function calcularEspaciamientoContornoPorRmr(rmr: number): number {
 }
 
 /**
+ * Espaciamiento "normal" (SIN voladura controlada) — regla práctica de Mamani López, R.J. (op.
+ * cit., p.19): "se estima una distancia de 2 ft por cada pulgada de diámetro de broca". Es el
+ * espaciamiento que usan los taladros de contorno cuando NO se busca una pared lisa (patrón
+ * "Corona uniforme"), bastante más abierto que el de recorte/smooth blasting.
+ */
+function calcularEspaciamientoProduccionReglaPractica(diametroMm: number): number {
+  const diametroPulgadas = diametroMm / 25.4;
+  const espaciamientoPies = 2 * diametroPulgadas;
+  return espaciamientoPies * 0.3048;
+}
+
+/**
+ * Secuencia del arranque por el "método práctico/empírico": en vez de la progresión geométrica de
+ * Holmberg (B1=1.5·De, Bn=E(n-1)...), usa 3 bandas de distancia fijas y ya tabuladas por zona —
+ * arranque 0.15-0.30 m, ayudas 0.60-0.90 m, cuadradores 0.50-0.70 m — tal como se enseña para un
+ * diseño rápido de campo sin calcular el diámetro equivalente (Mamani López, R.J., "Diseño de
+ * mallas de perforación en minería subterránea", material de curso, Bolivia, p.19, "Distancia
+ * entre taladros"). Se usa el punto medio de cada banda; a diferencia de Holmberg, estas bandas NO
+ * crecen monótonamente (no son secciones concéntricas de un mismo cuele, son zonas con nombre
+ * propio), así que el espaciamiento se toma como B·√2 solo como convención geométrica para poder
+ * dibujar los mismos anillos que usa el método de corte paralelo.
+ */
+function calcularEtapasPracticoEmpirico(): Array<{ etapa: number; b: number; e: number; f: number }> {
+  const bandas = [
+    { b: (0.15 + 0.3) / 2 }, // Arranque
+    { b: (0.6 + 0.9) / 2 }, // Ayudas
+    { b: (0.5 + 0.7) / 2 }, // Cuadradores
+  ];
+  return bandas.map((banda, idx) => ({
+    etapa: idx + 1,
+    b: banda.b,
+    e: banda.b * Math.SQRT2,
+    f: NaN,
+  }));
+}
+
+/**
+ * Factor de carga (kg de explosivo por m³ de roca a volar) según el área de la sección del túnel
+ * y la categoría de roca — tabla "Kilos de explosivos estimados por m³ de roca" (Mamani López,
+ * R.J., "Diseño de mallas de perforación en minería subterránea", material de curso, Bolivia).
+ * A menor área de sección, mayor factor de carga (más perímetro relativo al volumen); a mayor
+ * dureza/tenacidad de la roca, también mayor factor de carga. Devuelve el rango [min, max] kg/m³
+ * de la fila correspondiente — no se interpola entre filas porque la fuente las presenta como
+ * bandas discretas, no como una función continua.
+ */
+function factorCargaPorAreaYRoca(areaM2: number, categoria: "dura" | "intermedia" | "suave"): [number, number] {
+  const filas: Array<{ hasta: number; dura: [number, number]; intermedia: [number, number]; suave: [number, number] }> = [
+    { hasta: 5, dura: [2.6, 3.2], intermedia: [1.8, 2.3], suave: [1.2, 1.6] },
+    { hasta: 10, dura: [2.0, 2.6], intermedia: [1.4, 1.8], suave: [0.9, 1.2] },
+    { hasta: 20, dura: [1.65, 2.0], intermedia: [1.1, 1.4], suave: [0.6, 0.9] },
+    { hasta: 40, dura: [1.2, 1.65], intermedia: [0.75, 1.1], suave: [0.4, 0.6] },
+    { hasta: 60, dura: [0.8, 1.2], intermedia: [0.5, 0.75], suave: [0.3, 0.4] },
+  ];
+  const fila = filas.find((f) => areaM2 <= f.hasta) ?? filas[filas.length - 1];
+  return fila[categoria];
+}
+
+/**
+ * Número de taladros a partir del RMR y el área de la sección — Ecuación 2 de Beltrán Velásquez,
+ * S. (2022) "Diseño de malla de perforación y voladura para optimizar la productividad en una
+ * mina subterránea en Pataz, La Libertad 2020" (tesis de titulación, Universidad Privada del
+ * Norte): N = RMR·√(Sección)/2.5, con Sección = ancho·alto·factor de corrección geométrica
+ * (0.88 para secciones en arco, verificado contra el ejemplo de la tesis: RMR=55,
+ * 1.70×1.80×0.88 → N=36; 1.0 para secciones rectangulares sin corrección).
+ */
+function numeroTaladrosPorRmr(rmr: number, anchoM: number, altoM: number, factorGeometrico: number): number {
+  const seccion = Math.max(0.1, anchoM * altoM * factorGeometrico);
+  return Math.round((rmr * Math.sqrt(seccion)) / 2.5);
+}
+
+/**
  * Genera la malla completa (alivio + anillos del arranque + contorno) para una seccion dada.
  * Fuente unica compartida por la vista en vivo y por la carga de plantillas, para que ambas
  * generen exactamente los mismos puntos a partir de los mismos parametros.
@@ -169,21 +240,68 @@ function construirTaladrosMalla(opciones: {
   ancho: number;
   alto: number;
   tipoSeccion: TipoSeccionPlantilla;
+  corona: number;
   numAlivios: number;
   diametroAlivioMm: number;
   diametroProdMm: number;
   avanceM: number;
   rmr: number;
+  metodoDiseno: MetodoDisenoArranque;
+  patronContorno: TipoPatronContorno;
 }): Taladro[] {
-  const { tipoSeccion, numAlivios, diametroAlivioMm, diametroProdMm, avanceM, rmr } = opciones;
+  const { tipoSeccion, numAlivios, diametroAlivioMm, diametroProdMm, avanceM, rmr, metodoDiseno, patronContorno } = opciones;
   const W = Math.max(0.5, opciones.ancho);
   const H = Math.max(0.5, opciones.alto);
   const cx = W / 2;
-  const cy = H * 0.42;
   const scaleY = H / 2.5;
 
-  const { etapas } = calcularHolmberg(numAlivios, diametroAlivioMm, avanceM);
-  const espContorno = calcularEspaciamientoContornoPorRmr(rmr);
+  // Geometría de corona/hastial — MISMA fórmula que `calcularContornoEnVivo` (arriba), para que el
+  // techo de taladros coincida siempre con el contorno dibujado. Antes esta función asumía un techo
+  // en arco (hHastial≈H*0.55, cy=H*0.42) para cualquier tipo de sección, incluida "rectangular" —
+  // que no tiene corona: eso hacía que el arranque y la corona quedaran flotando a mitad de altura
+  // en vez de pegados al techo plano, dejando además los hastiales sin taladros en el tercio
+  // superior de la galería.
+  let hHastial: number;
+  let hCorona: number;
+  if (tipoSeccion === "rectangular") {
+    hHastial = H;
+    hCorona = 0;
+  } else if (tipoSeccion === "herradura") {
+    hCorona = W / 2;
+    hHastial = Math.max(0, H - hCorona);
+  } else {
+    hCorona = tipoSeccion === "tipo_d" ? Math.min(W * 0.35, H * 0.5) : Math.min(opciones.corona, H * 0.8);
+    hHastial = Math.max(0, H - hCorona);
+  }
+  // Centro del arranque: en secciones con corona se ubica cerca del centroide real de toda la cara
+  // (un poco por debajo de la mitad, aprox. lo que pesa la caja recta frente al arco); en rectangular
+  // no hay arco que compense, así que el centro geométrico real es H/2.
+  const cy = tipoSeccion === "rectangular" ? H / 2 : H * 0.42;
+
+  // "Corte paralelo" y "Expansión sucesiva" son el mismo método real (el cuele cilíndrico/paralelo
+  // ES, por definición, una expansión sucesiva hacia el hueco vacío — no son dos fórmulas
+  // distintas): ambos usan la progresión geométrica de Holmberg. "Práctico empírico" sí es un
+  // método distinto: bandas de distancia fijas tabuladas por zona, sin diámetro equivalente.
+  const etapas =
+    metodoDiseno === "practico_empirico"
+      ? calcularEtapasPracticoEmpirico()
+      : calcularHolmberg(numAlivios, diametroAlivioMm, avanceM).etapas;
+
+  // Espaciamiento de contorno: espContornoDuro (recorte/smooth blasting, tabla por RMR) se aplica
+  // solo donde el patrón elegido lo pide; el resto usa la regla práctica SIN control (más abierta).
+  // - uniforme: ningún tramo se dispara como recorte (todo el contorno a espaciamiento normal).
+  // - corona_recorte: solo alzas/techo en recorte — convención minera (Mamani López, p.5: "en obras
+  //   mineras [el precorte va] en las alzas o techo").
+  // - recorte_continuo: alzas Y cuadradores en recorte, disparados juntos como "taladros
+  //   periféricos" — convención de obra civil (misma referencia: "obras civiles en los cuadradores
+  //   y el techo") y práctica general de smooth blasting (Diéguez, "Diseño de voladuras de contorno
+  //   para el laboreo de túneles", Minería y Geología, ISMM: alzas y cuadradores se disparan juntos
+  //   al final de la ronda).
+  const espContornoDuro = calcularEspaciamientoContornoPorRmr(rmr);
+  const espContornoNormal = calcularEspaciamientoProduccionReglaPractica(diametroProdMm);
+  const espContornoCorona = patronContorno === "uniforme" ? espContornoNormal : espContornoDuro;
+  const espContornoHastial = patronContorno === "recorte_continuo" ? espContornoDuro : espContornoNormal;
+  const espContorno = espContornoHastial; // usado por arrastres (piso) — sin cambios, no forma parte del patrón de contorno
 
   const lista: Taladro[] = [];
   let idSeq = 1;
@@ -196,12 +314,18 @@ function construirTaladrosMalla(opciones: {
     diamMm: number,
     lookout = 0
   ) => {
+    // fondo.z = collar.z (plano) a propósito: esta malla es un esquema 2D (vista de frente, igual
+    // que los diagramas de la referencia), no la ronda 3D real. Si fondo.z = avanceM (~3.2-3.6 m),
+    // el editor CAD dibuja un cilindro 3D de esa longitud parado sobre el plano del dibujo —mucho
+    // más largo que la propia malla (~2.5 m)— y en cualquier ángulo de cámara que no sea la vista
+    // frontal exacta se ve como una "vara" larga en vez de un punto. La profundidad real de
+    // perforación se conserva en `profundidad_m` (se usa para metros perforados, carga, etc.).
     const tal: Taladro = {
       id: `tal-live-${idSeq++}`,
       fila: idSeq,
       columna: 1,
       collar: { x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000, z: 0 },
-      fondo: { x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000, z: avanceM },
+      fondo: { x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000, z: 0 },
       diametroMm: diamMm,
       profundidad_m: avanceM,
       taco_m: cargado ? 1.0 : 0,
@@ -257,8 +381,7 @@ function construirTaladrosMalla(opciones: {
   // 3. CONTORNO: cuadradores (hastiales), arrastres (piso) y corona/alzas, con la CANTIDAD de
   //    taladros escalada por el espaciamiento segun clase de roca (antes eran conteos fijos: 4
   //    cuadradores + 5 arrastres + 10 corona para cualquier tamaño de seccion o tipo de roca).
-  const hHastial = tipoSeccion === "herradura" ? Math.max(0, H - W / 2) : H * 0.55;
-  const radioCorona = Math.max(0.1, W / 2 - 0.22);
+  //    hHastial/hCorona ya se calcularon arriba con la misma fórmula que calcularContornoEnVivo.
 
   // 3a. Arrastres (piso)
   const yArrastre = 0.22;
@@ -274,40 +397,73 @@ function construirTaladrosMalla(opciones: {
   const offHastial = 0.30;
   const yHastialMin = 0.35;
   const yHastialMax = Math.max(yHastialMin + 0.1, hHastial - 0.15);
-  const numCuadradorLado = Math.max(1, Math.round((yHastialMax - yHastialMin) / espContorno));
+  const numCuadradorLado = Math.max(1, Math.round((yHastialMax - yHastialMin) / espContornoHastial));
   for (let i = 0; i < numCuadradorLado; i++) {
     const t = numCuadradorLado === 1 ? 0.5 : i / (numCuadradorLado - 1);
     const y = yHastialMin + t * (yHastialMax - yHastialMin);
-    crearTal(offHastial, y, "cuadrador", true, "#f97316", diametroProdMm);
-    crearTal(W - offHastial, y, "cuadrador", true, "#f97316", diametroProdMm);
+    crearTal(offHastial, y, "cuadradores", true, "#f97316", diametroProdMm);
+    crearTal(W - offHastial, y, "cuadradores", true, "#f97316", diametroProdMm);
   }
 
-  // 3c. Corona / alzas (arco superior)
-  const anguloCoronaIni = 0.15 * Math.PI;
-  const anguloCoronaFin = 0.85 * Math.PI;
-  const longitudArcoCorona = radioCorona * (anguloCoronaFin - anguloCoronaIni);
-  const numCorona = Math.max(3, Math.round(longitudArcoCorona / espContorno) + 1);
-  for (let i = 0; i < numCorona; i++) {
-    const t = numCorona === 1 ? 0.5 : i / (numCorona - 1);
-    const ang = anguloCoronaIni + t * (anguloCoronaFin - anguloCoronaIni);
-    const x = W / 2 + radioCorona * Math.cos(ang);
-    const y = hHastial + radioCorona * Math.sin(ang);
-    crearTal(x, y, "corona", true, "#10b981", diametroProdMm);
+  // 3c. Corona / alzas — "rectangular" no tiene corona (techo plano, en línea con
+  //     calcularContornoEnVivo): se coloca una fila de taladros de techo recta, con el mismo estilo
+  //     que el arrastre pero en y=H. Las secciones con arco replican la MISMA parametrización que
+  //     su contorno respectivo (herradura: semicírculo real de radio W/2; tipo_d/arco_personalizado:
+  //     arco elíptico x-lineal / y=hCorona·sin — antes esta función siempre usaba un semicírculo de
+  //     radio fijo W/2-0.22 sin importar el tipo, así que en tipo_d/arco_personalizado la corona de
+  //     taladros podía sobresalir del contorno real, más angosto).
+  if (tipoSeccion === "rectangular") {
+    const xMinTecho = 0.25;
+    const xMaxTecho = Math.max(xMinTecho + 0.1, W - 0.25);
+    const numTecho = Math.max(3, Math.round((xMaxTecho - xMinTecho) / espContornoCorona) + 1);
+    for (let i = 0; i < numTecho; i++) {
+      const xi = numTecho === 1 ? (xMinTecho + xMaxTecho) / 2 : xMinTecho + (i / (numTecho - 1)) * (xMaxTecho - xMinTecho);
+      crearTal(xi, H - yArrastre, "corona", true, "#10b981", diametroProdMm, -3);
+    }
+  } else if (tipoSeccion === "herradura") {
+    const radioCorona = Math.max(0.1, hCorona - 0.22);
+    const anguloCoronaIni = 0.15 * Math.PI;
+    const anguloCoronaFin = 0.85 * Math.PI;
+    const longitudArcoCorona = radioCorona * (anguloCoronaFin - anguloCoronaIni);
+    const numCorona = Math.max(3, Math.round(longitudArcoCorona / espContornoCorona) + 1);
+    for (let i = 0; i < numCorona; i++) {
+      const t = numCorona === 1 ? 0.5 : i / (numCorona - 1);
+      const ang = anguloCoronaIni + t * (anguloCoronaFin - anguloCoronaIni);
+      const x = W / 2 + radioCorona * Math.cos(ang);
+      const y = hHastial + radioCorona * Math.sin(ang);
+      crearTal(x, y, "corona", true, "#10b981", diametroProdMm);
+    }
+  } else {
+    // tipo_d / arco_personalizado: arco aplanado (x lineal, y = hCorona·sin), igual que su contorno.
+    const inset = Math.min(0.22, W * 0.08);
+    const hCoronaTal = Math.max(0.05, hCorona - 0.15);
+    const numCorona = Math.max(4, Math.round((Math.PI * hCoronaTal) / espContornoCorona) + 1);
+    for (let i = 0; i <= numCorona; i++) {
+      const t = i / numCorona;
+      const ang = t * Math.PI;
+      const x = inset + (1 - t) * (W - 2 * inset);
+      const y = hHastial + hCoronaTal * Math.sin(ang);
+      crearTal(x, y, "corona", true, "#10b981", diametroProdMm);
+    }
   }
 
   // 3d. Recorte / control: anillo interno de voladura controlada. No corresponde a un tipo con
   //     nombre propio en la referencia de diseño (que solo nombra alzas/ayudas/cuadradores/
-  //     arranque/arrastre), asi que se mantiene como refuerzo visual fijo de 8 puntos.
+  //     arranque/arrastre), asi que se mantiene como refuerzo visual fijo. En rectangular no hay
+  //     corona que reforzar (los 4 puntos superiores quedaban fuera del techo plano), asi que ahi
+  //     solo se colocan los 4 puntos de hastial.
   const yRec1 = hHastial * 0.5;
   const yRec2 = hHastial * 0.85;
   crearTal(0.22, yRec1, "recorte", true, "#ffffff", diametroProdMm);
   crearTal(0.22, yRec2, "recorte", true, "#ffffff", diametroProdMm);
   crearTal(W - 0.22, yRec1, "recorte", true, "#ffffff", diametroProdMm);
   crearTal(W - 0.22, yRec2, "recorte", true, "#ffffff", diametroProdMm);
-  crearTal(0.40, hHastial + 0.15 * scaleY, "recorte", true, "#ffffff", diametroProdMm);
-  crearTal(W - 0.40, hHastial + 0.15 * scaleY, "recorte", true, "#ffffff", diametroProdMm);
-  crearTal(0.55, hHastial + 0.45 * scaleY, "recorte", true, "#ffffff", diametroProdMm);
-  crearTal(W - 0.55, hHastial + 0.45 * scaleY, "recorte", true, "#ffffff", diametroProdMm);
+  if (tipoSeccion !== "rectangular") {
+    crearTal(0.40, hHastial + 0.15 * scaleY, "recorte", true, "#ffffff", diametroProdMm);
+    crearTal(W - 0.40, hHastial + 0.15 * scaleY, "recorte", true, "#ffffff", diametroProdMm);
+    crearTal(0.55, hHastial + 0.45 * scaleY, "recorte", true, "#ffffff", diametroProdMm);
+    crearTal(W - 0.55, hHastial + 0.45 * scaleY, "recorte", true, "#ffffff", diametroProdMm);
+  }
 
   return lista;
 }
@@ -470,50 +626,63 @@ export default function PanelDatosRmrMetodo({
     () => ({ deMm: resultadoHolmberg.deMm, deM: resultadoHolmberg.deM }),
     [resultadoHolmberg]
   );
-  const etapasArranque = resultadoHolmberg.etapas;
+  // La lista mostrada debe coincidir con la que realmente usa construirTaladrosMalla: si el método
+  // es "práctico/empírico" no se muestran las etapas de Holmberg (que ese método ni siquiera usa),
+  // sino las 3 bandas fijas por zona.
+  const etapasArranque = metodoDiseno === "practico_empirico" ? calcularEtapasPracticoEmpirico() : resultadoHolmberg.etapas;
 
   // =========================================================================
   // RECOMENDACIÓN GEOMECÁNICA RMR (BIENIAWSKI / SUECO)
   // =========================================================================
   const recomendacionRmr = useMemo(() => {
+    const areaM2 = metricasSeccion.area;
     if (rmrScore > 60) {
+      const [fcMin, fcMax] = factorCargaPorAreaYRoca(areaM2, "suave");
       return {
         tipo: "Roca Suave",
         clase: "Clase I - II (Buena / Muy Buena)",
         espaciamiento: calcularEspaciamientoContornoPorRmr(rmrScore),
-        coeficienteK: 1.1,
         aliviosSugeridos: 4,
-        factorCarga: "1.10 - 1.30 kg/m³",
+        factorCarga: `${fcMin.toFixed(2)} - ${fcMax.toFixed(2)} kg/m³`,
         colorBadge: "#10b981",
         descripcion:
-          "Roca de alta calidad geomecánica y baja resistencia al corte. Permite mayor espaciamiento y menor factor de roca K sin generar sobre-rotura.",
+          "Roca de alta calidad geomecánica y baja resistencia al corte. Permite mayor espaciamiento y menor factor de carga sin generar sobre-rotura.",
       };
     }
     if (rmrScore >= 41) {
+      const [fcMin, fcMax] = factorCargaPorAreaYRoca(areaM2, "intermedia");
       return {
         tipo: "Roca Semidura",
         clase: "Clase III (Regular)",
         espaciamiento: calcularEspaciamientoContornoPorRmr(rmrScore),
-        coeficienteK: 1.65,
         aliviosSugeridos: 4,
-        factorCarga: "1.40 - 1.70 kg/m³",
+        factorCarga: `${fcMin.toFixed(2)} - ${fcMax.toFixed(2)} kg/m³`,
         colorBadge: "var(--acento, #f97316)",
         descripcion:
           "Calidad geomecánica media. Requiere espaciamiento controlado en contorno (corona y hastiales) para preservar las discontinuidades estructurales.",
       };
     }
+    const [fcMin, fcMax] = factorCargaPorAreaYRoca(areaM2, "dura");
     return {
       tipo: "Roca Dura",
       clase: "Clase IV - V (Mala / Muy Mala o Gran Dureza)",
       espaciamiento: calcularEspaciamientoContornoPorRmr(rmrScore),
-      coeficienteK: 2.25,
       aliviosSugeridos: 5,
-      factorCarga: "1.80 - 2.40 kg/m³",
+      factorCarga: `${fcMin.toFixed(2)} - ${fcMax.toFixed(2)} kg/m³`,
       colorBadge: "#ef4444",
       descripcion:
         "Roca tenaz o de macizo fuertemente alterado/confinado. Requiere 5 taladros de alivio para ampliar la cara libre y menor espaciamiento para evitar el soplado.",
     };
-  }, [rmrScore]);
+  }, [rmrScore, metricasSeccion.area]);
+
+  // Estimación de número de taladros (Beltrán Velásquez, 2022, Ecuación 2 — ver cita en
+  // numeroTaladrosPorRmr): factor de corrección geométrica 0.88 para secciones en arco
+  // (herradura/tipo D/arco personalizado, igual que en el ejemplo validado de la tesis) y 1.0
+  // para rectangular (ya es el área plena, sin arco que corregir).
+  const numeroTaladrosEstimado = useMemo(() => {
+    const factorGeometrico = tipoSeccion === "rectangular" ? 1.0 : 0.88;
+    return Math.max(1, numeroTaladrosPorRmr(rmrScore, anchoGaleria, altoGaleria, factorGeometrico));
+  }, [rmrScore, anchoGaleria, altoGaleria, tipoSeccion]);
 
   // =========================================================================
   // GENERACIÓN DE MALLA EN VIVO (LIVE REAL-TIME CALCULATION)
@@ -578,11 +747,14 @@ export default function PanelDatosRmrMetodo({
       ancho: anchoGaleria,
       alto: altoGaleria,
       tipoSeccion,
+      corona: alturaCorona,
       numAlivios,
       diametroAlivioMm,
       diametroProdMm,
       avanceM,
       rmr: rmrScore,
+      metodoDiseno,
+      patronContorno,
     });
 
   const handleCargarPlantilla = (p: PlantillaMalla) => {
@@ -602,11 +774,14 @@ export default function PanelDatosRmrMetodo({
       ancho: p.ancho,
       alto: p.alto,
       tipoSeccion: p.tipoSeccion,
+      corona: p.corona,
       numAlivios: p.numAlivios,
       diametroAlivioMm: p.diametroAlivioMm,
       diametroProdMm: p.diametroProdMm,
       avanceM: p.avanceM,
       rmr: p.rmr,
+      metodoDiseno,
+      patronContorno,
     });
 
     if (onCambiarPoligono) {
@@ -660,6 +835,7 @@ export default function PanelDatosRmrMetodo({
     rmrScore,
     metodoDiseno,
     tipoCorte,
+    patronContorno,
   ]);
 
   // =========================================================================
@@ -1507,6 +1683,16 @@ export default function PanelDatosRmrMetodo({
                   </button>
                 ))}
               </div>
+              <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 10, lineHeight: 1.4 }}>
+                Cambia el espaciamiento de <b>corona</b> (techo) y <b>cuadradores</b> (hastiales):{" "}
+                <b>Corona uniforme</b> = todo el contorno a espaciamiento normal, sin control (regla
+                práctica de 2 pies por pulgada de diámetro). <b>Corona + recorte</b> = solo el techo
+                a espaciamiento de smooth blasting (según RMR) — convención típica en obra minera.{" "}
+                <b>Recorte continuo</b> = techo y hastiales juntos a espaciamiento de smooth
+                blasting, como "taladros periféricos" — convención de obra civil y de voladura
+                controlada en túneles (Diéguez, "Diseño de voladuras de contorno para el laboreo de
+                túneles", <i>Minería y Geología</i>, ISMM).
+              </div>
 
               {/* Leyenda Geométrica */}
               <div
@@ -1656,6 +1842,31 @@ export default function PanelDatosRmrMetodo({
                       boxSizing: "border-box",
                     }}
                   />
+                </div>
+                <div>
+                  <label style={{ fontSize: 10, color: "#94a3b8", display: "block", marginBottom: 4 }}>
+                    Ø taladros producción (mm)
+                  </label>
+                  <input
+                    type="number"
+                    min={25}
+                    step={1}
+                    value={diametroProdMm}
+                    onChange={(e) => setDiametroProdMm(Math.max(25, Number(e.target.value)))}
+                    style={{
+                      width: "100%",
+                      padding: "7px 10px",
+                      background: "#070c16",
+                      border: "1px solid #334155",
+                      borderRadius: 6,
+                      color: "#ffffff",
+                      fontSize: 12,
+                      boxSizing: "border-box",
+                    }}
+                  />
+                  <span style={{ fontSize: 9, color: "#64748b", display: "block", marginTop: 3 }}>
+                    Referencia: dura 34mm · semidura 36mm · blanda 38mm (Mamani López)
+                  </span>
                 </div>
               </div>
 
@@ -1899,15 +2110,15 @@ export default function PanelDatosRmrMetodo({
                     <b style={{ color: "#ffffff" }}>{recomendacionRmr.espaciamiento} m</b>
                   </div>
                   <div>
-                    Coeficiente K:{" "}
-                    <b style={{ color: "#ffffff" }}>{recomendacionRmr.coeficienteK}</b>
+                    N° taladros estimado:{" "}
+                    <b style={{ color: "#ffffff" }}>{numeroTaladrosEstimado}</b>
                   </div>
                   <div>
                     Alivios recomendados:{" "}
                     <b style={{ color: "#ffffff" }}>{recomendacionRmr.aliviosSugeridos} taladros</b>
                   </div>
-                  <div>
-                    Factor carga:{" "}
+                  <div style={{ gridColumn: "1 / -1" }}>
+                    Factor carga (por área de sección):{" "}
                     <b style={{ color: "#ffffff" }}>{recomendacionRmr.factorCarga}</b>
                   </div>
                 </div>
@@ -1945,29 +2156,33 @@ export default function PanelDatosRmrMetodo({
                 Matriz de Recomendaciones por Calidad
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {[
-                  {
-                    nombre: "Roca Suave (RMR > 60)",
-                    esp: "0.73 m",
-                    k: "1.10",
-                    alivios: 4,
-                    activo: rmrScore > 60,
-                  },
-                  {
-                    nombre: "Roca Semidura (41-60)",
-                    esp: "0.55 m",
-                    k: "1.65",
-                    alivios: 4,
-                    activo: rmrScore >= 41 && rmrScore <= 60,
-                  },
-                  {
-                    nombre: "Roca Dura (RMR ≤ 40)",
-                    esp: "0.48 m",
-                    k: "2.25",
-                    alivios: 5,
-                    activo: rmrScore <= 40,
-                  },
-                ].map((item, idx) => (
+                {(() => {
+                  const areaM2 = metricasSeccion.area;
+                  const fmt = (r: [number, number]) => `${r[0].toFixed(2)}-${r[1].toFixed(2)}`;
+                  return [
+                    {
+                      nombre: "Roca Suave (RMR > 60)",
+                      esp: `${calcularEspaciamientoContornoPorRmr(61).toFixed(2)} m`,
+                      fc: fmt(factorCargaPorAreaYRoca(areaM2, "suave")),
+                      alivios: 4,
+                      activo: rmrScore > 60,
+                    },
+                    {
+                      nombre: "Roca Semidura (41-60)",
+                      esp: `${calcularEspaciamientoContornoPorRmr(50).toFixed(2)} m`,
+                      fc: fmt(factorCargaPorAreaYRoca(areaM2, "intermedia")),
+                      alivios: 4,
+                      activo: rmrScore >= 41 && rmrScore <= 60,
+                    },
+                    {
+                      nombre: "Roca Dura (RMR ≤ 40)",
+                      esp: `${calcularEspaciamientoContornoPorRmr(30).toFixed(2)} m`,
+                      fc: fmt(factorCargaPorAreaYRoca(areaM2, "dura")),
+                      alivios: 5,
+                      activo: rmrScore <= 40,
+                    },
+                  ];
+                })().map((item, idx) => (
                   <div
                     key={idx}
                     style={{
@@ -1988,10 +2203,22 @@ export default function PanelDatosRmrMetodo({
                   >
                     <span>{item.nombre}</span>
                     <span>
-                      E = {item.esp} · K = {item.k} · {item.alivios} Alivios
+                      E = {item.esp} · FC = {item.fc} kg/m³ · {item.alivios} Alivios
                     </span>
                   </div>
                 ))}
+              </div>
+              <div style={{ fontSize: 10, color: "#64748b", marginTop: 8, lineHeight: 1.4 }}>
+                Espaciamiento: tabla "distancia entre taladros de contorno" (tenaz 0.50-0.55 m,
+                intermedio 0.60-0.65 m, friable 0.70-0.75 m). Factor de carga (FC): tabla "kilos de
+                explosivo estimados por m³ de roca" según área de la sección — ambas de Mamani
+                López, R.J., <i>Diseño de mallas de perforación en minería subterránea</i>{" "}
+                (material de curso, Bolivia). N° de taladros: Beltrán Velásquez, S. (2022){" "}
+                <i>
+                  Diseño de malla de perforación y voladura para optimizar la productividad en una
+                  mina subterránea en Pataz, La Libertad 2020
+                </i>
+                , tesis de titulación, Universidad Privada del Norte, Ecuación 2 (N = RMR·√Sección/2.5).
               </div>
             </div>
           </div>
@@ -2055,6 +2282,14 @@ export default function PanelDatosRmrMetodo({
                   </button>
                 ))}
               </div>
+              <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 8, lineHeight: 1.4 }}>
+                <b>Corte paralelo</b> y <b>Expansión sucesiva</b> son, en la práctica, el mismo
+                método: el cuele cilíndrico/paralelo funciona precisamente por expansión sucesiva
+                hacia el hueco vacío — por eso ambos usan la misma progresión de Holmberg (no son
+                dos fórmulas distintas, son dos nombres del mismo mecanismo). <b>Práctico empírico</b>{" "}
+                sí calcula distinto: usa bandas de distancia fijas por zona (arranque, ayudas,
+                cuadradores) en vez del diámetro equivalente y la progresión geométrica.
+              </div>
             </div>
 
             {/* CABECERA SECUENCIA GEOMÉTRICA */}
@@ -2099,8 +2334,10 @@ export default function PanelDatosRmrMetodo({
                   marginBottom: conceptoAbierto === "holmberg" ? 10 : 12,
                 }}
               >
-                Se calculan cinco etapas teóricas. La distribución utiliza el tipo de corte elegido
-                y conserva E5 como control de expansión.
+                Se calculan {etapasArranque.length} etapa{etapasArranque.length === 1 ? "" : "s"} para
+                un avance de {avanceM.toFixed(2)} m (se detiene cuando el espaciamiento supera
+                √avance = {Math.sqrt(Math.max(0.1, avanceM)).toFixed(2)} m). El "Método de cálculo" y
+                el "Tipo de corte" de arriba todavía no cambian este resultado — ver nota abajo.
               </div>
 
               {conceptoAbierto === "holmberg" && (
@@ -2356,6 +2593,11 @@ export default function PanelDatosRmrMetodo({
                     : "0"}{" "}
                   tal/m²
                 </b>
+              </div>
+              <div style={{ fontSize: 10, color: "#64748b", marginTop: 6, lineHeight: 1.4 }}>
+                92% de eficiencia y ρ≈2.7-2.75 t/m³ son valores de referencia consistentes con
+                casos documentados (Beltrán Velásquez, 2022, Figura 3: 92% eficiencia, 2.75 t/m³);
+                ajústalos si el mapeo geomecánico de tu labor da otros valores.
               </div>
             </div>
           </div>
