@@ -581,7 +581,10 @@ export default function EditorCadMalla({
   const [cotCentro, setCotCentro] = useState<{ x: number; y: number; z: number } | null>(null);
   const [cotPuntoInicio, setCotPuntoInicio] = useState<{ x: number; y: number; z: number } | null>(null);
   const [cotCursorGuia, setCotCursorGuia] = useState<{ x: number; y: number; z: number } | null>(null);
-  const [cotasCad, setCotasCad] = usePersistedState<CotaCad3D[]>("cad:cotas", []);
+  const [cotasCad, setCotasCad] = usePersistedState<CotaCad3D[]>(
+    `cad:${pid}:cotas`,
+    () => (esMalla1 ? leerCadGuardado("cad:cotas", []) : [])
+  );
   const [cotasSeleccionadas, setCotasSeleccionadas] = useState<string[]>([]);
 
   // Estado del Panel 'TALADRO' (TAL)
@@ -601,7 +604,10 @@ export default function EditorCadMalla({
   const [solModoExtrusion, setSolModoExtrusion] = usePersistedState<"profundidad" | "levantamiento" | "ambos">("cad:solModoExtrusion", "levantamiento");
   const [solLevantamiento, setSolLevantamiento] = usePersistedState<string>("cad:solLevantamiento", "10.00");
   const [solProfundidad, setSolProfundidad] = usePersistedState<string>("cad:solProfundidad", "12.00");
-  const [solidosCad, setSolidosCad] = usePersistedState<SolidoCad3D[]>("cad:solidos", []);
+  const [solidosCad, setSolidosCad] = usePersistedState<SolidoCad3D[]>(
+    `cad:${pid}:solidos`,
+    () => (esMalla1 ? leerCadGuardado("cad:solidos", []) : [])
+  );
   const [aristasSolidosSeleccionadas, setAristasSolidosSeleccionadas] = useState<string[]>([]);
 
   // Estado del Panel 'GRILLA' (GRI - Exacto a la captura del usuario)
@@ -614,7 +620,10 @@ export default function EditorCadMalla({
   const [griSnapMetrico, setGriSnapMetrico] = usePersistedState<boolean>("cad:griSnapMetrico", true);
   const [griSnapMediaCuadricula, setGriSnapMediaCuadricula] = usePersistedState<boolean>("cad:griSnapMediaCuadricula", true);
   const [griVerDistancias, setGriVerDistancias] = usePersistedState<boolean>("cad:griVerDistancias", false);
-  const [guiasAuxiliares, setGuiasAuxiliares] = usePersistedState<{ id: string; tipo: "H" | "V"; pos: number }[]>("cad:guiasAuxiliares", []);
+  const [guiasAuxiliares, setGuiasAuxiliares] = usePersistedState<{ id: string; tipo: "H" | "V"; pos: number }[]>(
+    `cad:${pid}:guiasAuxiliares`,
+    []
+  );
   const [modoCrearGuia, setModoCrearGuia] = useState<"H" | "V" | null>(null);
   const [griMoviendoOrigen, setGriMoviendoOrigen] = useState<boolean>(false);
 
@@ -1402,6 +1411,9 @@ export default function EditorCadMalla({
     );
 
     if (agregadosPuntos > 0 || agregadasPolilineas > 0) {
+      if (typeof window !== "undefined" && window.innerWidth <= 768) {
+        setPanelEdicionMinimizado(true);
+      }
       mostrarAviso(
         `✓ Malla convertida a CAD: ${agregadosPuntos} taladros y ${agregadasPolilineas > 0 ? "contorno" : ""} como entidades editables`
       );
@@ -5907,6 +5919,24 @@ export default function EditorCadMalla({
     mostrarAviso(`✓ Taladro ${infoG?.label || talGrupo} insertado en (${pSnap.x.toFixed(2)}, ${pSnap.y.toFixed(2)})`);
   }
 
+  function handleCrearNuevaEscenaEnBlanco() {
+    registrarHistorial();
+    setPuntosCad([]);
+    setLineasCad([]);
+    setPolilineasCad([]);
+    setArcosCad([]);
+    setCotasCad([]);
+    setSolidosCad([]);
+    setGuiasAuxiliares([]);
+    if (onCambiarPoligono) {
+      onCambiarPoligono([]);
+    }
+    if (onCambiarTaladros) {
+      onCambiarTaladros([]);
+    }
+    mostrarAviso("✓ Lienzo en blanco: Escena CAD limpia lista para nuevo diseño.");
+  }
+
   return (
     <div className="cad-screen-wrapper">
       {notificacion && <div className="cad-toast">{notificacion}</div>}
@@ -6138,7 +6168,11 @@ export default function EditorCadMalla({
             type="button"
             className={`btn-dock-circle-exact ${panelDatosRmrVisible ? "tool-active-pink" : ""}`}
             onClick={() => {
-              setPanelDatosRmrVisible(!panelDatosRmrVisible);
+              const nuevo = !panelDatosRmrVisible;
+              setPanelDatosRmrVisible(nuevo);
+              if (nuevo && typeof window !== "undefined" && window.innerWidth <= 768) {
+                setPanelEdicionVisible(false);
+              }
             }}
             title="Datos / RMR / Método (Σ)"
           >
@@ -6149,7 +6183,11 @@ export default function EditorCadMalla({
             type="button"
             className={`btn-dock-circle-exact ${panelEdicionVisible ? "tool-active-pink" : ""}`}
             onClick={() => {
-              setPanelEdicionVisible(!panelEdicionVisible);
+              const nuevo = !panelEdicionVisible;
+              setPanelEdicionVisible(nuevo);
+              if (nuevo && typeof window !== "undefined" && window.innerWidth <= 768) {
+                setPanelDatosRmrVisible(false);
+              }
             }}
             title="Edición CAD (ED)"
           >
@@ -9476,8 +9514,8 @@ export default function EditorCadMalla({
           <button
             type="button"
             className="cad-tab-pill-exact btn-tab-add"
-            onClick={() => mostrarAviso("Nueva escena CAD creada")}
-            title="Agregar escena (+)"
+            onClick={handleCrearNuevaEscenaEnBlanco}
+            title="Crear Nueva Escena en Blanco (+)"
           >
             +
           </button>

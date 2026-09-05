@@ -309,6 +309,9 @@ export default function ModuloPortal({
         localStorage.setItem(PREFIJO_ALMACENAMIENTO + `cad:${nuevoId}:polilineas`, JSON.stringify([]));
         localStorage.setItem(PREFIJO_ALMACENAMIENTO + `cad:${nuevoId}:puntos`, JSON.stringify([]));
         localStorage.setItem(PREFIJO_ALMACENAMIENTO + `cad:${nuevoId}:arcos`, JSON.stringify([]));
+        localStorage.setItem(PREFIJO_ALMACENAMIENTO + `cad:${nuevoId}:solidos`, JSON.stringify([]));
+        localStorage.setItem(PREFIJO_ALMACENAMIENTO + `cad:${nuevoId}:cotas`, JSON.stringify([]));
+        localStorage.setItem(PREFIJO_ALMACENAMIENTO + `cad:${nuevoId}:guiasAuxiliares`, JSON.stringify([]));
       } catch {}
     }
 

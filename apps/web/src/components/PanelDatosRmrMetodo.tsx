@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { usePersistedState } from "../hooks/usePersistedState.js";
+import { calcularArranqueHolmberg } from "@suite/core";
 import type { Punto2D, Taladro } from "@suite/core";
 import type { LineaCad3D, PolilineaCad3D } from "./EditorCadMalla.js";
 
@@ -24,11 +25,291 @@ interface Props {
     alto: number;
     area: number;
     perimetro: number;
-    numAlivios: number;
-    diametroAlivioMm: number;
+    tipoSeccion?: TipoSeccionPlantilla;
     rmr: number;
+    alivios?: number;
+    numAlivios?: number;
+    diametroAlivioMm?: number;
+    diametroProdMm?: number;
+    metodo?: MetodoDisenoArranque;
+    tipoCorte?: TipoCorteArranque;
   }) => void;
   mostrarAviso?: (msg: string) => void;
+}
+
+export interface PlantillaMalla {
+  id: string;
+  nombre: string;
+  tipoSeccion: TipoSeccionPlantilla;
+  ancho: number;
+  alto: number;
+  corona: number;
+  numAlivios: number;
+  diametroAlivioMm: number;
+  diametroProdMm: number;
+  avanceM: number;
+  rmr: number;
+  descripcion: string;
+  badge: string;
+  color: string;
+  icono: string;
+}
+
+export const PLANTILLAS_MALLA_PRESET: PlantillaMalla[] = [
+  {
+    id: "herradura-2.5x2.5",
+    nombre: "Herradura Estándar",
+    tipoSeccion: "herradura",
+    ancho: 2.5,
+    alto: 2.5,
+    corona: 1.25,
+    numAlivios: 4,
+    diametroAlivioMm: 102,
+    diametroProdMm: 45,
+    avanceM: 3.6,
+    rmr: 45,
+    descripcion: "Cuele Holmberg con 4 alivios centrales Ø102mm, arrastres, corona y hastiales (cantidad de taladros calculada según RMR).",
+    badge: "2.5 × 2.5m",
+    color: "#f97316",
+    icono: "🚇",
+  },
+  {
+    id: "herradura-3.0x3.0",
+    nombre: "Túnel Principal",
+    tipoSeccion: "herradura",
+    ancho: 3.0,
+    alto: 3.0,
+    corona: 1.5,
+    numAlivios: 4,
+    diametroAlivioMm: 102,
+    diametroProdMm: 45,
+    avanceM: 3.8,
+    rmr: 55,
+    descripcion: "Galería de transporte y acarreo principal con 4 cuadrantes y corona reforzada.",
+    badge: "3.0 × 3.0m",
+    color: "#38bdf8",
+    icono: "⛏️",
+  },
+  {
+    id: "tipo-d-3.5x3.0",
+    nombre: "Rampa Tipo D",
+    tipoSeccion: "tipo_d",
+    ancho: 3.5,
+    alto: 3.0,
+    corona: 1.05,
+    numAlivios: 4,
+    diametroAlivioMm: 102,
+    diametroProdMm: 45,
+    avanceM: 3.6,
+    rmr: 50,
+    descripcion: "Sección abovedada rebajada para optimización de gálibo de equipos LHD y volquetes.",
+    badge: "3.5 × 3.0m",
+    color: "#a855f7",
+    icono: "🔷",
+  },
+  {
+    id: "rectangular-2.5x2.5",
+    nombre: "Labor en Veta",
+    tipoSeccion: "rectangular",
+    ancho: 2.5,
+    alto: 2.5,
+    corona: 0,
+    numAlivios: 4,
+    diametroAlivioMm: 89,
+    diametroProdMm: 41,
+    avanceM: 3.2,
+    rmr: 40,
+    descripcion: "Corte rectangular para labores de avance en vetas angostas y subniveles de explotación.",
+    badge: "2.5 × 2.5m",
+    color: "#10b981",
+    icono: "🟧",
+  },
+];
+
+/**
+ * Diametro equivalente de alivio y secuencia de burden/espaciamiento del arranque (cuele Holmberg,
+ * metodo simplificado de Jimeno Tabla 22.2), delegando en el motor ya validado de
+ * packages/core/src/formulas/mining/tunnelRound.ts::calcularArranqueHolmberg — en vez de mantener
+ * una segunda copia de la misma formula que podía (y de hecho llegó a) divergir con constantes
+ * incorrectas. `maximoSecciones` limita a 5 etapas y reutiliza la regla de parada real (deja de
+ * agregar secciones cuando el lado resultante alcanza sqrt(avance)), asi que en galerías pequeñas o
+ * con avances cortos no se generan anillos de arranque más grandes que la propia sección.
+ */
+function calcularHolmberg(numAlivios: number, diametroAlivioMm: number, avanceM: number) {
+  const resultado = calcularArranqueHolmberg({
+    diametroIndividualAlivio_mm: diametroAlivioMm,
+    numeroTaladrosAlivio: numAlivios,
+    avance_m: avanceM,
+    maximoSecciones: 5,
+  });
+  return {
+    deMm: resultado.diametroEquivalente_mm,
+    deM: resultado.diametroEquivalente_mm / 1000,
+    etapas: resultado.secciones.map((s) => ({ etapa: s.numero, b: s.burden_m, e: s.espaciamiento_m, f: s.factor })),
+  };
+}
+
+/**
+ * Espaciamiento de taladros de contorno segun clase de roca (RMR) — mismos valores que usa
+ * `recomendacionRmr` más abajo, alineados con la tabla "Distancias entre taladros" de la
+ * referencia (tenaz 0.50-0.55m, intermedio 0.60-0.65m, friable 0.70-0.75m; se toma el punto medio).
+ */
+function calcularEspaciamientoContornoPorRmr(rmr: number): number {
+  if (rmr > 60) return 0.73; // roca suave / friable
+  if (rmr >= 41) return 0.55; // roca semidura / intermedio
+  return 0.48; // roca dura / tenaz
+}
+
+/**
+ * Genera la malla completa (alivio + anillos del arranque + contorno) para una seccion dada.
+ * Fuente unica compartida por la vista en vivo y por la carga de plantillas, para que ambas
+ * generen exactamente los mismos puntos a partir de los mismos parametros.
+ */
+function construirTaladrosMalla(opciones: {
+  ancho: number;
+  alto: number;
+  tipoSeccion: TipoSeccionPlantilla;
+  numAlivios: number;
+  diametroAlivioMm: number;
+  diametroProdMm: number;
+  avanceM: number;
+  rmr: number;
+}): Taladro[] {
+  const { tipoSeccion, numAlivios, diametroAlivioMm, diametroProdMm, avanceM, rmr } = opciones;
+  const W = Math.max(0.5, opciones.ancho);
+  const H = Math.max(0.5, opciones.alto);
+  const cx = W / 2;
+  const cy = H * 0.42;
+  const scaleY = H / 2.5;
+
+  const { etapas } = calcularHolmberg(numAlivios, diametroAlivioMm, avanceM);
+  const espContorno = calcularEspaciamientoContornoPorRmr(rmr);
+
+  const lista: Taladro[] = [];
+  let idSeq = 1;
+  const crearTal = (
+    x: number,
+    y: number,
+    zona: string,
+    cargado: boolean,
+    color: string,
+    diamMm: number,
+    lookout = 0
+  ) => {
+    const tal: Taladro = {
+      id: `tal-live-${idSeq++}`,
+      fila: idSeq,
+      columna: 1,
+      collar: { x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000, z: 0 },
+      fondo: { x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000, z: avanceM },
+      diametroMm: diamMm,
+      profundidad_m: avanceM,
+      taco_m: cargado ? 1.0 : 0,
+      longitudCarga_m: cargado ? Math.max(0, avanceM - 1.0) : 0,
+    };
+    (tal as any).zona = zona;
+    (tal as any).cargado = cargado;
+    (tal as any).tipo = cargado ? "produccion" : "alivio";
+    (tal as any).color = color;
+    (tal as any).lookout = lookout;
+    lista.push(tal);
+  };
+
+  // 1. ALIVIOS: agrupados muy cerca del centro (radio pequeño y fijo, actuan como un unico taladro equivalente).
+  const nAlivio = Math.max(1, Math.round(numAlivios));
+  const radioClusterAlivio = Math.max(0.03, (diametroAlivioMm / 1000) * 0.65);
+  if (nAlivio === 1) {
+    crearTal(cx, cy, "alivio", false, "#38bdf8", diametroAlivioMm);
+  } else {
+    for (let i = 0; i < nAlivio; i++) {
+      const ang = (i / nAlivio) * Math.PI * 2;
+      crearTal(
+        cx + radioClusterAlivio * Math.cos(ang),
+        cy + radioClusterAlivio * Math.sin(ang),
+        "alivio",
+        false,
+        "#38bdf8",
+        diametroAlivioMm
+      );
+    }
+  }
+
+  // 2. ANILLOS DEL ARRANQUE (cuadrante 1-4): radio = E_k / sqrt(2) de la secuencia Holmberg real
+  //    (mismo modelo geometrico que generarTaladrosFrenteTunel en packages/core), alternando 45°
+  //    entre anillos consecutivos (pinwheel). Antes estos anillos usaban fracciones fijas
+  //    (0.16/0.28/0.44/0.62 * escala) que no tenian relacion con el burden/espaciamiento calculado.
+  // Si una seccion no cabe dentro de la galeria (galeria chica / avance grande) se deja de agregar
+  // anillos en vez de aplastarlos unos sobre otros — calcularHolmberg ya detiene la secuencia por
+  // su propia regla (lado >= sqrt(avance)); este limite es solo una salvaguarda geometrica extra.
+  const radioMaxArranque = Math.min(W, H) * 0.42;
+  for (let idx = 0; idx < Math.min(4, etapas.length); idx++) {
+    const et = etapas[idx];
+    const r = et.e / Math.SQRT2;
+    if (r > radioMaxArranque) break;
+    const k = idx + 1;
+    const anguloBase = k % 2 === 1 ? Math.PI / 4 : 0;
+    for (let j = 0; j < 4; j++) {
+      const ang = anguloBase + j * (Math.PI / 2);
+      crearTal(cx + r * Math.cos(ang), cy + r * Math.sin(ang), `cuadrante${k}`, true, "#f97316", diametroProdMm);
+    }
+  }
+
+  // 3. CONTORNO: cuadradores (hastiales), arrastres (piso) y corona/alzas, con la CANTIDAD de
+  //    taladros escalada por el espaciamiento segun clase de roca (antes eran conteos fijos: 4
+  //    cuadradores + 5 arrastres + 10 corona para cualquier tamaño de seccion o tipo de roca).
+  const hHastial = tipoSeccion === "herradura" ? Math.max(0, H - W / 2) : H * 0.55;
+  const radioCorona = Math.max(0.1, W / 2 - 0.22);
+
+  // 3a. Arrastres (piso)
+  const yArrastre = 0.22;
+  const xMinArr = 0.25;
+  const xMaxArr = Math.max(xMinArr + 0.1, W - 0.25);
+  const numArrastre = Math.max(3, Math.round((xMaxArr - xMinArr) / espContorno) + 1);
+  for (let i = 0; i < numArrastre; i++) {
+    const xi = numArrastre === 1 ? (xMinArr + xMaxArr) / 2 : xMinArr + (i / (numArrastre - 1)) * (xMaxArr - xMinArr);
+    crearTal(xi, yArrastre, "arrastre", true, "#ef4444", diametroProdMm, 3);
+  }
+
+  // 3b. Cuadradores (hastiales, pares izquierda/derecha)
+  const offHastial = 0.30;
+  const yHastialMin = 0.35;
+  const yHastialMax = Math.max(yHastialMin + 0.1, hHastial - 0.15);
+  const numCuadradorLado = Math.max(1, Math.round((yHastialMax - yHastialMin) / espContorno));
+  for (let i = 0; i < numCuadradorLado; i++) {
+    const t = numCuadradorLado === 1 ? 0.5 : i / (numCuadradorLado - 1);
+    const y = yHastialMin + t * (yHastialMax - yHastialMin);
+    crearTal(offHastial, y, "cuadrador", true, "#f97316", diametroProdMm);
+    crearTal(W - offHastial, y, "cuadrador", true, "#f97316", diametroProdMm);
+  }
+
+  // 3c. Corona / alzas (arco superior)
+  const anguloCoronaIni = 0.15 * Math.PI;
+  const anguloCoronaFin = 0.85 * Math.PI;
+  const longitudArcoCorona = radioCorona * (anguloCoronaFin - anguloCoronaIni);
+  const numCorona = Math.max(3, Math.round(longitudArcoCorona / espContorno) + 1);
+  for (let i = 0; i < numCorona; i++) {
+    const t = numCorona === 1 ? 0.5 : i / (numCorona - 1);
+    const ang = anguloCoronaIni + t * (anguloCoronaFin - anguloCoronaIni);
+    const x = W / 2 + radioCorona * Math.cos(ang);
+    const y = hHastial + radioCorona * Math.sin(ang);
+    crearTal(x, y, "corona", true, "#10b981", diametroProdMm);
+  }
+
+  // 3d. Recorte / control: anillo interno de voladura controlada. No corresponde a un tipo con
+  //     nombre propio en la referencia de diseño (que solo nombra alzas/ayudas/cuadradores/
+  //     arranque/arrastre), asi que se mantiene como refuerzo visual fijo de 8 puntos.
+  const yRec1 = hHastial * 0.5;
+  const yRec2 = hHastial * 0.85;
+  crearTal(0.22, yRec1, "recorte", true, "#ffffff", diametroProdMm);
+  crearTal(0.22, yRec2, "recorte", true, "#ffffff", diametroProdMm);
+  crearTal(W - 0.22, yRec1, "recorte", true, "#ffffff", diametroProdMm);
+  crearTal(W - 0.22, yRec2, "recorte", true, "#ffffff", diametroProdMm);
+  crearTal(0.40, hHastial + 0.15 * scaleY, "recorte", true, "#ffffff", diametroProdMm);
+  crearTal(W - 0.40, hHastial + 0.15 * scaleY, "recorte", true, "#ffffff", diametroProdMm);
+  crearTal(0.55, hHastial + 0.45 * scaleY, "recorte", true, "#ffffff", diametroProdMm);
+  crearTal(W - 0.55, hHastial + 0.45 * scaleY, "recorte", true, "#ffffff", diametroProdMm);
+
+  return lista;
 }
 
 export default function PanelDatosRmrMetodo({
@@ -44,6 +325,19 @@ export default function PanelDatosRmrMetodo({
   onAplicarParametros,
   mostrarAviso,
 }: Props) {
+  // Detección reactiva de dispositivo móvil
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth <= 768 : false
+  );
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   // Posición del menú: "abajo" (Bottom Sheet desplegable) por defecto a solicitud del usuario, o "lateral"
   const [posicion, setPosicion] = usePersistedState<"abajo" | "lateral">("panelRmr:posicion", "abajo");
   const [minimizado, setMinimizado] = usePersistedState<boolean>("panelRmr:minimizado", false);
@@ -76,6 +370,18 @@ export default function PanelDatosRmrMetodo({
   // TAB 3: MÉTODO Y SECUENCIA DE CORTE
   const [metodoDiseno, setMetodoDiseno] = useState<MetodoDisenoArranque>("corte_paralelo");
   const [tipoCorte, setTipoCorte] = useState<TipoCorteArranque>("paralelo_quemado");
+
+  // Control de activación de la malla (en blanco hasta que el usuario jale/cargue una plantilla o diseñe)
+  const [mallaGenerada, setMallaGenerada] = useState<boolean>(() => {
+    return Boolean((taladros && taladros.length > 0) || (poligonoCresta && poligonoCresta.length > 0));
+  });
+
+  // Si externamente entran taladros o polígonos, marcar como malla generada
+  useEffect(() => {
+    if ((taladros && taladros.length > 0) || (poligonoCresta && poligonoCresta.length > 0)) {
+      setMallaGenerada(true);
+    }
+  }, [taladros?.length, poligonoCresta?.length]);
 
   // Estado del Concepto Expandible (para ayudar didácticamente al usuario)
   const [conceptoAbierto, setConceptoAbierto] = useState<string | null>(null);
@@ -151,59 +457,20 @@ export default function PanelDatosRmrMetodo({
   }, [tipoSeccion, anchoGaleria, altoGaleria, alturaCorona]);
 
   // =========================================================================
-  // CÁLCULO DE DIÁMETRO EQUIVALENTE DE ALIVIO
-  // De = D_individual * sqrt(N)  (López Jimeno & Holmberg)
+  // DIÁMETRO EQUIVALENTE DE ALIVIO Y SECUENCIA DE ARRANQUE (CUELE HOLMBERG)
+  // De = D_individual * sqrt(N); B1=1.5*De, E1=B1*sqrt(2); Bn=E(n-1), En=1.5*Bn*sqrt(2)
+  // (metodo simplificado de Jimeno Tabla 22.2, delegado en
+  // packages/core/src/formulas/mining/tunnelRound.ts::calcularArranqueHolmberg).
   // =========================================================================
-  const diametroEquivalente = useMemo(() => {
-    const n = Math.max(1, numAlivios);
-    const dIndMm = Math.max(25, diametroAlivioMm);
-    const deMm = dIndMm * Math.sqrt(n);
-    const deM = deMm / 1000;
-    return { deMm, deM };
-  }, [numAlivios, diametroAlivioMm]);
-
-  // =========================================================================
-  // CÁLCULO DE LA SECUENCIA DE ARRANQUE EN 5 ETAPAS (HOLMBERG 5-QUADRANT CUT)
-  // Valores calibrados con exactitud de la referencia sueca / Jimeno:
-  // Etapa 1: B1 = 2.00 * De,  E1 = B1 * sqrt(2)
-  // Etapa 2..5: Bi = 0.85 * E(i-1),  Ei = E(i-1) * 1.909
-  // =========================================================================
-  const etapasArranque = useMemo(() => {
-    const { deM } = diametroEquivalente;
-
-    // Etapa 1
-    const f1 = 2.0;
-    const b1 = f1 * deM;
-    const e1 = b1 * Math.SQRT2;
-
-    // Etapa 2
-    const f2 = 0.85;
-    const b2 = f2 * e1;
-    const e2 = e1 * 1.909;
-
-    // Etapa 3
-    const f3 = 0.85;
-    const b3 = f3 * e2;
-    const e3 = e2 * 1.909;
-
-    // Etapa 4
-    const f4 = 0.85;
-    const b4 = f4 * e3;
-    const e4 = e3 * 1.909;
-
-    // Etapa 5 (Control de expansión)
-    const f5 = 0.85;
-    const b5 = f5 * e4;
-    const e5 = e4 * 1.909;
-
-    return [
-      { etapa: 1, b: b1, e: e1, f: f1 },
-      { etapa: 2, b: b2, e: e2, f: f2 },
-      { etapa: 3, b: b3, e: e3, f: f3 },
-      { etapa: 4, b: b4, e: e4, f: f4 },
-      { etapa: 5, b: b5, e: e5, f: f5 },
-    ];
-  }, [diametroEquivalente]);
+  const resultadoHolmberg = useMemo(
+    () => calcularHolmberg(numAlivios, diametroAlivioMm, avanceM),
+    [numAlivios, diametroAlivioMm, avanceM]
+  );
+  const diametroEquivalente = useMemo(
+    () => ({ deMm: resultadoHolmberg.deMm, deM: resultadoHolmberg.deM }),
+    [resultadoHolmberg]
+  );
+  const etapasArranque = resultadoHolmberg.etapas;
 
   // =========================================================================
   // RECOMENDACIÓN GEOMECÁNICA RMR (BIENIAWSKI / SUECO)
@@ -213,7 +480,7 @@ export default function PanelDatosRmrMetodo({
       return {
         tipo: "Roca Suave",
         clase: "Clase I - II (Buena / Muy Buena)",
-        espaciamiento: 0.73,
+        espaciamiento: calcularEspaciamientoContornoPorRmr(rmrScore),
         coeficienteK: 1.1,
         aliviosSugeridos: 4,
         factorCarga: "1.10 - 1.30 kg/m³",
@@ -226,7 +493,7 @@ export default function PanelDatosRmrMetodo({
       return {
         tipo: "Roca Semidura",
         clase: "Clase III (Regular)",
-        espaciamiento: 0.55,
+        espaciamiento: calcularEspaciamientoContornoPorRmr(rmrScore),
         coeficienteK: 1.65,
         aliviosSugeridos: 4,
         factorCarga: "1.40 - 1.70 kg/m³",
@@ -238,7 +505,7 @@ export default function PanelDatosRmrMetodo({
     return {
       tipo: "Roca Dura",
       clase: "Clase IV - V (Mala / Muy Mala o Gran Dureza)",
-      espaciamiento: 0.48,
+      espaciamiento: calcularEspaciamientoContornoPorRmr(rmrScore),
       coeficienteK: 2.25,
       aliviosSugeridos: 5,
       factorCarga: "1.80 - 2.40 kg/m³",
@@ -247,6 +514,153 @@ export default function PanelDatosRmrMetodo({
         "Roca tenaz o de macizo fuertemente alterado/confinado. Requiere 5 taladros de alivio para ampliar la cara libre y menor espaciamiento para evitar el soplado.",
     };
   }, [rmrScore]);
+
+  // =========================================================================
+  // GENERACIÓN DE MALLA EN VIVO (LIVE REAL-TIME CALCULATION)
+  // =========================================================================
+  const calcularContornoEnVivo = (
+    tipo: TipoSeccionPlantilla,
+    ancho: number,
+    alto: number,
+    corona: number
+  ): Punto2D[] => {
+    const W = Math.max(0.5, ancho);
+    const H = Math.max(0.5, alto);
+
+    if (tipo === "rectangular") {
+      return [
+        { x: 0, y: 0 },
+        { x: W, y: 0 },
+        { x: W, y: H },
+        { x: 0, y: H },
+      ];
+    }
+
+    if (tipo === "herradura") {
+      const radio = W / 2;
+      const hHastial = Math.max(0, H - radio);
+      const pts: Punto2D[] = [];
+      pts.push({ x: 0, y: 0 });
+      pts.push({ x: W, y: 0 });
+      pts.push({ x: W, y: hHastial });
+      const numPtsArco = 16;
+      for (let i = 0; i <= numPtsArco; i++) {
+        const ang = (i / numPtsArco) * Math.PI;
+        const x = W / 2 + radio * Math.cos(ang);
+        const y = hHastial + radio * Math.sin(ang);
+        pts.push({ x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000 });
+      }
+      pts.push({ x: 0, y: 0 });
+      return pts;
+    }
+
+    // tipo_d o arco_personalizado
+    const hCorona = tipo === "tipo_d" ? Math.min(W * 0.35, H * 0.5) : Math.min(corona, H * 0.8);
+    const hHastial = Math.max(0, H - hCorona);
+    const pts: Punto2D[] = [];
+    pts.push({ x: 0, y: 0 });
+    pts.push({ x: W, y: 0 });
+    pts.push({ x: W, y: hHastial });
+    const numPts = 16;
+    for (let i = 0; i <= numPts; i++) {
+      const t = i / numPts;
+      const ang = t * Math.PI;
+      const x = W - t * W;
+      const y = hHastial + hCorona * Math.sin(ang);
+      pts.push({ x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000 });
+    }
+    pts.push({ x: 0, y: 0 });
+    return pts;
+  };
+
+  const calcularTaladrosEnVivo = (): Taladro[] =>
+    construirTaladrosMalla({
+      ancho: anchoGaleria,
+      alto: altoGaleria,
+      tipoSeccion,
+      numAlivios,
+      diametroAlivioMm,
+      diametroProdMm,
+      avanceM,
+      rmr: rmrScore,
+    });
+
+  const handleCargarPlantilla = (p: PlantillaMalla) => {
+    setTipoSeccion(p.tipoSeccion);
+    setAnchoGaleria(p.ancho);
+    setAltoGaleria(p.alto);
+    setAlturaCorona(p.corona);
+    setNumAlivios(p.numAlivios);
+    setDiametroAlivioMm(p.diametroAlivioMm);
+    setDiametroProdMm(p.diametroProdMm);
+    setAvanceM(p.avanceM);
+    setRmrScore(p.rmr);
+    setMallaGenerada(true);
+
+    const contorno = calcularContornoEnVivo(p.tipoSeccion, p.ancho, p.alto, p.corona);
+    const lista = construirTaladrosMalla({
+      ancho: p.ancho,
+      alto: p.alto,
+      tipoSeccion: p.tipoSeccion,
+      numAlivios: p.numAlivios,
+      diametroAlivioMm: p.diametroAlivioMm,
+      diametroProdMm: p.diametroProdMm,
+      avanceM: p.avanceM,
+      rmr: p.rmr,
+    });
+
+    if (onCambiarPoligono) {
+      onCambiarPoligono(contorno);
+    }
+    if (onGenerarTaladros) {
+      onGenerarTaladros(lista);
+    } else if (onCambiarTaladros) {
+      onCambiarTaladros(lista);
+    }
+
+    mostrarAviso?.(`⚡ Plantilla cargada: ${p.nombre} (${p.badge}) - ${lista.length} taladros.`);
+  };
+
+  const handleLimpiarLienzo = () => {
+    setMallaGenerada(false);
+    if (onCambiarPoligono) {
+      onCambiarPoligono([]);
+    }
+    if (onCambiarTaladros) {
+      onCambiarTaladros([]);
+    }
+    mostrarAviso?.("✓ Lienzo en blanco: Malla y contorno limpiados.");
+  };
+
+  // Efecto reactivo para actualizar la malla EN VIVO en el Canvas 3D (solo si la malla está activa)
+  useEffect(() => {
+    if (!visible || !mallaGenerada) return;
+    const contorno = calcularContornoEnVivo(tipoSeccion, anchoGaleria, altoGaleria, alturaCorona);
+    const nuevosTaladros = calcularTaladrosEnVivo();
+
+    if (onCambiarPoligono) {
+      onCambiarPoligono(contorno);
+    }
+    if (onGenerarTaladros) {
+      onGenerarTaladros(nuevosTaladros);
+    } else if (onCambiarTaladros) {
+      onCambiarTaladros(nuevosTaladros);
+    }
+  }, [
+    visible,
+    mallaGenerada,
+    tipoSeccion,
+    anchoGaleria,
+    altoGaleria,
+    alturaCorona,
+    numAlivios,
+    diametroAlivioMm,
+    diametroProdMm,
+    avanceM,
+    rmrScore,
+    metodoDiseno,
+    tipoCorte,
+  ]);
 
   // =========================================================================
   // ANÁLISIS NO DESTRUCTIVO CAD (INSPECCIÓN DE CAPAS ACTIVAS)
@@ -406,13 +820,38 @@ export default function PanelDatosRmrMetodo({
       className="panel-datos-rmr-container"
       onClick={(e) => e.stopPropagation()}
       style={
-        posicion === "abajo"
+        isMobile
+          ? {
+              position: "absolute",
+              bottom: 0,
+              left: 0,
+              right: 0,
+              width: "100%",
+              maxWidth: "100vw",
+              transform: "none",
+              maxHeight: minimizado ? 44 : "64vh",
+              height: minimizado ? 44 : "auto",
+              background: "#0c121e",
+              border: "1.5px solid rgba(249, 115, 22, 0.45)",
+              borderBottom: "none",
+              borderRadius: "16px 16px 0 0",
+              boxShadow: "0 -10px 40px rgba(0, 0, 0, 0.95), 0 0 25px rgba(249, 115, 22, 0.15)",
+              display: "flex",
+              flexDirection: "column",
+              zIndex: 900,
+              overflow: "hidden",
+              color: "#f8fafc",
+              fontFamily: "'Segoe UI', -apple-system, sans-serif",
+              boxSizing: "border-box",
+              transition: "max-height 0.25s cubic-bezier(0.16, 1, 0.3, 1), height 0.25s ease",
+            }
+          : posicion === "abajo"
           ? {
               position: "absolute",
               bottom: 0,
               left: "50%",
               transform: "translateX(-50%)",
-              width: "min(1180px, calc(100vw - 140px))",
+              width: "min(1180px, calc(100vw - 120px))",
               maxHeight: minimizado ? 46 : "48vh",
               height: minimizado ? 46 : "auto",
               background: "#0c121e",
@@ -453,51 +892,58 @@ export default function PanelDatosRmrMetodo({
       {/* CABECERA PRINCIPAL */}
       <div
         style={{
-          padding: posicion === "abajo" ? "8px 16px 10px" : "14px 18px 10px",
+          padding: isMobile ? "6px 12px 8px" : posicion === "abajo" ? "8px 16px 10px" : "14px 18px 10px",
           borderBottom: minimizado ? "none" : "1px solid #1e293b",
           background: "linear-gradient(180deg, rgba(30, 41, 59, 0.45) 0%, rgba(12, 18, 30, 0.85) 100%)",
         }}
       >
-        {posicion === "abajo" && (
+        {(posicion === "abajo" || isMobile) && (
           <div
             onClick={() => setMinimizado(!minimizado)}
             style={{
-              width: 38,
+              width: isMobile ? 32 : 38,
               height: 4,
-              background: "rgba(255, 255, 255, 0.25)",
+              background: "rgba(255, 255, 255, 0.28)",
               borderRadius: 2,
-              margin: "0 auto 6px",
+              margin: "0 auto 5px",
               cursor: "pointer",
             }}
             title={minimizado ? "Expandir panel inferior" : "Comprimir panel"}
           />
         )}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, minWidth: 0 }}>
           <h2
             style={{
               margin: 0,
-              fontSize: 13,
+              fontSize: isMobile ? 11.5 : 13,
               fontWeight: 800,
-              letterSpacing: "0.06em",
+              letterSpacing: "0.04em",
               textTransform: "uppercase",
               color: "#ffffff",
               display: "flex",
               alignItems: "center",
-              gap: 8,
+              gap: 6,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
               whiteSpace: "nowrap",
+              flex: 1,
+              minWidth: 0,
             }}
           >
-            <span>DISEÑO DE MALLA · SUBTERRÁNEA</span>
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {isMobile ? "DISEÑO DE MALLA" : "DISEÑO DE MALLA · SUBTERRÁNEA"}
+            </span>
             {minimizado && (
               <span
                 style={{
-                  fontSize: 10,
+                  fontSize: isMobile ? 9 : 10,
                   fontWeight: 600,
                   color: "var(--acento, #f97316)",
                   background: "rgba(249, 115, 22, 0.12)",
-                  padding: "2px 8px",
+                  padding: "2px 6px",
                   borderRadius: 12,
                   border: "1px solid rgba(249, 115, 22, 0.3)",
+                  flexShrink: 0,
                 }}
               >
                 {anchoGaleria}×{altoGaleria}m · {tab.toUpperCase()}
@@ -505,28 +951,30 @@ export default function PanelDatosRmrMetodo({
             )}
           </h2>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            {/* Botón para alternar posición entre Abajo y Lateral */}
-            <button
-              type="button"
-              onClick={() => setPosicion(posicion === "abajo" ? "lateral" : "abajo")}
-              style={{
-                background: "rgba(255, 255, 255, 0.08)",
-                border: "1px solid #334155",
-                borderRadius: 6,
-                color: "#94a3b8",
-                fontSize: 11,
-                fontWeight: 600,
-                padding: "3px 8px",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-              }}
-              title={posicion === "abajo" ? "Cambiar a panel lateral derecho" : "Acoplar abajo como panel inferior"}
-            >
-              {posicion === "abajo" ? "◫ Lateral" : "⬕ Abajo"}
-            </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+            {/* Botón para alternar posición entre Abajo y Lateral (solo desktop) */}
+            {!isMobile && (
+              <button
+                type="button"
+                onClick={() => setPosicion(posicion === "abajo" ? "lateral" : "abajo")}
+                style={{
+                  background: "rgba(255, 255, 255, 0.08)",
+                  border: "1px solid #334155",
+                  borderRadius: 6,
+                  color: "#94a3b8",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  padding: "3px 8px",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                }}
+                title={posicion === "abajo" ? "Cambiar a panel lateral derecho" : "Acoplar abajo como panel inferior"}
+              >
+                {posicion === "abajo" ? "◫ Lateral" : "⬕ Abajo"}
+              </button>
+            )}
 
             {/* Botón Minimizar / Expandir */}
             <button
@@ -539,12 +987,12 @@ export default function PanelDatosRmrMetodo({
                 color: "#cbd5e1",
                 fontSize: 11,
                 fontWeight: 700,
-                padding: "3px 8px",
+                padding: isMobile ? "3px 8px" : "3px 8px",
                 cursor: "pointer",
               }}
               title={minimizado ? "Expandir menú completo" : "Comprimir menú"}
             >
-              {minimizado ? "▲ Expandir" : "▼ Comprimir"}
+              {isMobile ? (minimizado ? "▲" : "▼") : (minimizado ? "▲ Expandir" : "▼ Comprimir")}
             </button>
 
             {/* Botón Ocultar */}
@@ -561,12 +1009,12 @@ export default function PanelDatosRmrMetodo({
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
-                gap: 3,
-                padding: "3px 6px",
+                gap: 2,
+                padding: isMobile ? "3px 5px" : "3px 6px",
               }}
               title="Ocultar panel"
             >
-              <span>✕ OCULTAR</span>
+              <span>{isMobile ? "✕" : "✕ OCULTAR"}</span>
             </button>
           </div>
         </div>
@@ -577,8 +1025,8 @@ export default function PanelDatosRmrMetodo({
             style={{
               display: "grid",
               gridTemplateColumns: "repeat(4, 1fr)",
-              gap: 6,
-              marginTop: 10,
+              gap: isMobile ? 3 : 6,
+              marginTop: isMobile ? 6 : 10,
             }}
           >
             {tabs.map((t) => {
@@ -589,16 +1037,19 @@ export default function PanelDatosRmrMetodo({
                   type="button"
                   onClick={() => setTab(t.id)}
                   style={{
-                    padding: "6px 2px",
-                    fontSize: 11,
+                    padding: isMobile ? "5px 2px" : "6px 2px",
+                    fontSize: isMobile ? 10 : 11,
                     fontWeight: activa ? 700 : 500,
-                    borderRadius: 8,
+                    borderRadius: 6,
                     border: activa ? "1px solid var(--acento, #f97316)" : "1px solid #334155",
                     background: activa ? "rgba(249, 115, 22, 0.22)" : "rgba(15, 23, 42, 0.6)",
                     color: activa ? "#ffffff" : "#94a3b8",
                     cursor: "pointer",
                     transition: "all 0.15s ease",
                     textAlign: "center",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
                   }}
                 >
                   {t.label}
@@ -613,13 +1064,18 @@ export default function PanelDatosRmrMetodo({
       {!minimizado && (
         <div
           style={{
-            padding: posicion === "abajo" ? "12px 18px" : "16px 18px",
+            padding: isMobile ? "10px 12px" : posicion === "abajo" ? "12px 18px" : "16px 18px",
             overflowY: "auto",
+            WebkitOverflowScrolling: "touch",
             flex: 1,
             display: "flex",
             flexDirection: "column",
-            gap: 12,
-            maxHeight: posicion === "abajo" ? "calc(48vh - 95px)" : "calc(100vh - 180px)",
+            gap: isMobile ? 10 : 12,
+            maxHeight: isMobile
+              ? "calc(64vh - 90px)"
+              : posicion === "abajo"
+              ? "calc(48vh - 95px)"
+              : "calc(100vh - 180px)",
           }}
         >
         {/* ================================================================= */}
@@ -629,11 +1085,130 @@ export default function PanelDatosRmrMetodo({
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: posicion === "abajo" ? "repeat(auto-fit, minmax(320px, 1fr))" : "1fr",
+              gridTemplateColumns: isMobile ? "1fr" : posicion === "abajo" ? "repeat(auto-fit, minmax(300px, 1fr))" : "1fr",
               gap: 12,
               alignItems: "start",
             }}
           >
+            {/* SECCIÓN 0: BANNER DE PLANTILLAS RÁPIDAS (JALAR PLANTILLA) */}
+            <div
+              style={{
+                background: mallaGenerada ? "rgba(15, 23, 42, 0.5)" : "linear-gradient(135deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%)",
+                borderRadius: 12,
+                padding: 14,
+                border: mallaGenerada ? "1px solid #1e293b" : "1.5px solid var(--acento, #f97316)",
+                boxShadow: mallaGenerada ? "none" : "0 0 20px rgba(249, 115, 22, 0.2)",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 800,
+                  color: "#ffffff",
+                  marginBottom: 6,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span>⚡</span>
+                  <span>{mallaGenerada ? "Plantilla Activa (En Vivo)" : "Jalar / Cargar Plantilla de Malla"}</span>
+                </span>
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    padding: "2px 7px",
+                    borderRadius: 10,
+                    background: mallaGenerada ? "rgba(16, 185, 129, 0.15)" : "rgba(249, 115, 22, 0.15)",
+                    color: mallaGenerada ? "#10b981" : "var(--acento, #f97316)",
+                    border: mallaGenerada ? "1px solid rgba(16, 185, 129, 0.3)" : "1px solid rgba(249, 115, 22, 0.3)",
+                  }}
+                >
+                  {mallaGenerada ? "● EN VIVO" : "○ EN BLANCO"}
+                </span>
+              </div>
+
+              <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 10, lineHeight: 1.4 }}>
+                {mallaGenerada
+                  ? "Cualquier cambio se actualiza en tiempo real en el visor 3D. Puedes cambiar de plantilla o limpiar el lienzo:"
+                  : "El lienzo está en blanco. Selecciona una plantilla predefinida para generar la malla de perforación:"}
+              </div>
+
+              {/* Grid de mini tarjetas de plantilla */}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 6,
+                  marginBottom: 10,
+                }}
+              >
+                {PLANTILLAS_MALLA_PRESET.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => handleCargarPlantilla(p)}
+                    style={{
+                      padding: "8px 8px",
+                      borderRadius: 8,
+                      border: "1px solid #334155",
+                      background: "rgba(15, 23, 42, 0.6)",
+                      color: "#f8fafc",
+                      textAlign: "left",
+                      cursor: "pointer",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 2,
+                      transition: "all 0.15s ease",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = "var(--acento, #f97316)";
+                      e.currentTarget.style.background = "rgba(249, 115, 22, 0.12)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = "#334155";
+                      e.currentTarget.style.background = "rgba(15, 23, 42, 0.6)";
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "#ffffff" }}>
+                        {p.icono} {p.nombre}
+                      </span>
+                      <span style={{ fontSize: 9, color: p.color, fontWeight: 700 }}>
+                        {p.badge}
+                      </span>
+                    </div>
+                    <span style={{ fontSize: 9.5, color: "#94a3b8", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {p.numAlivios} Alivios · RMR {p.rmr}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {mallaGenerada && (
+                <button
+                  type="button"
+                  onClick={handleLimpiarLienzo}
+                  style={{
+                    width: "100%",
+                    padding: "7px 10px",
+                    fontSize: 10.5,
+                    fontWeight: 700,
+                    borderRadius: 6,
+                    border: "1px solid #475569",
+                    background: "rgba(30, 41, 59, 0.5)",
+                    color: "#cbd5e1",
+                    cursor: "pointer",
+                    textAlign: "center",
+                  }}
+                >
+                  ✕ Limpiar Malla (Volver a Lienzo en Blanco)
+                </button>
+              )}
+            </div>
+
             {/* SECCIÓN 1: PLANTILLA GEOMÉTRICA */}
             <div
               style={{
@@ -710,7 +1285,10 @@ export default function PanelDatosRmrMetodo({
                   <button
                     key={sec.id}
                     type="button"
-                    onClick={() => setTipoSeccion(sec.id)}
+                    onClick={() => {
+                      setTipoSeccion(sec.id);
+                      setMallaGenerada(true);
+                    }}
                     style={{
                       padding: "8px 4px",
                       fontSize: 11,
@@ -744,7 +1322,10 @@ export default function PanelDatosRmrMetodo({
                     min={0.5}
                     step={0.1}
                     value={anchoGaleria}
-                    onChange={(e) => setAnchoGaleria(Math.max(0.5, Number(e.target.value)))}
+                    onChange={(e) => {
+                      setAnchoGaleria(Math.max(0.5, Number(e.target.value)));
+                      setMallaGenerada(true);
+                    }}
                     style={{
                       width: "100%",
                       padding: "7px 10px",
@@ -766,7 +1347,10 @@ export default function PanelDatosRmrMetodo({
                     min={0.5}
                     step={0.1}
                     value={altoGaleria}
-                    onChange={(e) => setAltoGaleria(Math.max(0.5, Number(e.target.value)))}
+                    onChange={(e) => {
+                      setAltoGaleria(Math.max(0.5, Number(e.target.value)));
+                      setMallaGenerada(true);
+                    }}
                     style={{
                       width: "100%",
                       padding: "7px 10px",
@@ -791,7 +1375,10 @@ export default function PanelDatosRmrMetodo({
                     min={0.1}
                     step={0.05}
                     value={alturaCorona}
-                    onChange={(e) => setAlturaCorona(Math.max(0.1, Number(e.target.value)))}
+                    onChange={(e) => {
+                      setAlturaCorona(Math.max(0.1, Number(e.target.value)));
+                      setMallaGenerada(true);
+                    }}
                     style={{
                       width: "100%",
                       padding: "7px 10px",
@@ -1156,7 +1743,7 @@ export default function PanelDatosRmrMetodo({
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: posicion === "abajo" ? "repeat(auto-fit, minmax(320px, 1fr))" : "1fr",
+              gridTemplateColumns: isMobile ? "1fr" : posicion === "abajo" ? "repeat(auto-fit, minmax(300px, 1fr))" : "1fr",
               gap: 12,
               alignItems: "start",
             }}
@@ -1417,7 +2004,7 @@ export default function PanelDatosRmrMetodo({
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: posicion === "abajo" ? "repeat(auto-fit, minmax(320px, 1fr))" : "1fr",
+              gridTemplateColumns: isMobile ? "1fr" : posicion === "abajo" ? "repeat(auto-fit, minmax(300px, 1fr))" : "1fr",
               gap: 12,
               alignItems: "start",
             }}
@@ -1529,12 +2116,13 @@ export default function PanelDatosRmrMetodo({
                     borderLeft: "3px solid var(--acento, #f97316)",
                   }}
                 >
-                  <b>Fundamento Físico:</b> Cada cuadrante de taladros abre una cavidad rectangular
+                  <b>Fundamento Físico:</b> Cada cuadrante de taladros abre una cavidad cuadrada
                   hacia la cual rompe el siguiente. El <i>Burden (Bn)</i> es la distancia crítica a la
                   cara libre para evitar soplado. El <i>Espaciamiento (En)</i> define el lado del
-                  prisma desalojado. En la Etapa 1 se aplica <code>f = 2.00</code> sobre el diámetro
-                  equivalente <code>De</code>, y en las subsiguientes se conserva <code>f = 0.85</code>{" "}
-                  para compensar el ángulo de rotura de 90°.
+                  prisma desalojado. Metodo simplificado de Jimeno (Tabla 22.2): en la Etapa 1,{" "}
+                  <code>B1 = 1.5 × De</code> y <code>E1 = B1 × √2</code>; en las etapas siguientes,{" "}
+                  <code>Bn = E(n-1)</code> y <code>En = 1.5 × Bn × √2</code> (factor <code>f = En/Bn</code>{" "}
+                  mostrado en cada fila).
                 </div>
               )}
 
@@ -1608,7 +2196,7 @@ export default function PanelDatosRmrMetodo({
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: posicion === "abajo" ? "repeat(auto-fit, minmax(320px, 1fr))" : "1fr",
+              gridTemplateColumns: isMobile ? "1fr" : posicion === "abajo" ? "repeat(auto-fit, minmax(300px, 1fr))" : "1fr",
               gap: 12,
               alignItems: "start",
             }}
@@ -1669,11 +2257,11 @@ export default function PanelDatosRmrMetodo({
               >
                 Centro X {galeriaDetectada.centroX.toFixed(3)} · Y{" "}
                 {galeriaDetectada.centroY.toFixed(3)} · Corona estimada{" "}
-                {galeriaDetectada.corona.toFixed(1)} m
+                {galeriaDetectada.corona.toFixed(2)} m
               </div>
             </div>
 
-            {/* TARJETA 2: TALADROS MANUALES */}
+            {/* TARJETA 2: TALADROS EN ESCENA */}
             <div
               style={{
                 background: "rgba(15, 23, 42, 0.75)",
@@ -1691,7 +2279,7 @@ export default function PanelDatosRmrMetodo({
                   marginBottom: 8,
                 }}
               >
-                TALADROS MANUALES
+                TALADROS EN ESCENA
               </div>
 
               <div
@@ -1702,50 +2290,58 @@ export default function PanelDatosRmrMetodo({
                   marginBottom: 6,
                 }}
               >
-                {taladrosDetectados.total} taladros · {taladrosDetectados.metros} m perforados
+                Total: {taladrosDetectados.total} taladros ({taladrosDetectados.cargados}{" "}
+                cargados + {taladrosDetectados.alivio} alivio)
+              </div>
+
+              <div
+                style={{
+                  fontSize: 12,
+                  color: "#cbd5e1",
+                  marginBottom: 6,
+                }}
+              >
+                Metraje total perforado: {taladrosDetectados.metros.toFixed(1)} m
               </div>
 
               <div
                 style={{
                   fontSize: 11,
-                  color: "#cbd5e1",
-                  marginBottom: 4,
+                  color: "#94a3b8",
                 }}
               >
-                Cargados {taladrosDetectados.cargados} · Alivio/no cargados{" "}
-                {taladrosDetectados.alivio}
-              </div>
-
-              <div
-                style={{
-                  fontSize: 10,
-                  color: "#64748b",
-                  fontStyle: "italic",
-                }}
-              >
-                Fuente: Dibujo CAD
+                Ø Alivio {diametroAlivioMm} mm · Ø Prod {diametroProdMm} mm · Avance{" "}
+                {avanceM} m
               </div>
             </div>
 
-            {/* DIAGNÓSTICO TÉCNICO DE VOLADURA */}
+            {/* TARJETA 3: BALANCES MINEROS */}
             <div
               style={{
-                background: "rgba(7, 12, 22, 0.6)",
-                borderRadius: 10,
-                border: "1px solid #1e293b",
-                padding: 12,
-                fontSize: 11,
-                color: "#cbd5e1",
+                background: "rgba(15, 23, 42, 0.75)",
+                borderRadius: 12,
+                padding: 14,
+                border: "1px solid #38bdf8",
                 display: "flex",
                 flexDirection: "column",
                 gap: 6,
+                fontSize: 11,
+                color: "#cbd5e1",
               }}
             >
-              <div style={{ fontWeight: 700, color: "var(--acento, #f97316)" }}>
-                Diagnóstico de Diseño
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 800,
+                  color: "#38bdf8",
+                  letterSpacing: "0.05em",
+                  marginBottom: 4,
+                }}
+              >
+                BALANCES MINEROS ESTIMADOS
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Volumen estimado por avance:</span>
+                <span>Volumen roto teórico:</span>
                 <b>{(galeriaDetectada.area * avanceM * 0.92).toFixed(2)} m³</b>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -1771,12 +2367,12 @@ export default function PanelDatosRmrMetodo({
       {!minimizado && (
         <div
           style={{
-            padding: "10px 18px",
+            padding: isMobile ? "8px 12px" : "10px 18px",
             borderTop: "1px solid #1e293b",
-            background: "rgba(7, 12, 22, 0.9)",
+            background: "rgba(7, 12, 22, 0.95)",
             display: "grid",
             gridTemplateColumns: "1fr 1fr",
-            gap: 10,
+            gap: isMobile ? 8 : 10,
           }}
         >
           <button
@@ -1784,12 +2380,12 @@ export default function PanelDatosRmrMetodo({
             onClick={irPasoAnterior}
             disabled={tab === "datos"}
             style={{
-              padding: "9px",
+              padding: isMobile ? "8px" : "9px",
               borderRadius: 8,
               border: "1px solid #475569",
               background: "transparent",
               color: tab === "datos" ? "#475569" : "#e2e8f0",
-              fontSize: 12,
+              fontSize: isMobile ? 11 : 12,
               fontWeight: 700,
               letterSpacing: "0.04em",
               cursor: tab === "datos" ? "not-allowed" : "pointer",
@@ -1803,12 +2399,12 @@ export default function PanelDatosRmrMetodo({
             type="button"
             onClick={irPasoSiguiente}
             style={{
-              padding: "9px",
+              padding: isMobile ? "8px" : "9px",
               borderRadius: 8,
               border: "none",
               background: "var(--acento, #f97316)",
               color: "#ffffff",
-              fontSize: 12,
+              fontSize: isMobile ? 11 : 12,
               fontWeight: 800,
               letterSpacing: "0.04em",
               cursor: "pointer",

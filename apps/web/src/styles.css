@@ -2117,6 +2117,35 @@ table.tabla-taladros td:first-child {
   background: #232f48;
 }
 
+@media (max-width: 600px) {
+  .cad-header-exact {
+    padding: 0 6px;
+    gap: 4px;
+  }
+  .cad-header-sub {
+    display: none;
+  }
+  .coords-select-wrapper {
+    padding: 2px 4px;
+    gap: 4px;
+  }
+  .select-coords-topbar {
+    max-width: 90px;
+    font-size: 10px;
+  }
+  .cad-header-actions-exact {
+    gap: 3px;
+  }
+  .btn-exact-icon {
+    width: 28px;
+    height: 28px;
+  }
+  .btn-exact-salir {
+    padding: 3px 6px;
+    font-size: 9px;
+  }
+}
+
 /* Viewport 3D Three.js Central */
 .cad-three-viewport {
   flex: 1 1 auto;
@@ -2247,6 +2276,41 @@ table.tabla-taladros td:first-child {
   border-color: var(--acento, #f97316);
   color: var(--acento-suave, #fdba74);
   box-shadow: 0 0 10px color-mix(in srgb, var(--acento, #f97316) 50%, transparent);
+}
+
+@media (max-width: 600px) {
+  .cad-dock-left-exact {
+    top: 8px;
+    left: 4px;
+    width: 36px;
+    padding: 4px 2px;
+    gap: 3px;
+    border-radius: 18px;
+    max-height: calc(100% - 56px);
+    overflow-y: auto;
+  }
+
+  .btn-dock-tool-exact {
+    width: 32px;
+    height: 25px;
+    font-size: 8.5px;
+    border-radius: 8px;
+  }
+
+  .cad-dock-right-exact {
+    top: 8px;
+    right: 4px;
+    width: 36px;
+    padding: 5px 2px;
+    gap: 5px;
+    border-radius: 18px;
+  }
+
+  .btn-dock-circle-exact {
+    width: 30px;
+    height: 30px;
+    font-size: 9.5px;
+  }
 }
 
 /* Ejes 3D Sincronizados en Tiempo Real con la Cámara */
@@ -2480,12 +2544,12 @@ table.tabla-taladros td:first-child {
   .cad-panel-taladro-exact,
   .cad-panel-solido-exact,
   .cad-panel-grilla-exact {
-    top: 14px;
-    left: 56px;
+    top: 8px;
+    left: 42px;
     right: auto;
     transform: none;
-    width: min(280px, calc(100% - 108px));
-    max-height: calc(100% - 74px);
+    width: min(290px, calc(100vw - 48px));
+    max-height: calc(100% - 56px);
     padding: 10px 12px;
     gap: 7px;
   }
@@ -2517,13 +2581,16 @@ table.tabla-taladros td:first-child {
 
 @media (max-width: 600px) {
   .cad-panel-edicion-exact {
-    top: 96px;
-    right: 52px;
-    width: min(295px, calc(100% - 96px));
-    max-height: calc(100% - 140px);
-    padding: 14px 16px;
+    top: 54px;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    width: min(340px, calc(100vw - 16px));
+    max-height: calc(100vh - 110px);
+    padding: 12px 14px;
     gap: 10px;
     border-radius: 16px;
+    z-index: 100;
   }
 }
 
