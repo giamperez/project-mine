@@ -140,8 +140,15 @@ export type GrupoTaladroCad =
   | "arranque"
   | "alivio"
   | "cuadrante"
+  | "cuadrante1"
+  | "cuadrante2"
+  | "cuadrante3"
+  | "cuadrante4"
   | "produccion"
+  | "cuadradores"
   | "corona"
+  | "recorte"
+  | "contorno"
   | "hastial"
   | "arrastre";
 
@@ -159,6 +166,116 @@ export interface InfoGrupoTaladro {
 
 export const GRUPOS_TALADRO_CONFIG: InfoGrupoTaladro[] = [
   {
+    id: "alivio",
+    label: "Alivios",
+    abrev: "ALIV",
+    colorDefecto: "#00f0ff",
+    radioMmDefecto: "51.0",
+    longitudMDefecto: "3.8",
+    lookOutDefecto: "0",
+    gradienteDefecto: "0",
+    cargadoDefecto: false,
+  },
+  {
+    id: "cuadrante1",
+    label: "Cuadrante 1",
+    abrev: "C1",
+    colorDefecto: "#ef4444",
+    radioMmDefecto: "22.5",
+    longitudMDefecto: "3.6",
+    lookOutDefecto: "0",
+    gradienteDefecto: "0",
+    cargadoDefecto: true,
+  },
+  {
+    id: "cuadrante2",
+    label: "Cuadrante 2",
+    abrev: "C2",
+    colorDefecto: "#f97316",
+    radioMmDefecto: "22.5",
+    longitudMDefecto: "3.6",
+    lookOutDefecto: "0",
+    gradienteDefecto: "0",
+    cargadoDefecto: true,
+  },
+  {
+    id: "cuadrante3",
+    label: "Cuadrante 3",
+    abrev: "C3",
+    colorDefecto: "#f59e0b",
+    radioMmDefecto: "22.5",
+    longitudMDefecto: "3.6",
+    lookOutDefecto: "0",
+    gradienteDefecto: "0",
+    cargadoDefecto: true,
+  },
+  {
+    id: "cuadrante4",
+    label: "Cuadrante 4",
+    abrev: "C4",
+    colorDefecto: "#a855f7",
+    radioMmDefecto: "22.5",
+    longitudMDefecto: "3.6",
+    lookOutDefecto: "0",
+    gradienteDefecto: "0",
+    cargadoDefecto: true,
+  },
+  {
+    id: "produccion",
+    label: "Producción",
+    abrev: "PROD",
+    colorDefecto: "#ec4899",
+    radioMmDefecto: "22.5",
+    longitudMDefecto: "3.6",
+    lookOutDefecto: "0",
+    gradienteDefecto: "0",
+    cargadoDefecto: true,
+  },
+  {
+    id: "cuadradores",
+    label: "Cuadradores",
+    abrev: "CUAD",
+    colorDefecto: "#38bdf8",
+    radioMmDefecto: "22.5",
+    longitudMDefecto: "3.6",
+    lookOutDefecto: "3",
+    gradienteDefecto: "0",
+    cargadoDefecto: true,
+  },
+  {
+    id: "corona",
+    label: "Corona",
+    abrev: "COR",
+    colorDefecto: "#22c55e",
+    radioMmDefecto: "22.5",
+    longitudMDefecto: "3.6",
+    lookOutDefecto: "3",
+    gradienteDefecto: "0",
+    cargadoDefecto: true,
+  },
+  {
+    id: "recorte",
+    label: "Recorte / control",
+    abrev: "REC",
+    colorDefecto: "#ffffff",
+    radioMmDefecto: "22.5",
+    longitudMDefecto: "3.6",
+    lookOutDefecto: "3",
+    gradienteDefecto: "0",
+    cargadoDefecto: true,
+  },
+  {
+    id: "arrastre",
+    label: "Arrastres",
+    abrev: "ARRS",
+    colorDefecto: "#eab308",
+    radioMmDefecto: "22.5",
+    longitudMDefecto: "3.6",
+    lookOutDefecto: "0",
+    gradienteDefecto: "-3",
+    cargadoDefecto: true,
+  },
+  {
     id: "arranque",
     label: "Arranque",
     abrev: "ARR",
@@ -168,17 +285,6 @@ export const GRUPOS_TALADRO_CONFIG: InfoGrupoTaladro[] = [
     lookOutDefecto: "0",
     gradienteDefecto: "0",
     cargadoDefecto: true,
-  },
-  {
-    id: "alivio",
-    label: "Alivio",
-    abrev: "ALIV",
-    colorDefecto: "#00f0ff",
-    radioMmDefecto: "51.0",
-    longitudMDefecto: "3.8",
-    lookOutDefecto: "0",
-    gradienteDefecto: "0",
-    cargadoDefecto: false,
   },
   {
     id: "cuadrante",
@@ -192,47 +298,14 @@ export const GRUPOS_TALADRO_CONFIG: InfoGrupoTaladro[] = [
     cargadoDefecto: true,
   },
   {
-    id: "produccion",
-    label: "Producción",
-    abrev: "PROD",
-    colorDefecto: "#8b5cf6",
-    radioMmDefecto: "22.5",
-    longitudMDefecto: "3.6",
-    lookOutDefecto: "0",
-    gradienteDefecto: "0",
-    cargadoDefecto: true,
-  },
-  {
-    id: "corona",
-    label: "Corona",
-    abrev: "COR",
-    colorDefecto: "#10b981",
-    radioMmDefecto: "22.5",
-    longitudMDefecto: "3.6",
-    lookOutDefecto: "3",
-    gradienteDefecto: "0",
-    cargadoDefecto: true,
-  },
-  {
     id: "hastial",
     label: "Hastial",
     abrev: "HAS",
-    colorDefecto: "#f97316",
+    colorDefecto: "#38bdf8",
     radioMmDefecto: "22.5",
     longitudMDefecto: "3.6",
     lookOutDefecto: "3",
     gradienteDefecto: "0",
-    cargadoDefecto: true,
-  },
-  {
-    id: "arrastre",
-    label: "Arrastre",
-    abrev: "ARRS",
-    colorDefecto: "#eab308",
-    radioMmDefecto: "22.5",
-    longitudMDefecto: "3.6",
-    lookOutDefecto: "0",
-    gradienteDefecto: "-3",
     cargadoDefecto: true,
   },
 ];
@@ -261,6 +334,17 @@ interface EditorCadMallaProps {
   onCambiarTaladros?: (nuevos: Taladro[]) => void;
   onIrARender: () => void;
   onVolver: () => void;
+  proyectoId?: string;
+}
+
+function leerCadGuardado<T>(clave: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem("suite-mineria:" + clave);
+    if (!raw) return fallback;
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
 }
 
 export function generarPuntosArco(
@@ -362,7 +446,11 @@ export default function EditorCadMalla({
   onCambiarTaladros,
   onIrARender,
   onVolver,
+  proyectoId,
 }: EditorCadMallaProps) {
+  const pid = proyectoId || "malla-1";
+  const esMalla1 = pid === "malla-1";
+
   const [herramienta, setHerramienta] = usePersistedState<HerramientaCad>("cad:herramientaActiva", "SEL");
   const [bloqueadoGlobal, setBloqueadoGlobal] = usePersistedState<boolean>("cad:bloqueadoGlobal", false);
   const [snapActivo, setSnapActivo] = usePersistedState<boolean>("cad:snapActivo", true);
@@ -385,8 +473,12 @@ export default function EditorCadMalla({
   const [panelSelVisible, setPanelSelVisible] = useState(false);
   const [panelSelMinimizado, setPanelSelMinimizado] = usePersistedState<boolean>("cad:panelSelMinimizado", false);
   const [indicesSeleccionados, setIndicesSeleccionados] = useState<number[]>([]);
-  const [puntosCad, setPuntosCad] = usePersistedState<PuntoCad3D[]>("cad:puntos", []);
+  const [puntosCad, setPuntosCad] = usePersistedState<PuntoCad3D[]>(
+    `cad:${pid}:puntos`,
+    () => (esMalla1 ? leerCadGuardado("cad:puntos", []) : [])
+  );
   const [puntosSeleccionados, setPuntosSeleccionados] = useState<string[]>([]);
+  const [taladrosSeleccionados, setTaladrosSeleccionados] = useState<string[]>([]);
 
   // Inputs de desplazamiento ΔX, ΔY, ΔZ
   const [deltaX, setDeltaX] = usePersistedState<string>("cad:deltaX", "0");
@@ -416,7 +508,10 @@ export default function EditorCadMalla({
   const [rolIngenieria, setRolIngenieria] = usePersistedState<RolIngenieria>("cad:rolIngenieria", "geometria");
   const [distanciaLinea, setDistanciaLinea] = usePersistedState<string>("cad:distanciaLinea", "10");
   const [azimutLinea, setAzimutLinea] = usePersistedState<string>("cad:azimutLinea", "0");
-  const [lineasCad, setLineasCad] = usePersistedState<LineaCad3D[]>("cad:lineas", []);
+  const [lineasCad, setLineasCad] = usePersistedState<LineaCad3D[]>(
+    `cad:${pid}:lineas`,
+    () => (esMalla1 ? leerCadGuardado("cad:lineas", []) : [])
+  );
   const [lineasSeleccionadas, setLineasSeleccionadas] = useState<string[]>([]);
   const [inicioLinea, setInicioLinea] = useState<{ x: number; y: number; z: number } | null>(null);
   const [cursorGuiaLinea, setCursorGuiaLinea] = useState<{ x: number; y: number; z: number } | null>(null);
@@ -427,7 +522,10 @@ export default function EditorCadMalla({
   const [cerrarPolilinea, setCerrarPolilinea] = usePersistedState<boolean>("cad:cerrarPolilinea", false);
   const [verticesPolilinea, setVerticesPolilinea] = useState<{ x: number; y: number; z: number }[]>([]);
   const [cursorGuiaPl, setCursorGuiaPl] = useState<{ x: number; y: number; z: number } | null>(null);
-  const [polilineasCad, setPolilineasCad] = usePersistedState<PolilineaCad3D[]>("cad:polilineas", []);
+  const [polilineasCad, setPolilineasCad] = usePersistedState<PolilineaCad3D[]>(
+    `cad:${pid}:polilineas`,
+    () => (esMalla1 ? leerCadGuardado("cad:polilineas", []) : [])
+  );
   const [polilineasSeleccionadas, setPolilineasSeleccionadas] = useState<string[]>([]);
 
   // Estado del Panel 'ARCO'
@@ -440,7 +538,10 @@ export default function EditorCadMalla({
   const [centroIzquierdaArco, setCentroIzquierdaArco] = usePersistedState<boolean>("cad:centroIzquierdaArco", true);
   const [puntosArcoConstruccion, setPuntosArcoConstruccion] = useState<{ x: number; y: number; z: number }[]>([]);
   const [cursorGuiaArc, setCursorGuiaArc] = useState<{ x: number; y: number; z: number } | null>(null);
-  const [arcosCad, setArcosCad] = usePersistedState<ArcoCad3D[]>("cad:arcos", []);
+  const [arcosCad, setArcosCad] = usePersistedState<ArcoCad3D[]>(
+    `cad:${pid}:arcos`,
+    () => (esMalla1 ? leerCadGuardado("cad:arcos", []) : [])
+  );
   const [arcosSeleccionados, setArcosSeleccionados] = useState<string[]>([]);
   const totalEntidadesCad = puntosCad.length + lineasCad.length + polilineasCad.length + arcosCad.length;
 
@@ -539,6 +640,15 @@ export default function EditorCadMalla({
       elementosCount: 4,
     },
     {
+      id: "capa-puntos",
+      nombre: "Puntos CAD / Taladros",
+      color: "#06b6d4",
+      visible: true,
+      bloqueada: false,
+      carpetaId: "carp-malla",
+      elementosCount: 0,
+    },
+    {
       id: "capa-dibujo",
       nombre: "Dibujo CAD",
       color: "#ec4899",
@@ -620,6 +730,8 @@ export default function EditorCadMalla({
     hasMovedSignificantly: false,
     touchStartTime: 0,
   });
+
+  const lastTapRef = useRef<{ time: number; x: number; y: number }>({ time: 0, x: 0, y: 0 });
 
   function mostrarAviso(msg: string) {
     setNotificacion(msg);
@@ -976,13 +1088,24 @@ export default function EditorCadMalla({
       puntosSeleccionados.length === 0 &&
       lineasSeleccionadas.length === 0 &&
       polilineasSeleccionadas.length === 0 &&
-      arcosSeleccionados.length === 0
+      arcosSeleccionados.length === 0 &&
+      taladrosSeleccionados.length === 0
     ) {
       mostrarAviso("No hay entidad seleccionada");
       return;
     }
     registrarHistorial();
     let algoBorrado = false;
+
+    // Borrar taladros seleccionados
+    if (taladrosSeleccionados.length > 0) {
+      const restantes = taladros.filter((t) => !taladrosSeleccionados.includes(t.id));
+      if (onCambiarTaladros) {
+        onCambiarTaladros(restantes);
+      }
+      setTaladrosSeleccionados([]);
+      algoBorrado = true;
+    }
 
     // Borrar arcos CAD seleccionados
     if (arcosSeleccionados.length > 0) {
@@ -1036,6 +1159,51 @@ export default function EditorCadMalla({
 
     if (algoBorrado) mostrarAviso("Entidades eliminadas");
   }
+
+  // Atajo de teclado: Supr / Delete / Backspace para borrar la selección activa
+  useEffect(() => {
+    function onKeyDownGlobal(e: KeyboardEvent) {
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+
+      if (e.key === "Delete" || e.key === "Backspace" || e.key === "Supr") {
+        if (
+          indicesSeleccionados.length > 0 ||
+          puntosSeleccionados.length > 0 ||
+          lineasSeleccionadas.length > 0 ||
+          polilineasSeleccionadas.length > 0 ||
+          arcosSeleccionados.length > 0 ||
+          taladrosSeleccionados.length > 0
+        ) {
+          e.preventDefault();
+          handleBorrarSeleccion();
+        }
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDownGlobal);
+    return () => window.removeEventListener("keydown", onKeyDownGlobal);
+  }, [
+    indicesSeleccionados,
+    puntosSeleccionados,
+    lineasSeleccionadas,
+    polilineasSeleccionadas,
+    arcosSeleccionados,
+    taladrosSeleccionados,
+    poligonoCresta,
+    puntosCad,
+    lineasCad,
+    polilineasCad,
+    arcosCad,
+  ]);
 
   // Asignar elementos seleccionados a una capa
   function handleAsignarACapa(capaId: string) {
@@ -1183,13 +1351,31 @@ export default function EditorCadMalla({
     // 2. Convertir taladros calculados de Holmberg a puntos CAD editables
     if (taladros && taladros.length > 0) {
       const timestamp = Date.now();
+      const conteoZonasMap: Record<string, number> = {};
+
       const nuevosPuntos: PuntoCad3D[] = taladros.map((t, idx) => {
         const tx = t.collar ? t.collar.x : ((t as any).cuello?.x ?? (t as any).x ?? 0);
         const ty = t.collar ? t.collar.y : ((t as any).cuello?.y ?? (t as any).y ?? 0);
         const tz = t.collar ? (t.collar.z ?? 0) : ((t as any).cuello?.z ?? (t as any).z ?? 0);
         const zonaTal = ((t as any).zona || "arranque") as GrupoTaladroCad;
         const infoG = GRUPOS_TALADRO_CONFIG.find((g) => g.id === zonaTal);
-        const colTal = infoG?.colorDefecto || (t as any).color || "#06b6d4";
+        const colTal = (t as any).color || infoG?.colorDefecto || "#06b6d4";
+
+        const abrevZonaMap: Record<string, string> = {
+          alivio: "AL",
+          cuadrante1: "C1",
+          cuadrante2: "C2",
+          cuadrante3: "C3",
+          cuadrante4: "C4",
+          produccion: "PR",
+          cuadradores: "CD",
+          corona: "CO",
+          recorte: "RC",
+          arrastre: "AR",
+        };
+        const abrev = abrevZonaMap[zonaTal] || infoG?.abrev || "T";
+        conteoZonasMap[abrev] = (conteoZonasMap[abrev] || 0) + 1;
+        const etiq = (t as any).codigo || `${abrev}-${conteoZonasMap[abrev]}`;
 
         return {
           id: `pto-tal-${t.id || idx}-${timestamp}-${idx}`,
@@ -1197,9 +1383,9 @@ export default function EditorCadMalla({
           y: Math.round(ty * 1000) / 1000,
           z: Math.round(tz * 1000) / 1000,
           tipo: "circulo_x",
-          etiqueta: (t as any).codigo || `T${(t as any).numero || idx + 1}`,
+          etiqueta: etiq,
           color: colTal,
-          capaId: "capa-dibujo",
+          capaId: "capa-puntos",
         };
       });
 
@@ -1207,10 +1393,12 @@ export default function EditorCadMalla({
       agregadosPuntos += nuevosPuntos.length;
     }
 
-    // Activar y asegurar visibilidad de la capa "Dibujo CAD"
-    setCapaActivaId("capa-dibujo");
+    // Activar y asegurar visibilidad de las capas "Puntos CAD / Taladros" y "Dibujo CAD"
+    setCapaActivaId("capa-puntos");
     setCapas((prev) =>
-      prev.map((c) => (c.id === "capa-dibujo" ? { ...c, visible: true } : c))
+      prev.map((c) =>
+        c.id === "capa-puntos" || c.id === "capa-dibujo" ? { ...c, visible: true } : c
+      )
     );
 
     if (agregadosPuntos > 0 || agregadasPolilineas > 0) {
@@ -1666,6 +1854,101 @@ export default function EditorCadMalla({
     mostrarAviso("Origen restablecido en (0, 0)");
   }
 
+  // Centrar dibujo completo (Zoom Extents / Doble Toque)
+  function handleCentrarDibujoCompleto() {
+    const camera = cameraRef.current;
+    if (!camera) return;
+
+    let minX = Infinity, maxX = -Infinity;
+    let minY = Infinity, maxY = -Infinity; // CAD Y -> Three.js Z
+    let minZ = Infinity, maxZ = -Infinity; // CAD Z -> Three.js Y
+
+    function incluirPunto(x: number, y: number, z: number = 0) {
+      if (typeof x !== "number" || typeof y !== "number" || isNaN(x) || isNaN(y)) return;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+      if (z < minZ) minZ = z;
+      if (z > maxZ) maxZ = z;
+    }
+
+    // 1. Polígono de cresta / contorno
+    poligonoCresta.forEach((p) => incluirPunto(p.x, p.y, 0));
+
+    // 2. Taladros de la malla (collar y fondo)
+    taladros.forEach((t) => {
+      incluirPunto(t.collar.x, t.collar.y, t.collar.z || 0);
+      incluirPunto(t.fondo.x, t.fondo.y, t.fondo.z || 0);
+    });
+
+    // 3. Puntos CAD independientes
+    puntosCad.forEach((p) => incluirPunto(p.x, p.y, p.z || 0));
+
+    // 4. Líneas CAD
+    lineasCad.forEach((l) => {
+      incluirPunto(l.p1.x, l.p1.y, l.p1.z || 0);
+      incluirPunto(l.p2.x, l.p2.y, l.p2.z || 0);
+    });
+
+    // 5. Polilíneas CAD
+    polilineasCad.forEach((pl) => {
+      pl.puntos.forEach((p) => incluirPunto(p.x, p.y, p.z || 0));
+    });
+
+    // 6. Arcos CAD
+    arcosCad.forEach((arc) => {
+      arc.puntos.forEach((p) => incluirPunto(p.x, p.y, p.z || 0));
+    });
+
+    // 7. Sólidos CAD
+    solidosCad.forEach((s) => {
+      s.perfil.forEach((p) => {
+        incluirPunto(p.x, p.y, s.levantamiento || 0);
+        incluirPunto(p.x, p.y, -(s.profundidad || 0));
+      });
+    });
+
+    let cx = 0;
+    let cy = 0;
+    let cz = 0;
+    let radioAjuste = 35;
+
+    if (minX !== Infinity && maxX !== -Infinity) {
+      cx = (minX + maxX) / 2;
+      cy = (minY + maxY) / 2;
+      cz = minZ !== Infinity && maxZ !== -Infinity ? (minZ + maxZ) / 2 : 0;
+
+      const spanX = Math.max(4, maxX - minX);
+      const spanY = Math.max(4, maxY - minY);
+      const maxSpan = Math.max(spanX, spanY);
+      radioAjuste = Math.max(14, Math.min(700, maxSpan * 1.55));
+    }
+
+    orbitRef.current.target.set(cx, cz, cy);
+    orbitRef.current.radius = radioAjuste;
+
+    const { theta, phi, radius, target } = orbitRef.current;
+    camera.position.x = target.x + radius * Math.sin(phi) * Math.sin(theta);
+    camera.position.y = target.y + radius * Math.cos(phi);
+    camera.position.z = target.z + radius * Math.sin(phi) * Math.cos(theta);
+    camera.lookAt(target);
+
+    // Actualizar ejes Gizmo 3D
+    const rot = new THREE.Matrix4().extractRotation(camera.matrixWorldInverse);
+    const vx = new THREE.Vector3(1, 0, 0).applyMatrix4(rot);
+    const vy = new THREE.Vector3(0, 1, 0).applyMatrix4(rot);
+    const vz = new THREE.Vector3(0, 0, 1).applyMatrix4(rot);
+    const len = 28;
+    setEjesScreen({
+      x: { x: vx.x * len, y: -vx.y * len },
+      y: { x: vy.x * len, y: -vy.y * len },
+      z: { x: vz.x * len, y: -vz.y * len },
+    });
+
+    mostrarAviso(`🎯 Dibujo centrado en (${cx.toFixed(1)}, ${cy.toFixed(1)})`);
+  }
+
   function handleIniciarMoverOrigenSnap() {
     setGriMoviendoOrigen(true);
     mostrarAviso("📍 Toca en cualquier punto, vértice o coordenada de la pantalla para situar el Origen de la grilla");
@@ -1848,23 +2131,34 @@ export default function EditorCadMalla({
     const capaCresta = capas.find((c) => c.id === "capa-cresta" || c.id === "capa-base") ?? { visible: true, color: "#22c55e" };
     const capaTaladros = capas.find((c) => c.id === "capa-taladros");
 
-    // 1. Polígono y Puntos de Cresta
+    // 1. Polígono y Puntos de Cresta (Contorno con grosor CAD visible y reforzado)
     if (capaCresta?.visible && poligonoCresta.length > 0) {
       if (poligonoCresta.length > 1) {
-        const points = poligonoCresta.map((p) => new THREE.Vector3(p.x, 0.08, p.y));
-        points.push(points[0]);
-
-        const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
-        const lineMat = new THREE.LineBasicMaterial({ color: new THREE.Color(capaCresta.color).getHex(), linewidth: 3 });
-        const line = new THREE.Line(lineGeo, lineMat);
-        group.add(line);
+        const hexColor = new THREE.Color(capaCresta.color).getHex();
+        const lineMat = new THREE.LineBasicMaterial({ color: hexColor, depthTest: true });
+        
+        // Multi-stroke para grosor visible en WebGL (sin limitación de 1px)
+        const offsetsContorno = [
+          { dx: 0, dy: 0, dz: 0 },
+          { dx: 0.02, dy: 0.005, dz: 0 },
+          { dx: -0.02, dy: 0.005, dz: 0 },
+          { dx: 0, dy: 0.005, dz: 0.02 },
+          { dx: 0, dy: 0.005, dz: -0.02 },
+          { dx: 0.015, dy: 0.008, dz: 0.015 },
+          { dx: -0.015, dy: 0.008, dz: -0.015 },
+        ];
+        offsetsContorno.forEach((d) => {
+          const pts = poligonoCresta.map((p) => new THREE.Vector3(p.x + d.dx, 0.08 + d.dy, p.y + d.dz));
+          pts.push(pts[0]);
+          group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), lineMat));
+        });
       }
 
       poligonoCresta.forEach((p, idx) => {
         const esSeleccionado = indicesSeleccionados.includes(idx);
-        const nodeGeo = new THREE.SphereGeometry(esSeleccionado ? 0.65 : 0.4, 14, 14);
+        const nodeGeo = new THREE.SphereGeometry(esSeleccionado ? 0.05 : 0.025, 12, 12);
         const nodeMat = new THREE.MeshBasicMaterial({
-          color: esSeleccionado ? 0xe11d48 : 0xffffff,
+          color: esSeleccionado ? 0xf97316 : 0xffffff,
         });
         const node = new THREE.Mesh(nodeGeo, nodeMat);
         node.position.set(p.x, 0.1, p.y);
@@ -1872,8 +2166,8 @@ export default function EditorCadMalla({
         group.add(node);
 
         if (esSeleccionado) {
-          const haloGeo = new THREE.TorusGeometry(0.95, 0.07, 6, 24);
-          const haloMat = new THREE.MeshBasicMaterial({ color: 0xe11d48 });
+          const haloGeo = new THREE.TorusGeometry(0.09, 0.012, 6, 20);
+          const haloMat = new THREE.MeshBasicMaterial({ color: 0xf97316 });
           const halo = new THREE.Mesh(haloGeo, haloMat);
           halo.rotation.x = Math.PI / 2;
           halo.position.set(p.x, 0.12, p.y);
@@ -1882,7 +2176,7 @@ export default function EditorCadMalla({
 
         // Si es el punto base de referencia: indicador circular cian
         if (idx === puntoBaseIndice && indicesSeleccionados.length > 0) {
-          const baseRingGeo = new THREE.RingGeometry(0.8, 1.05, 16);
+          const baseRingGeo = new THREE.RingGeometry(0.09, 0.13, 16);
           const baseRingMat = new THREE.MeshBasicMaterial({ color: 0x06b6d4, side: THREE.DoubleSide });
           const baseRing = new THREE.Mesh(baseRingGeo, baseRingMat);
           baseRing.rotation.x = Math.PI / 2;
@@ -1892,13 +2186,15 @@ export default function EditorCadMalla({
       });
     }
 
-    // 2. Taladros en 3D con Simbología Especializada por Grupo (AutoCAD Minero)
+    // 2. Taladros en 3D con Simbología Especializada por Grupo (AutoCAD Minero - Nítido, Técnico, Tamaño Real)
     if (capaTaladros?.visible && taladros.length > 0) {
       taladros.forEach((t) => {
         const zonaTal = ((t as any).zona || "arranque") as GrupoTaladroCad;
         const infoG = GRUPOS_TALADRO_CONFIG.find((g) => g.id === zonaTal);
-        const colTal = infoG?.colorDefecto || capaTaladros.color;
-        const colorHex = new THREE.Color(colTal).getHex();
+        const colTal = (t as any).color || infoG?.colorDefecto || capaTaladros.color;
+        const esSeleccionado = taladrosSeleccionados.includes(t.id);
+        const colorFinal = esSeleccionado ? "#00ffff" : colTal;
+        const colorHex = new THREE.Color(colorFinal).getHex();
         const esCargado = (t as any).estado !== "vacio";
 
         const cx = t.collar.x;
@@ -1908,27 +2204,59 @@ export default function EditorCadMalla({
         const talGroupObj = new THREE.Group();
         talGroupObj.position.set(cx, cy, cz);
 
-        const matColor = new THREE.LineBasicMaterial({ color: colorHex, linewidth: 2.5 });
-        const matFill = new THREE.MeshBasicMaterial({ color: colorHex, side: THREE.DoubleSide });
+        // Materiales vectoriales 100% nítidos sin blur ni transparencia
+        const matColor = new THREE.LineBasicMaterial({
+          color: colorHex,
+          linewidth: esSeleccionado ? 3 : 2,
+          depthTest: true,
+        });
+        const matFill = new THREE.MeshBasicMaterial({
+          color: colorHex,
+          side: THREE.DoubleSide,
+          depthTest: true,
+        });
+
+        // Helper para generar círculo vectorial nítido con grosor visible en el plano de collar
+        const crearCirculoVector = (r: number, seg = 24) => {
+          const pts: THREE.Vector3[] = [];
+          // Multi-stroke concéntrico continuo para grosor visible sin depender del driver WebGL
+          [-0.006, 0, 0.006].forEach((dr) => {
+            const rEff = Math.max(0.01, r + dr);
+            for (let i = 0; i <= seg; i++) {
+              const th = (i / seg) * Math.PI * 2;
+              pts.push(new THREE.Vector3(rEff * Math.cos(th), 0, rEff * Math.sin(th)));
+            }
+          });
+          return new THREE.BufferGeometry().setFromPoints(pts);
+        };
+
+        // Halo de selección activo si el taladro está seleccionado
+        if (esSeleccionado) {
+          const selHaloGeo = new THREE.RingGeometry(0.08, 0.11, 24);
+          const selHaloMat = new THREE.MeshBasicMaterial({
+            color: 0x00ffff,
+            side: THREE.DoubleSide,
+            depthTest: true,
+          });
+          const selHalo = new THREE.Mesh(selHaloGeo, selHaloMat);
+          selHalo.rotation.x = Math.PI / 2;
+          selHalo.position.set(0, 0.005, 0);
+          talGroupObj.add(selHalo);
+        }
 
         switch (zonaTal) {
           case "alivio": {
-            // 1. ALIVIO: Doble anillo concéntrico grande (Hueco de alivio vacío)
-            const rExt = 0.36;
-            const rInt = 0.20;
-            const ring1 = new THREE.Mesh(new THREE.TorusGeometry(rExt, 0.03, 6, 24), matFill);
-            ring1.rotation.x = Math.PI / 2;
-            talGroupObj.add(ring1);
-
-            const ring2 = new THREE.Mesh(new THREE.TorusGeometry(rInt, 0.02, 6, 20), matFill);
-            ring2.rotation.x = Math.PI / 2;
-            talGroupObj.add(ring2);
+            // 1. ALIVIO: Doble anillo concéntrico técnico (Hueco de alivio vacío sin sobretamaño)
+            const rExt = 0.085;
+            const rInt = 0.055;
+            talGroupObj.add(new THREE.Line(crearCirculoVector(rExt, 24), matColor));
+            talGroupObj.add(new THREE.Line(crearCirculoVector(rInt, 20), matColor));
 
             const cruzGeo = new THREE.BufferGeometry().setFromPoints([
-              new THREE.Vector3(-rInt, 0, -rInt),
-              new THREE.Vector3(rInt, 0, rInt),
-              new THREE.Vector3(-rInt, 0, rInt),
-              new THREE.Vector3(rInt, 0, -rInt),
+              new THREE.Vector3(-rInt * 0.7, 0, -rInt * 0.7),
+              new THREE.Vector3(rInt * 0.7, 0, rInt * 0.7),
+              new THREE.Vector3(-rInt * 0.7, 0, rInt * 0.7),
+              new THREE.Vector3(rInt * 0.7, 0, -rInt * 0.7),
             ]);
             talGroupObj.add(new THREE.LineSegments(cruzGeo, matColor));
             break;
@@ -1936,31 +2264,33 @@ export default function EditorCadMalla({
 
           case "arranque": {
             // 2. ARRANQUE: Círculo exterior con ROMBO concéntrico inscrito y núcleo
-            const r = 0.22;
-            const ring = new THREE.Mesh(new THREE.TorusGeometry(r, 0.03, 6, 20), matFill);
-            ring.rotation.x = Math.PI / 2;
-            talGroupObj.add(ring);
+            const r = 0.055;
+            talGroupObj.add(new THREE.Line(crearCirculoVector(r, 24), matColor));
 
             const romboGeo = new THREE.BufferGeometry().setFromPoints([
-              new THREE.Vector3(0, 0, r),
-              new THREE.Vector3(r, 0, 0),
-              new THREE.Vector3(0, 0, -r),
-              new THREE.Vector3(-r, 0, 0),
-              new THREE.Vector3(0, 0, r),
+              new THREE.Vector3(0, 0, r * 0.8),
+              new THREE.Vector3(r * 0.8, 0, 0),
+              new THREE.Vector3(0, 0, -r * 0.8),
+              new THREE.Vector3(-r * 0.8, 0, 0),
+              new THREE.Vector3(0, 0, r * 0.8),
             ]);
             talGroupObj.add(new THREE.Line(romboGeo, matColor));
 
             if (esCargado) {
-              const dot = new THREE.Mesh(new THREE.CircleGeometry(0.08, 12), matFill);
+              const dot = new THREE.Mesh(new THREE.CircleGeometry(0.018, 10), matFill);
               dot.rotation.x = -Math.PI / 2;
               talGroupObj.add(dot);
             }
             break;
           }
 
-          case "cuadrante": {
+          case "cuadrante":
+          case "cuadrante1":
+          case "cuadrante2":
+          case "cuadrante3":
+          case "cuadrante4": {
             // 3. CUADRANTE: Rombo rotado a 45° con cruz central en 'X'
-            const r = 0.24;
+            const r = 0.055;
             const romboGeo = new THREE.BufferGeometry().setFromPoints([
               new THREE.Vector3(0, 0, r),
               new THREE.Vector3(r, 0, 0),
@@ -1971,15 +2301,15 @@ export default function EditorCadMalla({
             talGroupObj.add(new THREE.Line(romboGeo, matColor));
 
             const cruzGeo = new THREE.BufferGeometry().setFromPoints([
-              new THREE.Vector3(-r * 0.7, 0, -r * 0.7),
-              new THREE.Vector3(r * 0.7, 0, r * 0.7),
-              new THREE.Vector3(-r * 0.7, 0, r * 0.7),
-              new THREE.Vector3(r * 0.7, 0, -r * 0.7),
+              new THREE.Vector3(-r * 0.5, 0, -r * 0.5),
+              new THREE.Vector3(r * 0.5, 0, r * 0.5),
+              new THREE.Vector3(-r * 0.5, 0, r * 0.5),
+              new THREE.Vector3(r * 0.5, 0, -r * 0.5),
             ]);
             talGroupObj.add(new THREE.LineSegments(cruzGeo, matColor));
 
             if (esCargado) {
-              const dot = new THREE.Mesh(new THREE.CircleGeometry(0.07, 10), matFill);
+              const dot = new THREE.Mesh(new THREE.CircleGeometry(0.016, 8), matFill);
               dot.rotation.x = -Math.PI / 2;
               talGroupObj.add(dot);
             }
@@ -1988,10 +2318,8 @@ export default function EditorCadMalla({
 
           case "produccion": {
             // 4. PRODUCCIÓN: Círculo con mira ortogonal '+' completa
-            const r = 0.20;
-            const ring = new THREE.Mesh(new THREE.TorusGeometry(r, 0.03, 6, 20), matFill);
-            ring.rotation.x = Math.PI / 2;
-            talGroupObj.add(ring);
+            const r = 0.05;
+            talGroupObj.add(new THREE.Line(crearCirculoVector(r, 20), matColor));
 
             const cruzGeo = new THREE.BufferGeometry().setFromPoints([
               new THREE.Vector3(-r * 1.35, 0, 0),
@@ -2002,7 +2330,7 @@ export default function EditorCadMalla({
             talGroupObj.add(new THREE.LineSegments(cruzGeo, matColor));
 
             if (esCargado) {
-              const dot = new THREE.Mesh(new THREE.CircleGeometry(0.08, 12), matFill);
+              const dot = new THREE.Mesh(new THREE.CircleGeometry(0.016, 8), matFill);
               dot.rotation.x = -Math.PI / 2;
               talGroupObj.add(dot);
             }
@@ -2011,47 +2339,66 @@ export default function EditorCadMalla({
 
           case "corona": {
             // 5. CORONA: Círculo con flecha/espiga apuntando hacia el TECHO (+Y en CAD)
-            const r = 0.20;
-            const ring = new THREE.Mesh(new THREE.TorusGeometry(r, 0.03, 6, 20), matFill);
-            ring.rotation.x = Math.PI / 2;
-            talGroupObj.add(ring);
+            const r = 0.05;
+            talGroupObj.add(new THREE.Line(crearCirculoVector(r, 20), matColor));
 
             const espigaGeo = new THREE.BufferGeometry().setFromPoints([
               new THREE.Vector3(0, 0, r),
-              new THREE.Vector3(0, 0, r + 0.28),
-              new THREE.Vector3(-0.08, 0, r + 0.18),
-              new THREE.Vector3(0, 0, r + 0.28),
-              new THREE.Vector3(0.08, 0, r + 0.18),
+              new THREE.Vector3(0, 0, r + 0.06),
+              new THREE.Vector3(-0.02, 0, r + 0.04),
+              new THREE.Vector3(0, 0, r + 0.06),
+              new THREE.Vector3(0.02, 0, r + 0.04),
             ]);
             talGroupObj.add(new THREE.Line(espigaGeo, matColor));
 
             if (esCargado) {
-              const dot = new THREE.Mesh(new THREE.CircleGeometry(0.07, 10), matFill);
+              const dot = new THREE.Mesh(new THREE.CircleGeometry(0.016, 8), matFill);
               dot.rotation.x = -Math.PI / 2;
               talGroupObj.add(dot);
             }
             break;
           }
 
+          case "recorte":
+          case "contorno": {
+            // 5b. RECORTE / CONTROL: Anillo blanco técnico con cruz diagonal fina
+            const r = 0.048;
+            talGroupObj.add(new THREE.Line(crearCirculoVector(r, 20), matColor));
+
+            const cruzRecGeo = new THREE.BufferGeometry().setFromPoints([
+              new THREE.Vector3(-r * 0.6, 0, -r * 0.6),
+              new THREE.Vector3(r * 0.6, 0, r * 0.6),
+              new THREE.Vector3(-r * 0.6, 0, r * 0.6),
+              new THREE.Vector3(r * 0.6, 0, -r * 0.6),
+            ]);
+            talGroupObj.add(new THREE.LineSegments(cruzRecGeo, matColor));
+
+            if (esCargado) {
+              const dot = new THREE.Mesh(new THREE.CircleGeometry(0.014, 8), matFill);
+              dot.rotation.x = -Math.PI / 2;
+              talGroupObj.add(dot);
+            }
+            break;
+          }
+
+          case "cuadradores":
           case "hastial": {
-            // 6. HASTIAL: Círculo con espiga lateral horizontal hacia la pared
-            const r = 0.20;
-            const ring = new THREE.Mesh(new THREE.TorusGeometry(r, 0.03, 6, 20), matFill);
-            ring.rotation.x = Math.PI / 2;
-            talGroupObj.add(ring);
+            // 6. HASTIAL / CUADRADORES: Círculo con espiga lateral horizontal hacia la pared
+            const r = 0.05;
+            talGroupObj.add(new THREE.Line(crearCirculoVector(r, 20), matColor));
 
             const dirX = cx >= 0 ? 1 : -1;
             const espigaGeo = new THREE.BufferGeometry().setFromPoints([
               new THREE.Vector3(dirX * r, 0, 0),
-              new THREE.Vector3(dirX * (r + 0.28), 0, 0),
-              new THREE.Vector3(dirX * (r + 0.18), 0, 0.08),
-              new THREE.Vector3(dirX * (r + 0.28), 0, 0),
-              new THREE.Vector3(dirX * (r + 0.18), 0, -0.08),
+              new THREE.Vector3(dirX * (r + 0.06), 0, 0),
+              new THREE.Vector3(dirX * (r + 0.04), 0, 0.02),
+              new THREE.Vector3(dirX * (r + 0.06), 0, 0),
+              new THREE.Vector3(dirX * (r + 0.04), 0, -0.02),
             ]);
             talGroupObj.add(new THREE.Line(espigaGeo, matColor));
 
             if (esCargado) {
-              const dot = new THREE.Mesh(new THREE.CircleGeometry(0.07, 10), matFill);
+              const dot = new THREE.Mesh(new THREE.CircleGeometry(0.016, 8), matFill);
               dot.rotation.x = -Math.PI / 2;
               talGroupObj.add(dot);
             }
@@ -2060,14 +2407,14 @@ export default function EditorCadMalla({
 
           case "arrastre": {
             // 7. ARRASTRE: Disco macizo con pin/espiga diagonal hacia el piso (Zapatera)
-            const r = 0.20;
+            const r = 0.05;
             const dot = new THREE.Mesh(new THREE.CircleGeometry(r, 16), matFill);
             dot.rotation.x = -Math.PI / 2;
             talGroupObj.add(dot);
 
             const espigaGeo = new THREE.BufferGeometry().setFromPoints([
-              new THREE.Vector3(r * 0.4, 0, -r * 0.4),
-              new THREE.Vector3(r * 0.4 + 0.25, 0, -r * 0.4 - 0.25),
+              new THREE.Vector3(0, 0, -r),
+              new THREE.Vector3(0, 0, -r - 0.06),
             ]);
             talGroupObj.add(new THREE.Line(espigaGeo, matColor));
             break;
@@ -2077,36 +2424,65 @@ export default function EditorCadMalla({
         group.add(talGroupObj);
 
         // Barreno 3D proyectado hacia el fondo (look-out / gradiente real)
+        // 100% SÓLIDO Y NÍTIDO (elimina el aspecto borroso)
         if (t.fondo) {
           const pCollar = new THREE.Vector3(t.collar.x, cy, t.collar.y);
           const pFondo = new THREE.Vector3(t.fondo.x, (t.fondo.z || 0) + 0.08, t.fondo.y);
+
+          // 1. Cilindro 3D con grosor real de barreno (diámetro visible ~3.6 cm)
+          const dir = new THREE.Vector3().subVectors(pFondo, pCollar);
+          const len = dir.length();
+          if (len > 0.01) {
+            const radStick = esSeleccionado ? 0.022 : 0.016;
+            const cylGeo = new THREE.CylinderGeometry(radStick, radStick, len, 6);
+            const cylMat = new THREE.MeshBasicMaterial({ color: colorHex, depthTest: true });
+            const stickMesh = new THREE.Mesh(cylGeo, cylMat);
+            stickMesh.position.copy(pCollar).addScaledVector(dir, 0.5);
+            stickMesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+            group.add(stickMesh);
+          }
+
+          // 2. Línea central y marcadores
           const stickGeo = new THREE.BufferGeometry().setFromPoints([pCollar, pFondo]);
-          const stickMat = new THREE.LineDashedMaterial({
+          const stickMat = new THREE.LineBasicMaterial({
             color: colorHex,
-            dashSize: 0.2,
-            gapSize: 0.1,
-            linewidth: 2,
-            transparent: true,
-            opacity: 0.85,
+            depthTest: true,
           });
           const stickLine = new THREE.Line(stickGeo, stickMat);
-          stickLine.computeLineDistances();
           group.add(stickLine);
+
+          // Marcador de fondo (toe) reforzado
+          const sToe = 0.04;
+          const toeGeo = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(pFondo.x - sToe, pFondo.y, pFondo.z),
+            new THREE.Vector3(pFondo.x + sToe, pFondo.y, pFondo.z),
+            new THREE.Vector3(pFondo.x, pFondo.y, pFondo.z - sToe),
+            new THREE.Vector3(pFondo.x, pFondo.y, pFondo.z + sToe),
+          ]);
+          group.add(new THREE.LineSegments(toeGeo, stickMat));
         }
       });
     }
 
     // 3. Puntos CAD Normales Independientes (Estilo X, +, Círculo X o Nodo)
-    const capaPuntos = capas.find((c) => c.id === "capa-puntos");
-    if (capaPuntos?.visible && puntosCad.length > 0) {
+    if (puntosCad.length > 0) {
       puntosCad.forEach((p) => {
+        const capaObj = capas.find((c) => c.id === p.capaId);
+        if (capaObj && !capaObj.visible) return;
+
         const esSeleccionado = puntosSeleccionados.includes(p.id);
         const ptoGroup = new THREE.Group();
         ptoGroup.position.set(p.x, (p.z || 0) + 0.1, p.y);
 
-        const colorPto = esSeleccionado ? 0xff0055 : new THREE.Color(capaPuntos.color).getHex();
-        const tipoActual = p.tipo || "cruz_x";
-        const tam = 0.65;
+        const colorPto = esSeleccionado
+          ? 0x00ffff
+          : p.color
+          ? new THREE.Color(p.color).getHex()
+          : capaObj
+          ? new THREE.Color(capaObj.color).getHex()
+          : 0x06b6d4;
+        const tipoActual = p.tipo || "circulo_x";
+        const tam = 0.10;
 
         // Estilo 1: Cruz diagonal "X" (estilo clásico de AutoCAD)
         if (tipoActual === "cruz_x" || tipoActual === "circulo_x") {
@@ -2140,9 +2516,9 @@ export default function EditorCadMalla({
 
         // Círculo / Retícula para "circulo_x" y "punto"
         if (tipoActual === "circulo_x" || tipoActual === "punto") {
-          const ringGeo = new THREE.RingGeometry(0.55, 0.78, 16);
+          const ringGeo = new THREE.RingGeometry(0.09, 0.13, 16);
           const ringMat = new THREE.MeshBasicMaterial({
-            color: esSeleccionado ? 0xff0055 : 0xffffff,
+            color: esSeleccionado ? 0xf97316 : 0xffffff,
             side: THREE.DoubleSide,
             transparent: true,
             opacity: 0.8,
@@ -2153,7 +2529,7 @@ export default function EditorCadMalla({
         }
 
         // Nodo central
-        const sphereGeo = new THREE.SphereGeometry(tipoActual === "punto" ? (esSeleccionado ? 0.6 : 0.42) : 0.16, 12, 12);
+        const sphereGeo = new THREE.SphereGeometry(tipoActual === "punto" ? (esSeleccionado ? 0.06 : 0.035) : 0.02, 12, 12);
         const sphereMat = new THREE.MeshBasicMaterial({ color: colorPto });
         const sphere = new THREE.Mesh(sphereGeo, sphereMat);
         sphere.userData = { tipo: "puntoCad", id: p.id };
@@ -2161,8 +2537,8 @@ export default function EditorCadMalla({
 
         // Halo de selección
         if (esSeleccionado) {
-          const haloGeo = new THREE.TorusGeometry(1.05, 0.08, 6, 24);
-          const haloMat = new THREE.MeshBasicMaterial({ color: 0xff0055 });
+          const haloGeo = new THREE.TorusGeometry(0.14, 0.015, 6, 24);
+          const haloMat = new THREE.MeshBasicMaterial({ color: 0xf97316 });
           const halo = new THREE.Mesh(haloGeo, haloMat);
           halo.rotation.x = Math.PI / 2;
           ptoGroup.add(halo);
@@ -2213,14 +2589,22 @@ export default function EditorCadMalla({
           dotLine.computeLineDistances();
           lineObj = dotLine;
         } else {
-          const lineMat = new THREE.LineBasicMaterial({ color, linewidth: 3 });
-          lineObj = new THREE.Line(lineGeo, lineMat);
+          const lineMat = new THREE.LineBasicMaterial({ color, depthTest: true });
+          const subLines = new THREE.Group();
+          [-0.016, 0, 0.016].forEach((dOff) => {
+            const ptsOff = [
+              new THREE.Vector3(l.p1.x + dOff, (l.p1.z || 0) + 0.08 + dOff * 0.3, l.p1.y),
+              new THREE.Vector3(l.p2.x + dOff, (l.p2.z || 0) + 0.08 + dOff * 0.3, l.p2.y),
+            ];
+            subLines.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(ptsOff), lineMat));
+          });
+          lineObj = subLines;
         }
         group.add(lineObj);
 
         // Nodos en los extremos de la línea
         [l.p1, l.p2].forEach((pt) => {
-          const endGeo = new THREE.SphereGeometry(0.26, 10, 10);
+          const endGeo = new THREE.SphereGeometry(0.025, 10, 10);
           const endMat = new THREE.MeshBasicMaterial({ color });
           const endMesh = new THREE.Mesh(endGeo, endMat);
           endMesh.position.set(pt.x, (pt.z || 0) + 0.08, pt.y);
@@ -2232,14 +2616,14 @@ export default function EditorCadMalla({
     // 5. Previsualización de Línea en Construcción (Inicio fijado + Guía elástica hacia cursor)
     if (inicioLinea) {
       // Marcador brillante en el punto de inicio
-      const startGeo = new THREE.SphereGeometry(0.42, 12, 12);
+      const startGeo = new THREE.SphereGeometry(0.045, 12, 12);
       const startMat = new THREE.MeshBasicMaterial({ color: 0x06b6d4 });
       const startMesh = new THREE.Mesh(startGeo, startMat);
       startMesh.position.set(inicioLinea.x, (inicioLinea.z || 0) + 0.1, inicioLinea.y);
       group.add(startMesh);
 
       // Anillo pulsante en el inicio
-      const haloGeo = new THREE.RingGeometry(0.65, 0.9, 16);
+      const haloGeo = new THREE.RingGeometry(0.08, 0.11, 16);
       const haloMat = new THREE.MeshBasicMaterial({ color: 0x06b6d4, side: THREE.DoubleSide });
       const halo = new THREE.Mesh(haloGeo, haloMat);
       halo.rotation.x = Math.PI / 2;
@@ -2307,14 +2691,19 @@ export default function EditorCadMalla({
           dotLine.computeLineDistances();
           plObj = dotLine;
         } else {
-          const mat = new THREE.LineBasicMaterial({ color, linewidth: 3 });
-          plObj = new THREE.Line(plGeo, mat);
+          const mat = new THREE.LineBasicMaterial({ color, depthTest: true });
+          const subPl = new THREE.Group();
+          [-0.016, 0, 0.016].forEach((dOff) => {
+            const ptsOff = pts.map((p) => new THREE.Vector3(p.x + dOff, p.y + dOff * 0.3, p.z));
+            subPl.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(ptsOff), mat));
+          });
+          plObj = subPl;
         }
         group.add(plObj);
 
         // Nodos en los vértices de la polilínea
         pl.puntos.forEach((pt) => {
-          const vGeo = new THREE.SphereGeometry(0.28, 10, 10);
+          const vGeo = new THREE.SphereGeometry(0.025, 10, 10);
           const vMat = new THREE.MeshBasicMaterial({ color });
           const vMesh = new THREE.Mesh(vGeo, vMat);
           vMesh.position.set(pt.x, (pt.z || 0) + 0.08, pt.y);
@@ -2332,21 +2721,21 @@ export default function EditorCadMalla({
 
       if (ptsConstruccion.length > 1) {
         const lineGeo = new THREE.BufferGeometry().setFromPoints(ptsConstruccion);
-        const lineMat = new THREE.LineBasicMaterial({ color: 0xff007f, linewidth: 3 });
+        const lineMat = new THREE.LineBasicMaterial({ color: 0xf97316, linewidth: 3 });
         group.add(new THREE.Line(lineGeo, lineMat));
       }
 
       // Marcadores en cada vértice fijado
       verticesPolilinea.forEach((v, idx) => {
-        const vGeo = new THREE.SphereGeometry(idx === 0 ? 0.45 : 0.35, 12, 12);
-        const vMat = new THREE.MeshBasicMaterial({ color: idx === 0 ? 0x06b6d4 : 0xff007f });
+        const vGeo = new THREE.SphereGeometry(idx === 0 ? 0.05 : 0.035, 12, 12);
+        const vMat = new THREE.MeshBasicMaterial({ color: idx === 0 ? 0x06b6d4 : 0xf97316 });
         const vMesh = new THREE.Mesh(vGeo, vMat);
         vMesh.position.set(v.x, (v.z || 0) + 0.1, v.y);
         group.add(vMesh);
 
         // Si es el primer vértice, agregar anillo halo para facilitar cerrar
         if (idx === 0) {
-          const ringGeo = new THREE.RingGeometry(0.65, 0.9, 16);
+          const ringGeo = new THREE.RingGeometry(0.08, 0.11, 16);
           const ringMat = new THREE.MeshBasicMaterial({ color: 0x06b6d4, side: THREE.DoubleSide });
           const ring = new THREE.Mesh(ringGeo, ringMat);
           ring.rotation.x = Math.PI / 2;
@@ -2445,7 +2834,7 @@ export default function EditorCadMalla({
           const pStart = arc.puntos[0];
           const pEnd = arc.puntos[arc.puntos.length - 1];
           [pStart, pEnd].forEach((pt) => {
-            const vGeo = new THREE.SphereGeometry(0.28, 10, 10);
+            const vGeo = new THREE.SphereGeometry(0.025, 10, 10);
             const vMat = new THREE.MeshBasicMaterial({ color });
             const vMesh = new THREE.Mesh(vGeo, vMat);
             vMesh.position.set(pt.x, (pt.z || 0) + 0.08, pt.y);
@@ -2459,14 +2848,14 @@ export default function EditorCadMalla({
     if (puntosArcoConstruccion.length > 0) {
       // Marcadores en los puntos fijados
       puntosArcoConstruccion.forEach((pt, idx) => {
-        const vGeo = new THREE.SphereGeometry(idx === 0 ? 0.45 : 0.35, 12, 12);
-        const vMat = new THREE.MeshBasicMaterial({ color: idx === 0 ? 0x06b6d4 : 0xff007f });
+        const vGeo = new THREE.SphereGeometry(idx === 0 ? 0.05 : 0.035, 12, 12);
+        const vMat = new THREE.MeshBasicMaterial({ color: idx === 0 ? 0x06b6d4 : 0xf97316 });
         const vMesh = new THREE.Mesh(vGeo, vMat);
         vMesh.position.set(pt.x, (pt.z || 0) + 0.1, pt.y);
         group.add(vMesh);
 
         if (idx === 0) {
-          const ringGeo = new THREE.RingGeometry(0.65, 0.9, 16);
+          const ringGeo = new THREE.RingGeometry(0.08, 0.11, 16);
           const ringMat = new THREE.MeshBasicMaterial({ color: 0x06b6d4, side: THREE.DoubleSide });
           const ring = new THREE.Mesh(ringGeo, ringMat);
           ring.rotation.x = Math.PI / 2;
@@ -3205,25 +3594,25 @@ export default function EditorCadMalla({
       dynamicGrid.position.set(oX, -0.02, oY);
       group.add(dynamicGrid);
 
-      // Cruz fucsia en el Origen configurado de la Grilla
-      const cruzMat = new THREE.LineBasicMaterial({ color: 0xf43f5e, linewidth: 2.5 });
-      const cSize = Math.max(1.2, p * 2);
+      // Cruz técnica discreta en el Origen de la Grilla (CAD Professional - sin ocultar los arrastres)
+      const cruzMat = new THREE.LineBasicMaterial({ color: 0xf43f5e, linewidth: 1.5, transparent: true, opacity: 0.6 });
+      const cSize = Math.min(0.25, Math.max(0.08, p * 0.4));
       const cruzGeo1 = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(oX - cSize, 0.03, oY),
-        new THREE.Vector3(oX + cSize, 0.03, oY),
+        new THREE.Vector3(oX - cSize, 0.01, oY),
+        new THREE.Vector3(oX + cSize, 0.01, oY),
       ]);
       const cruzGeo2 = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(oX, 0.03, oY - cSize),
-        new THREE.Vector3(oX, 0.03, oY + cSize),
+        new THREE.Vector3(oX, 0.01, oY - cSize),
+        new THREE.Vector3(oX, 0.01, oY + cSize),
       ]);
       group.add(new THREE.Line(cruzGeo1, cruzMat));
       group.add(new THREE.Line(cruzGeo2, cruzMat));
 
-      // Marcador esférico de origen (0, 0) de la grilla
-      const oGeo = new THREE.SphereGeometry(0.28, 12, 12);
+      // Marcador esférico discreto (radio 2.5 cm en cota inferior para nunca tapar las zapateras)
+      const oGeo = new THREE.SphereGeometry(0.025, 8, 8);
       const oMat = new THREE.MeshBasicMaterial({ color: 0xf43f5e });
       const oMesh = new THREE.Mesh(oGeo, oMat);
-      oMesh.position.set(oX, 0.04, oY);
+      oMesh.position.set(oX, 0.015, oY);
       group.add(oMesh);
 
       // Ver Distancias de Grilla (Anotaciones numéricas en metros a lo largo de los ejes)
@@ -3288,6 +3677,7 @@ export default function EditorCadMalla({
     griOrigenY,
     poligonoCresta,
     taladros,
+    taladrosSeleccionados,
     indicesSeleccionados,
     capas,
     puntosCad,
@@ -3344,6 +3734,16 @@ export default function EditorCadMalla({
     ) {
       return;
     }
+
+    // Detección de doble toque en pantalla (móvil o clic rápido en PC) para centrar el dibujo
+    const now = Date.now();
+    const distTap = Math.hypot(e.clientX - lastTapRef.current.x, e.clientY - lastTapRef.current.y);
+    if (e.button === 0 && now - lastTapRef.current.time < 350 && distTap < 25) {
+      lastTapRef.current = { time: 0, x: 0, y: 0 };
+      handleCentrarDibujoCompleto();
+      return;
+    }
+    lastTapRef.current = { time: now, x: e.clientX, y: e.clientY };
 
     orbitRef.current.isDragging = true;
     orbitRef.current.dragStart = { x: e.clientX, y: e.clientY };
@@ -3699,11 +4099,23 @@ export default function EditorCadMalla({
       }
     });
 
-    if (seleccionados.length > 0 || ptosSel.length > 0) {
+    const talsSel: string[] = [];
+    taladros.forEach((t) => {
+      const v = new THREE.Vector3(t.collar.x, (t.collar.z || 0) + 0.08, t.collar.y);
+      v.project(camera);
+      const sx = ((v.x + 1) * rect.width) / 2;
+      const sy = ((-v.y + 1) * rect.height) / 2;
+      if (sx >= minX && sx <= maxX && sy >= minY && sy <= maxY) {
+        talsSel.push(t.id);
+      }
+    });
+
+    if (seleccionados.length > 0 || ptosSel.length > 0 || talsSel.length > 0) {
       setIndicesSeleccionados(seleccionados);
       setPuntosSeleccionados(ptosSel);
+      setTaladrosSeleccionados(talsSel);
       setPanelSelVisible(true);
-      mostrarAviso(`${seleccionados.length + ptosSel.length} entidades seleccionadas por recuadro`);
+      mostrarAviso(`${seleccionados.length + ptosSel.length + talsSel.length} entidades seleccionadas por recuadro`);
     }
   }
 
@@ -3751,6 +4163,22 @@ export default function EditorCadMalla({
     const sx = ((v.x + 1) / 2) * rect.width + rect.left;
     const sy = ((-v.y + 1) / 2) * rect.height + rect.top;
     return { x: sx, y: sy, delante: v.z < 1 };
+  }
+
+  function verificarToqueTaladro(clientX: number, clientY: number, tolPx = 24): string | null {
+    let masCercanoId: string | null = null;
+    let minDist = tolPx;
+    taladros.forEach((t) => {
+      const scr = proyectarAPantalla(new THREE.Vector3(t.collar.x, (t.collar.z || 0) + 0.08, t.collar.y));
+      if (scr && scr.delante) {
+        const d = Math.hypot(clientX - scr.x, clientY - scr.y);
+        if (d < minDist) {
+          minDist = d;
+          masCercanoId = t.id;
+        }
+      }
+    });
+    return masCercanoId;
   }
 
   function verificarToquePuntoCad(clientX: number, clientY: number, tolPx = 22): string | null {
@@ -3912,10 +4340,27 @@ export default function EditorCadMalla({
   }
 
   function hacerRaycastSeleccion(clientX: number, clientY: number) {
-    // 1. Verificar si tocó una arista de un sólido 3D
+    // 1. Verificar si tocó un taladro (prioridad alta para seleccionar o borrar con Supr)
+    const talId = verificarToqueTaladro(clientX, clientY);
+    if (talId !== null) {
+      setTaladrosSeleccionados([talId]);
+      setPuntosSeleccionados([]);
+      setIndicesSeleccionados([]);
+      setLineasSeleccionadas([]);
+      setAristasSolidosSeleccionadas([]);
+      setPanelSelVisible(true);
+      const talObj = taladros.find((t) => t.id === talId);
+      const zona = (talObj as any)?.zona || "arranque";
+      const infoG = GRUPOS_TALADRO_CONFIG.find((g) => g.id === zona);
+      mostrarAviso(`Taladro ${infoG?.label || zona} seleccionado (Collar: ${talObj?.collar.x.toFixed(2)}, ${talObj?.collar.y.toFixed(2)})`);
+      return;
+    }
+
+    // 2. Verificar si tocó una arista de un sólido 3D
     const matchArista = verificarToqueAristaSolido(clientX, clientY);
     if (matchArista) {
       setAristasSolidosSeleccionadas([matchArista.arista.id]);
+      setTaladrosSeleccionados([]);
       setPuntosSeleccionados([]);
       setIndicesSeleccionados([]);
       setLineasSeleccionadas([]);
@@ -3929,6 +4374,7 @@ export default function EditorCadMalla({
     const ptoCadId = verificarToquePuntoCad(clientX, clientY);
     if (ptoCadId !== null) {
       setPuntosSeleccionados([ptoCadId]);
+      setTaladrosSeleccionados([]);
       setIndicesSeleccionados([]);
       setLineasSeleccionadas([]);
       setAristasSolidosSeleccionadas([]);
@@ -3943,6 +4389,7 @@ export default function EditorCadMalla({
     const idx = verificarToqueVertice(clientX, clientY);
     if (idx !== null) {
       setIndicesSeleccionados([idx]);
+      setTaladrosSeleccionados([]);
       setPuntosSeleccionados([]);
       setLineasSeleccionadas([]);
       setAristasSolidosSeleccionadas([]);
@@ -3969,6 +4416,7 @@ export default function EditorCadMalla({
 
     if (lineaMasCercanaId) {
       setLineasSeleccionadas([lineaMasCercanaId]);
+      setTaladrosSeleccionados([]);
       setPuntosSeleccionados([]);
       setIndicesSeleccionados([]);
       setAristasSolidosSeleccionadas([]);
@@ -3981,6 +4429,7 @@ export default function EditorCadMalla({
     }
 
     setIndicesSeleccionados([]);
+    setTaladrosSeleccionados([]);
     setPuntosSeleccionados([]);
     setLineasSeleccionadas([]);
     setAristasSolidosSeleccionadas([]);
@@ -5589,6 +6038,7 @@ export default function EditorCadMalla({
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onWheel={onWheel}
+        onDoubleClick={handleCentrarDibujoCompleto}
         onContextMenu={(e) => e.preventDefault()}
       >
         {/* Recuadro visual de selección múltiple (Marquee) */}
@@ -5738,14 +6188,8 @@ export default function EditorCadMalla({
           <button
             type="button"
             className="btn-dock-circle-exact"
-            onClick={() => {
-              orbitRef.current.theta = Math.PI / 4;
-              orbitRef.current.phi = Math.PI / 3;
-              orbitRef.current.radius = 40;
-              orbitRef.current.target.set(12, 0, 8);
-              mostrarAviso("Vista 3D centrada");
-            }}
-            title="Centrar Vista 3D"
+            onClick={handleCentrarDibujoCompleto}
+            title="Centrar Dibujo CAD (Doble toque en pantalla)"
           >
             °
           </button>
@@ -5847,9 +6291,20 @@ export default function EditorCadMalla({
                     CAPA · {capas.find((c) => c.id === capaActivaId)?.nombre || "Dibujo CAD"}
                   </span>
                   <span className="panel-sel-counter-badge">
-                    Sel: {indicesSeleccionados.length + puntosSeleccionados.length}
+                    Sel: {indicesSeleccionados.length + puntosSeleccionados.length + taladrosSeleccionados.length}
                   </span>
                 </div>
+
+                {taladrosSeleccionados.length > 0 && (
+                  <div className="panel-punto-base-box" style={{ borderLeft: "3px solid #00f0ff" }}>
+                    <span className="pb-coords-text" style={{ color: "#00f0ff", fontWeight: 700 }}>
+                      ⚡ {taladrosSeleccionados.length} taladro(s) seleccionado(s)
+                    </span>
+                    <span style={{ fontSize: "10.5px", color: "#94a3b8", display: "block", marginTop: 2 }}>
+                      Pulsa "Borrar" abajo o la tecla Supr/Delete para eliminar.
+                    </span>
+                  </div>
+                )}
 
                 {/* Referencia de Punto Base (Para líneas y polígonos) o Punto Individual */}
                 {indicesSeleccionados.length > 0 && (
@@ -8822,10 +9277,11 @@ export default function EditorCadMalla({
           lineasCad={lineasCad}
           polilineasCad={polilineasCad}
           taladros={taladros}
+          onCambiarTaladros={onCambiarTaladros}
           onAplicarParametros={(params) => {
             mostrarAviso(`Parámetros aplicados: ${params.ancho}x${params.alto}m | RMR ${params.rmr}`);
           }}
-          onGenerarTaladros={(nuevos) => {
+          onGenerarTaladros={(nuevos: Taladro[]) => {
             registrarHistorial();
             if (onCambiarTaladros) {
               onCambiarTaladros(nuevos);

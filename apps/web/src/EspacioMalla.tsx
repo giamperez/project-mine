@@ -44,10 +44,12 @@ function rectangulo(largo: number, ancho: number) {
 }
 
 interface EspacioMallaProps {
+  proyectoId?: string;
   onVolverAlPortal?: () => void;
 }
 
-export default function EspacioMalla({ onVolverAlPortal }: EspacioMallaProps = {}) {
+export default function EspacioMalla({ proyectoId = "malla-1", onVolverAlPortal }: EspacioMallaProps = {}) {
+  const esNuevaMalla = proyectoId !== "malla-1";
   const [vistaActual, setVistaActual] = useState<"cad" | "taller3d">("cad");
   const [modoDiseno, setModoDiseno] = usePersistedState<ModoDiseno>("malla.modoDiseno", "banco");
 
@@ -61,7 +63,7 @@ export default function EspacioMalla({ onVolverAlPortal }: EspacioMallaProps = {
     numeroTaladrosAlivio: 4,
     avance_m: 3.2,
   });
-  const [taladrosTunel, setTaladrosTunel] = usePersistedState<TaladroTunel[]>("malla.tunel.taladros", []);
+  const [taladrosTunel, setTaladrosTunel] = usePersistedState<TaladroTunel[]>(`malla.${proyectoId}.tunel.taladros`, []);
   const resultadoGeometriaTunel = useMemo(() => calcularGeometriaFrente(geometriaTunel), [geometriaTunel]);
   const resultadoArranqueTunel = useMemo(() => calcularArranqueHolmberg(entradaArranqueTunel), [entradaArranqueTunel]);
 
@@ -73,15 +75,27 @@ export default function EspacioMalla({ onVolverAlPortal }: EspacioMallaProps = {
   const [capas, setCapas] = useState<EstadoCapa[]>([]);
   const [mensaje, setMensaje] = useState<string | null>(null);
 
-  const [entrada, setEntrada] = usePersistedState<EntradaMallaPerforacion>("malla.entrada", {
-    poligonoCresta: rectangulo(24, 16),
-    cotaCresta: 4500,
-    alturaBanco_m: 10,
-    diametroMm: 89,
-    densidadRocaGcm3: 2.7,
-    tipoRoca: "media",
-    explosivo: EXPLOSIVOS_PRESET[0],
-  });
+  const [entrada, setEntrada] = usePersistedState<EntradaMallaPerforacion>(`malla.${proyectoId}.entrada`, () =>
+    esNuevaMalla
+      ? {
+          poligonoCresta: [],
+          cotaCresta: 4500,
+          alturaBanco_m: 10,
+          diametroMm: 89,
+          densidadRocaGcm3: 2.7,
+          tipoRoca: "media",
+          explosivo: EXPLOSIVOS_PRESET[0],
+        }
+      : {
+          poligonoCresta: rectangulo(24, 16),
+          cotaCresta: 4500,
+          alturaBanco_m: 10,
+          diametroMm: 89,
+          densidadRocaGcm3: 2.7,
+          tipoRoca: "media",
+          explosivo: EXPLOSIVOS_PRESET[0],
+        }
+  );
 
   const [entradaVoladura, setEntradaVoladura] = usePersistedState<EntradaVoladuraUI>("malla.entradaVoladura", {
     patronIniciacion: "echelon",
@@ -97,8 +111,13 @@ export default function EspacioMalla({ onVolverAlPortal }: EspacioMallaProps = {
   // null = usar la grilla auto-generada por formula (resultado.taladros); no-null = edicion manual
   // (agregar/mover/eliminar taladros sueltos) que reemplaza esa grilla en toda la app hasta que se
   // regenera explicitamente.
-  const [taladrosManuales, setTaladrosManuales] = usePersistedState<Taladro[] | null>("malla.taladrosManuales", null);
-  const taladrosEfectivos = taladrosManuales ?? resultado.taladros;
+  const [taladrosManuales, setTaladrosManuales] = usePersistedState<Taladro[] | null>(
+    `malla.${proyectoId}.taladrosManuales`,
+    () => (esNuevaMalla ? [] : null)
+  );
+  const taladrosEfectivos =
+    taladrosManuales ??
+    (entrada.poligonoCresta && entrada.poligonoCresta.length >= 3 ? resultado.taladros : []);
   const resultadoEfectivo = useMemo(() => ({ ...resultado, taladros: taladrosEfectivos }), [resultado, taladrosEfectivos]);
 
   const resultadoVoladura = useMemo(
@@ -210,6 +229,7 @@ export default function EspacioMalla({ onVolverAlPortal }: EspacioMallaProps = {
   if (vistaActual === "cad") {
     return (
       <EditorCadMalla
+        proyectoId={proyectoId}
         poligonoCresta={entrada.poligonoCresta}
         onCambiarPoligono={(nuevos) => setEntrada({ ...entrada, poligonoCresta: nuevos })}
         taladros={taladrosEfectivos}

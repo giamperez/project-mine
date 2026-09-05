@@ -1672,6 +1672,13 @@ table.tabla-taladros td:first-child {
 .portal-recientes-section {
   display: flex;
   flex-direction: column;
+  gap: 12px;
+}
+
+.portal-recientes-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 10px;
 }
 
@@ -1684,6 +1691,28 @@ table.tabla-taladros td:first-child {
   text-transform: uppercase;
 }
 
+.btn-portal-add-inline {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #cbd5e1;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.15s ease;
+}
+
+.btn-portal-add-inline:hover {
+  background: rgba(249, 115, 22, 0.15);
+  border-color: #f97316;
+  color: #f97316;
+  transform: translateY(-1px);
+}
+
 .portal-project-card {
   background: #121824;
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -1693,6 +1722,36 @@ table.tabla-taladros td:first-child {
   flex-direction: column;
   gap: 10px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.portal-project-card:hover {
+  border-color: rgba(249, 115, 22, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+
+.portal-project-card.activo {
+  border-color: rgba(249, 115, 22, 0.55);
+  box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.25), 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+
+.portal-empty-card {
+  background: rgba(18, 24, 36, 0.4);
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 18px;
+  text-align: center;
+}
+
+.portal-badge-active {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid currentColor;
+  letter-spacing: 0.5px;
 }
 
 .portal-project-card-header {

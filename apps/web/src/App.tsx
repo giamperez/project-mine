@@ -14,9 +14,18 @@ export default function App() {
   const [espacio, setEspacio] = useState<Espacio>("dashboard");
   const [vistaModulo, setVistaModulo] = useState<"portal" | "taller">("portal");
 
+  const [mallaActivaId, setMallaActivaId] = useState<string>("malla-1");
+
   function seleccionarModulo(m: ModuloId) {
     setEspacio(m);
     setVistaModulo("portal");
+  }
+
+  function abrirTaller(id?: string) {
+    if (id) {
+      setMallaActivaId(id);
+    }
+    setVistaModulo("taller");
   }
 
   return (
@@ -25,15 +34,22 @@ export default function App() {
 
       {espacio !== "dashboard" && vistaModulo === "portal" && (
         <ModuloPortal
+          key={espacio}
           moduloId={espacio}
           onVolverDashboard={() => setEspacio("dashboard")}
-          onAbrirTaller={() => setVistaModulo("taller")}
+          onAbrirTaller={(id) => abrirTaller(id)}
         />
       )}
 
       {espacio !== "dashboard" && vistaModulo === "taller" && (
         <>
-          {espacio === "malla" && <EspacioMalla onVolverAlPortal={() => setVistaModulo("portal")} />}
+          {espacio === "malla" && (
+            <EspacioMalla
+              key={mallaActivaId}
+              proyectoId={mallaActivaId}
+              onVolverAlPortal={() => setVistaModulo("portal")}
+            />
+          )}
           {espacio === "topografia" && <EspacioTopografia />}
           {espacio === "geomecanica" && <EspacioGeomecanica />}
           {espacio === "estereografia" && <EspacioEstereografia />}
