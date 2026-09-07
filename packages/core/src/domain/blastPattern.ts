@@ -70,8 +70,12 @@ export interface Taladro {
 }
 
 export interface ResultadoMallaPerforacion {
+  /** Burden segun Konya (B = 0.012*(2*rho_e/rho_r + 1.5)*De), metros. */
+  burdenKonya_m: number;
   /** Burden segun Ash (KB*d), metros. */
   burdenAsh_m: number;
+  /** Burden segun Pearse modificado, metros. */
+  burdenPearse_m?: number;
   /** Burden maximo segun Langefors-Kihlstrom, metros. */
   burdenLangeforsMax_m: number;
   /** Burden practico de Langefors (corregido por errores de perforacion), metros. */

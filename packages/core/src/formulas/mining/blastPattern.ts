@@ -66,6 +66,34 @@ export function burdenAsh_m(diametroMm: number, densidadRocaGcm3: number, fuerza
   return feetToMeters(bFt);
 }
 
+/**
+ * Burden segun C.J. Konya (1990):
+ * B = 0.012 * (2 * (rho_e / rho_r) + 1.5) * De
+ * con B en metros, De en mm, y densidades rho_e y rho_r en g/cm³ (o t/m³).
+ */
+export function burdenKonya_m(diametroMm: number, densidadExplosivoGcm3: number, densidadRocaGcm3: number): number {
+  if (diametroMm <= 0 || densidadRocaGcm3 <= 0) return 0;
+  const relacionDensidades = (2 * densidadExplosivoGcm3) / densidadRocaGcm3;
+  return 0.012 * (relacionDensidades + 1.5) * diametroMm;
+}
+
+/**
+ * Burden segun Pearse modificado:
+ * B = (K * D / 1000) * sqrt(PoD / Std)
+ * K: factor de roca (0.7 a 1.0), D: diametro mm, PoD: presion detonacion kg/cm², Std: resistencia traccion kg/cm².
+ */
+export function burdenPearseModificado_m(
+  diametroMm: number,
+  presionDetonacionKbar: number,
+  resistenciaTraccionMpa: number,
+  kFactor = 0.85
+): number {
+  if (diametroMm <= 0 || resistenciaTraccionMpa <= 0 || presionDetonacionKbar <= 0) return 0;
+  // 1 kbar = 100 MPa; razon adimensional
+  const razon = (presionDetonacionKbar * 100) / resistenciaTraccionMpa;
+  return (kFactor * diametroMm / 1000) * Math.sqrt(Math.max(razon, 0.1));
+}
+
 /** Burden maximo de Langefors-Kihlstrom, metros. */
 export function burdenLangeforsMax_m(
   diametroMm: number,
@@ -245,7 +273,10 @@ export function disenarMallaPerforacion(entrada: EntradaMallaPerforacion): Resul
     advertencias.push("No se genero ningun taladro dentro del poligono: el banco puede ser mas pequeno que un burden x espaciamiento.");
   }
 
+  const bKonya = burdenKonya_m(entrada.diametroMm, entrada.explosivo.densidadGcm3, entrada.densidadRocaGcm3);
+
   return {
+    burdenKonya_m: bKonya,
     burdenAsh_m: bAsh,
     burdenLangeforsMax_m: bMax,
     burdenLangeforsPractico_m: bPractico,

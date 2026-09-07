@@ -139,3 +139,164 @@ export interface ResultadoTaladrosFrente {
   puntos: PuntoTaladroFrente[];
   advertencias: string[];
 }
+
+/** Propiedades técnicas completas de explosivos para minería subterránea y tajo abierto (EXSA / FAMESA, Perú). */
+export interface PropiedadesExplosivoMina {
+  id: string;
+  nombre: string;
+  fabricante: "EXSA" | "FAMESA" | "GENERICO";
+  /** Densidad del encartuchado o a granel, g/cm³ (o kg/dm³). */
+  densidadGcm3: number;
+  /** Velocidad de detonación nominal, m/s. */
+  vodMs: number;
+  /** Presión de detonación nominal, kbar. PoD = 0.25e-5 * rho_e * VOD^2. */
+  presionDetonacionKbar: number;
+  /** Potencia relativa en peso respecto al ANFO (RWS %), ANFO = 100%. */
+  rwsPeso: number;
+  /** Potencia relativa en volumen respecto al ANFO (RBS %), ANFO = 100%. */
+  rbsVolumen?: number;
+  usoPrincipal: string;
+}
+
+/** Catálogo oficial de explosivos mineros comunes en Perú (EXSA / FAMESA). */
+export const CATALOGO_EXPLOSIVOS_PERU: PropiedadesExplosivoMina[] = [
+  {
+    id: "gelatina-especial-75",
+    nombre: "Gelatina Especial 75",
+    fabricante: "EXSA",
+    densidadGcm3: 1.38,
+    vodMs: 5500,
+    presionDetonacionKbar: 170, // 157-183 kbar
+    rwsPeso: 105,
+    usoPrincipal: "Arranque y cuele en roca muy dura / tenaz",
+  },
+  {
+    id: "semexsa-80",
+    nombre: "Semexsa 80",
+    fabricante: "EXSA",
+    densidadGcm3: 1.18,
+    vodMs: 4500,
+    presionDetonacionKbar: 138, // 125-152 kbar
+    rwsPeso: 99,
+    usoPrincipal: "Roca dura, arranque y ayudas",
+  },
+  {
+    id: "semexsa-65",
+    nombre: "Semexsa 65",
+    fabricante: "EXSA",
+    densidadGcm3: 1.12,
+    vodMs: 4200,
+    presionDetonacionKbar: 117, // 94-141 kbar
+    rwsPeso: 92,
+    usoPrincipal: "Producción y tajeo en roca media",
+  },
+  {
+    id: "semexsa-45",
+    nombre: "Semexsa 45",
+    fabricante: "EXSA",
+    densidadGcm3: 1.08,
+    vodMs: 3800,
+    presionDetonacionKbar: 110, // 87-134 kbar
+    rwsPeso: 89,
+    usoPrincipal: "Roca suave / friable, labores secundarias",
+  },
+  {
+    id: "emulnor-3000",
+    nombre: "Emulnor 3000",
+    fabricante: "FAMESA",
+    densidadGcm3: 1.14,
+    vodMs: 5700,
+    presionDetonacionKbar: 93,
+    rwsPeso: 100,
+    rbsVolumen: 145,
+    usoPrincipal: "Arrastre y contorno con presencia de agua",
+  },
+  {
+    id: "anfo-superfam",
+    nombre: "ANFO / SUPERFAM DOS",
+    fabricante: "FAMESA",
+    densidadGcm3: 0.82,
+    vodMs: 3750,
+    presionDetonacionKbar: 48, // 45-51 kbar
+    rwsPeso: 100,
+    rbsVolumen: 100,
+    usoPrincipal: "Patrón de referencia, labores secas y tajo abierto",
+  },
+];
+
+export type MetodoDisenoSubterraneo =
+  | "holmberg_1982"
+  | "langefors_kihlstrom"
+  | "empirico_famesa"
+  | "area_influencia_coneingemmet"
+  | "practico_empirico";
+
+export type TipoCorteSubterraneo =
+  | "paralelo_quemado"
+  | "cuna"
+  | "piramidal"
+  | "abanico";
+
+export interface DesgloseZonasTaladros {
+  alivios: number;
+  arranque: number;
+  ayudas: number;
+  cuadradores: number;
+  corona: number;
+  arrastre: number;
+  recorte?: number;
+  totalCargados: number;
+  totalTaladros: number;
+}
+
+export interface ResultadoKuzRam {
+  /** Tamaño medio de fragmento (X50), cm. */
+  x50_cm: number;
+  /** Índice de uniformidad de Cunningham (n). */
+  indiceUniformidad_n: number;
+  /** Tamaño característico de Rosin-Rammler (Xc), cm. */
+  xc_cm: number;
+  /** Porcentaje estimado pasante bajo 5 cm (finos). */
+  porcentajeFinos_5cm: number;
+  /** Porcentaje estimado retenido sobre 30 cm (sobretamaño / bolones). */
+  porcentajeSobretamano_30cm: number;
+  calidadFragmentacion: "fina" | "optima" | "gruesa_con_bolones";
+}
+
+export interface ResultadoHolmbergPersson {
+  /** Velocidad pico de partícula estimada en el contorno (PPV), mm/s. */
+  ppvContorno_mms: number;
+  /** Distancia crítica de daño estructural a la roca circundante (PPV > 700-1000 mm/s), m. */
+  radioDanoCritico_m: number;
+  /** Evaluación del riesgo de sobre-excavación en corona/hastiales. */
+  riesgoSobreExcavacion: "bajo" | "moderado" | "alto";
+  recomendacionVoladuraSuave: string;
+}
+
+export interface ResultadoRondaSubterraneaCompleta {
+  metodo: MetodoDisenoSubterraneo;
+  tipoCorte: TipoCorteSubterraneo;
+  area_m2: number;
+  perimetro_m: number;
+  diametroEquivalenteAlivio_mm: number;
+  avanceObjetivo_m: number;
+  avanceRealEstimado_m: number;
+  eficienciaAvance_pct: number;
+  constanteRoca_c: number;
+  constanteRocaCorregida_cBar: number;
+  factorK_Famesa: number;
+  espaciamientoEmpirico_E: number;
+  distanciaPerifericos_dt: number;
+  seccionesCorte: SeccionArranque[];
+  desgloseZonas: DesgloseZonasTaladros;
+  metrosPerforadosTotal_m: number;
+  perforacionEspecifica_m_m3: number;
+  volumenRocaPorDisparo_m3: number;
+  toneladasPorDisparo: number;
+  pesoExplosivoTotal_kg: number;
+  factorCarga_kg_m3: number;
+  kuzRam: ResultadoKuzRam;
+  holmbergPersson: ResultadoHolmbergPersson;
+  advertencias: string[];
+}
+

@@ -65,6 +65,7 @@ export interface PuntoCad3D {
    * para seguir dibujando el símbolo técnico de esa zona (rombo, flecha, etc.) en vez de un
    * círculo genérico, y que la malla se vea igual antes y después de convertirla. */
   grupoTaladro?: GrupoTaladroCad;
+  anguloLookoutRad?: number;
 }
 
 export interface LineaCad3D {
@@ -342,7 +343,9 @@ function dibujarIconoTaladro(
   x: number,
   matColor: THREE.LineBasicMaterial,
   matFill: THREE.MeshBasicMaterial,
-  esCargado: boolean
+  esCargado: boolean,
+  anguloLookoutRad?: number,
+  cxCentroGaleria?: number
 ) {
   switch (zona) {
     case "alivio": {
@@ -429,12 +432,25 @@ function dibujarIconoTaladro(
     case "corona": {
       const r = 0.05;
       grupoObj.add(new THREE.Line(crearCirculoVectorTaladro(r, 20), matColor));
+
+      // Espiga de look-out radial orientada hacia afuera normal al arco de la bóveda
+      const ang = typeof anguloLookoutRad === "number" ? anguloLookoutRad : Math.PI / 2;
+      const dx = Math.cos(ang);
+      const dz = Math.sin(ang);
+      const nx = -dz;
+      const nz = dx;
+
+      const pBase = new THREE.Vector3(r * dx, 0, r * dz);
+      const pTip = new THREE.Vector3((r + 0.065) * dx, 0, (r + 0.065) * dz);
+      const pWing1 = new THREE.Vector3((r + 0.042) * dx + 0.018 * nx, 0, (r + 0.042) * dz + 0.018 * nz);
+      const pWing2 = new THREE.Vector3((r + 0.042) * dx - 0.018 * nx, 0, (r + 0.042) * dz - 0.018 * nz);
+
       const espigaGeo = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(0, 0, r),
-        new THREE.Vector3(0, 0, r + 0.06),
-        new THREE.Vector3(-0.02, 0, r + 0.04),
-        new THREE.Vector3(0, 0, r + 0.06),
-        new THREE.Vector3(0.02, 0, r + 0.04),
+        pBase,
+        pTip,
+        pWing1,
+        pTip,
+        pWing2,
       ]);
       grupoObj.add(new THREE.Line(espigaGeo, matColor));
       if (esCargado) {
@@ -468,13 +484,17 @@ function dibujarIconoTaladro(
     case "hastial": {
       const r = 0.05;
       grupoObj.add(new THREE.Line(crearCirculoVectorTaladro(r, 20), matColor));
-      const dirX = x >= 0 ? 1 : -1;
+      // Hastial izquierdo apunta hacia afuera (-X, izquierda); hastial derecho hacia (+X, derecha)
+      const dirX = typeof anguloLookoutRad === "number"
+        ? (Math.cos(anguloLookoutRad) >= 0 ? 1 : -1)
+        : (typeof cxCentroGaleria === "number" ? (x >= cxCentroGaleria ? 1 : -1) : (x >= 0 ? 1 : -1));
+
       const espigaGeo = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(dirX * r, 0, 0),
-        new THREE.Vector3(dirX * (r + 0.06), 0, 0),
-        new THREE.Vector3(dirX * (r + 0.04), 0, 0.02),
-        new THREE.Vector3(dirX * (r + 0.06), 0, 0),
-        new THREE.Vector3(dirX * (r + 0.04), 0, -0.02),
+        new THREE.Vector3(dirX * (r + 0.065), 0, 0),
+        new THREE.Vector3(dirX * (r + 0.042), 0, 0.02),
+        new THREE.Vector3(dirX * (r + 0.065), 0, 0),
+        new THREE.Vector3(dirX * (r + 0.042), 0, -0.02),
       ]);
       grupoObj.add(new THREE.Line(espigaGeo, matColor));
       if (esCargado) {
@@ -492,7 +512,10 @@ function dibujarIconoTaladro(
       grupoObj.add(dot);
       const espigaGeo = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(0, 0, -r),
-        new THREE.Vector3(0, 0, -r - 0.06),
+        new THREE.Vector3(0, 0, -r - 0.065),
+        new THREE.Vector3(-0.018, 0, -r - 0.042),
+        new THREE.Vector3(0, 0, -r - 0.065),
+        new THREE.Vector3(0.018, 0, -r - 0.042),
       ]);
       grupoObj.add(new THREE.Line(espigaGeo, matColor));
       break;
@@ -1598,10 +1621,12 @@ export default function EditorCadMalla({
           // ícono y solo el color distinguía la zona, así que el cuele/contorno perdía su forma
           // reconocible y se veía como una nube de puntos sin estructura.
           grupoTaladro: zonaTal,
+          anguloLookoutRad: (t as any).anguloLookoutRad,
         };
       });
 
-      setPuntosCad((prev) => [...prev, ...nuevosPuntos]);
+      // Reemplaza taladros CAD convertidos previos para evitar duplicación fantasma
+      setPuntosCad((prev) => [...prev.filter((p) => !p.grupoTaladro), ...nuevosPuntos]);
       agregadosPuntos += nuevosPuntos.length;
     }
 
@@ -2445,7 +2470,22 @@ export default function EditorCadMalla({
           talGroupObj.add(selHalo);
         }
 
-        dibujarIconoTaladro(talGroupObj, zonaTal, cx, matColor, matFill, esCargado);
+        // Centro horizontal de la galería para orientar hastiales
+        const cxCentroRef =
+          poligonoCresta && poligonoCresta.length > 0
+            ? (Math.min(...poligonoCresta.map((p) => p.x)) + Math.max(...poligonoCresta.map((p) => p.x))) / 2
+            : 0;
+
+        dibujarIconoTaladro(
+          talGroupObj,
+          zonaTal,
+          cx,
+          matColor,
+          matFill,
+          esCargado,
+          (t as any).anguloLookoutRad,
+          cxCentroRef
+        );
 
         group.add(talGroupObj);
 
@@ -2498,9 +2538,23 @@ export default function EditorCadMalla({
 
     // 3. Puntos CAD Normales Independientes (Estilo X, +, Círculo X o Nodo)
     if (puntosCad.length > 0) {
+      const cxCentroRef =
+        poligonoCresta && poligonoCresta.length > 0
+          ? (Math.min(...poligonoCresta.map((p) => p.x)) + Math.max(...poligonoCresta.map((p) => p.x))) / 2
+          : 0;
+
       puntosCad.forEach((p) => {
         const capaObj = capas.find((c) => c.id === p.capaId);
         if (capaObj && !capaObj.visible) return;
+
+        // Si la capa de taladros vivos está activa y tiene taladros vivos,
+        // no dibujar puntos convertidos redundantes o desfasados (< 0.08m)
+        if (p.grupoTaladro && capaTaladros?.visible && taladros.length > 0) {
+          const yaExiste = taladros.some(
+            (t) => Math.hypot(t.collar.x - p.x, t.collar.y - p.y) < 0.08
+          );
+          if (yaExiste) return;
+        }
 
         const esSeleccionado = puntosSeleccionados.includes(p.id);
         const ptoGroup = new THREE.Group();
@@ -2522,7 +2576,16 @@ export default function EditorCadMalla({
           // así la malla se ve igual antes y después de "Convertir a CAD editable".
           const matColorPto = new THREE.LineBasicMaterial({ color: colorPto, linewidth: esSeleccionado ? 3 : 2 });
           const matFillPto = new THREE.MeshBasicMaterial({ color: colorPto, side: THREE.DoubleSide });
-          dibujarIconoTaladro(ptoGroup, p.grupoTaladro, p.x, matColorPto, matFillPto, true);
+          dibujarIconoTaladro(
+            ptoGroup,
+            p.grupoTaladro,
+            p.x,
+            matColorPto,
+            matFillPto,
+            true,
+            p.anguloLookoutRad,
+            cxCentroRef
+          );
         } else {
           // Estilo 1: Cruz diagonal "X" (estilo clásico de AutoCAD)
           if (tipoActual === "cruz_x" || tipoActual === "circulo_x") {
