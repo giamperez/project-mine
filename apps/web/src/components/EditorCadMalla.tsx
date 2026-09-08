@@ -141,6 +141,21 @@ export interface SolidoCad3D {
   aristas?: AristaSolidoCad[];
 }
 
+export interface MallaFinalSnapshot {
+  id: string;
+  nombre: string;
+  fechaIso: string;
+  taladros: Taladro[];
+  puntosCad: PuntoCad3D[];
+  polilineasCad: PolilineaCad3D[];
+  lineasCad: LineaCad3D[];
+  cotasCad: CotaCad3D[];
+  poligonoCresta: Punto2D[];
+  totalTaladros: number;
+  metrosPerforacion: number;
+  totalEntidades: number;
+}
+
 export type GrupoTaladroCad =
   | "arranque"
   | "alivio"
@@ -347,6 +362,19 @@ function dibujarIconoTaladro(
   anguloLookoutRad?: number,
   cxCentroGaleria?: number
 ) {
+  // Disco oclusor sólido en la base del collar: oculta la recta de perforación detrás del punto en vista frontal
+  const rOclusor = zona === "alivio" ? 0.086 : 0.056;
+  const matOclusor = new THREE.MeshBasicMaterial({
+    color: 0x070c18,
+    side: THREE.DoubleSide,
+    depthTest: true,
+    depthWrite: true,
+  });
+  const discOclusor = new THREE.Mesh(new THREE.CircleGeometry(rOclusor, 24), matOclusor);
+  discOclusor.rotation.x = -Math.PI / 2;
+  discOclusor.position.y = -0.003;
+  grupoObj.add(discOclusor);
+
   switch (zona) {
     case "alivio": {
       const rExt = 0.085;
@@ -411,6 +439,8 @@ function dibujarIconoTaladro(
       break;
     }
 
+    case "ayuda":
+    case "destroza":
     case "produccion": {
       const r = 0.05;
       grupoObj.add(new THREE.Line(crearCirculoVectorTaladro(r, 20), matColor));
@@ -690,6 +720,31 @@ export default function EditorCadMalla({
   const [panelEdicionVisible, setPanelEdicionVisible] = usePersistedState<boolean>("cad:panelEdicionVisible", false);
   const [panelEdicionMinimizado, setPanelEdicionMinimizado] = usePersistedState<boolean>("cad:panelEdicionMinimizado", false);
 
+  // Estado del Panel 'MALLA FINAL' (activado por el botón '✓' en el dock derecho)
+  const [panelMallaFinalVisible, setPanelMallaFinalVisible] = usePersistedState<boolean>("cad:panelMallaFinalVisible", false);
+  const [panelMallaFinalMinimizado, setPanelMallaFinalMinimizado] = usePersistedState<boolean>("cad:panelMallaFinalMinimizado", false);
+  const [nombreMallaFinal, setNombreMallaFinal] = usePersistedState<string>(`cad:${pid}:mallaFinalNombre`, "Malla final 1");
+  const [capasSeleccionadasMallaFinal, setCapasSeleccionadasMallaFinal] = useState<string[]>([
+    "capa-dibujo-cad",
+    "capa-taladros",
+    "capa-cotas",
+  ]);
+  const [mallasFinalesGuardadas, setMallasFinalesGuardadas] = usePersistedState<MallaFinalSnapshot[]>(
+    `cad:${pid}:mallasFinalesGuardadas`,
+    []
+  );
+  const [modoSeleccionMallaFinal, setModoSeleccionMallaFinal] = useState<"todo" | "ventana" | "poligono" | "capas">("todo");
+
+  // Estado del Panel 'ESCENA' (activado por el botón 'ES' en el dock derecho exacto a la captura)
+  const [panelEscenaVisible, setPanelEscenaVisible] = usePersistedState<boolean>("cad:panelEscenaVisible", false);
+  const [panelEscenaMinimizado, setPanelEscenaMinimizado] = usePersistedState<boolean>("cad:panelEscenaMinimizado", false);
+  const [bloquearOrientacionCamara, setBloquearOrientacionCamara] = usePersistedState<boolean>("cad:bloquearOrientacionCamara", false);
+  const [vistaCamaraActiva, setVistaCamaraActiva] = usePersistedState<"frontal" | "superior" | "lateral" | "iso">("cad:vistaCamaraActiva", "frontal");
+  const [mallaCalculadaVisible, setMallaCalculadaVisible] = usePersistedState<boolean>("cad:mallaCalculadaVisible", true);
+  const [simboloTaladroFijoZoom, setSimboloTaladroFijoZoom] = usePersistedState<boolean>("cad:simboloTaladroFijoZoom", true);
+  const [volumenGaleriaVisible, setVolumenGaleriaVisible] = usePersistedState<boolean>("cad:volumenGaleriaVisible", true);
+  const [longitud3dTaladrosVisible, setLongitud3dTaladrosVisible] = usePersistedState<boolean>("cad:longitud3dTaladrosVisible", true);
+
   // Estado del Panel 'SELECCIONAR' (cerrado por defecto)
   const [panelSelVisible, setPanelSelVisible] = useState(false);
   const [panelSelMinimizado, setPanelSelMinimizado] = usePersistedState<boolean>("cad:panelSelMinimizado", false);
@@ -767,7 +822,7 @@ export default function EditorCadMalla({
   const totalEntidadesCad = puntosCad.length + lineasCad.length + polilineasCad.length + arcosCad.length;
 
   // Estado del Panel 'RECORTAR' (Trim - Exacto al Mockup)
-  const [panelRecVisible, setPanelRecVisible] = useState(true);
+  const [panelRecVisible, setPanelRecVisible] = useState(false);
   const [panelRecMinimizado, setPanelRecMinimizado] = usePersistedState<boolean>("cad:panelRecMinimizado", false);
   const [recObjeto, setRecObjeto] = useState<EntidadRecortable | null>(null);
   const [recCortante, setRecCortante] = useState<EntidadRecortable | null>(null);
@@ -1700,6 +1755,130 @@ export default function EditorCadMalla({
     );
   }
 
+  // Guardar y Publicar Snapshot Inmutable de Malla Final
+  function handlePublicarSnapshotMallaFinal() {
+    const nombre = nombreMallaFinal.trim() || "Malla final " + (mallasFinalesGuardadas.length + 1);
+    const metros = taladros.reduce((acc, t) => acc + (t.profundidad_m || 3.6), 0);
+    const totalEnt = totalEntidadesCad + taladros.length;
+
+    const nuevoSnapshot: MallaFinalSnapshot = {
+      id: `mf-${Date.now()}`,
+      nombre,
+      fechaIso: new Date().toLocaleString(),
+      taladros: JSON.parse(JSON.stringify(taladros)),
+      puntosCad: JSON.parse(JSON.stringify(puntosCad)),
+      polilineasCad: JSON.parse(JSON.stringify(polilineasCad)),
+      lineasCad: JSON.parse(JSON.stringify(lineasCad)),
+      cotasCad: JSON.parse(JSON.stringify(cotasCad)),
+      poligonoCresta: JSON.parse(JSON.stringify(poligonoCresta)),
+      totalTaladros: taladros.length,
+      metrosPerforacion: Math.round(metros * 10) / 10,
+      totalEntidades: totalEnt,
+    };
+
+    setMallasFinalesGuardadas((prev) => [nuevoSnapshot, ...prev]);
+    setNombreMallaFinal(`Malla final ${mallasFinalesGuardadas.length + 2}`);
+    mostrarAviso(`✓ Snapshot "${nombre}" guardado con éxito (${nuevoSnapshot.totalTaladros} taladros, ${nuevoSnapshot.metrosPerforacion}m).`);
+  }
+
+  function handleRestaurarSnapshotMallaFinal(snap: MallaFinalSnapshot) {
+    registrarHistorial();
+    if (onCambiarTaladros && snap.taladros) {
+      onCambiarTaladros(snap.taladros);
+    }
+    if (onCambiarPoligono && snap.poligonoCresta) {
+      onCambiarPoligono(snap.poligonoCresta);
+    }
+    if (snap.puntosCad) setPuntosCad(snap.puntosCad);
+    if (snap.polilineasCad) setPolilineasCad(snap.polilineasCad);
+    if (snap.lineasCad) setLineasCad(snap.lineasCad);
+    if (snap.cotasCad) setCotasCad(snap.cotasCad);
+    mostrarAviso(`✓ Snapshot "${snap.nombre}" cargado en el lienzo CAD.`);
+  }
+
+  function handleEliminarSnapshotMallaFinal(id: string) {
+    setMallasFinalesGuardadas((prev) => prev.filter((m) => m.id !== id));
+    mostrarAviso("Snapshot eliminado de Mallas Guardadas.");
+  }
+
+  function handleExportarCSVTaladrosSnapshot(snapTaladros?: Taladro[], nombreSnap?: string) {
+    const lista = snapTaladros || taladros;
+    if (lista.length === 0) {
+      mostrarAviso("No hay taladros para exportar a CSV");
+      return;
+    }
+    let csv = "ID,ZONA,TIPO,DIAMETRO_MM,PROF_M,TACO_M,CARGA_M,COLLAR_X,COLLAR_Y,COLLAR_Z,FONDO_X,FONDO_Y,FONDO_Z,LOOKOUT_DEG\n";
+    lista.forEach((t, i) => {
+      const z = (t as any).zona || "produccion";
+      const tipo = (t as any).tipo || (t.diametroMm > 60 ? "alivio" : "produccion");
+      const look = (t as any).lookout || 0;
+      csv += `${t.id || i + 1},${z},${tipo},${t.diametroMm},${t.profundidad_m || 3.6},${t.taco_m || 0},${t.longitudCarga_m || 0},${t.collar.x.toFixed(3)},${t.collar.y.toFixed(3)},${(t.collar.z || 0).toFixed(3)},${(t.fondo?.x || t.collar.x).toFixed(3)},${(t.fondo?.y || t.collar.y).toFixed(3)},${(t.fondo?.z || -3.6).toFixed(3)},${look}\n`;
+    });
+    const filename = `${(nombreSnap || nombreMallaFinal || "malla-final").toLowerCase().replace(/\s+/g, "-")}-coordenadas.csv`;
+    descargarTexto(filename, csv, "text/csv");
+    mostrarAviso(`✓ CSV descargado: ${filename}`);
+  }
+
+  function handleSeleccionarCapasMarcadas() {
+    const idsPuntos: string[] = [];
+    const idsLineas: string[] = [];
+    const idsPolilineas: string[] = [];
+    const idsTal: string[] = [];
+
+    puntosCad.forEach((p) => {
+      if (capasSeleccionadasMallaFinal.includes(p.capaId)) idsPuntos.push(p.id);
+    });
+    lineasCad.forEach((l) => {
+      if (capasSeleccionadasMallaFinal.includes(l.capaId)) idsLineas.push(l.id);
+    });
+    polilineasCad.forEach((pl) => {
+      if (capasSeleccionadasMallaFinal.includes(pl.capaId)) idsPolilineas.push(pl.id);
+    });
+    if (capasSeleccionadasMallaFinal.includes("capa-taladros")) {
+      taladros.forEach((t) => idsTal.push(t.id));
+    }
+
+    setPuntosSeleccionados(idsPuntos);
+    setLineasSeleccionadas(idsLineas);
+    setPolilineasSeleccionadas(idsPolilineas);
+    setTaladrosSeleccionados(idsTal);
+    mostrarAviso(`✓ ${idsPuntos.length + idsLineas.length + idsPolilineas.length + idsTal.length} entidades seleccionadas por capas.`);
+  }
+
+  function handleSeleccionarTodoVisible() {
+    const idsPuntos: string[] = [];
+    const idsLineas: string[] = [];
+    const idsPolilineas: string[] = [];
+    const idsTal: string[] = [];
+
+    capas.forEach((cp) => {
+      if (cp.visible) {
+        puntosCad.filter((p) => p.capaId === cp.id).forEach((p) => idsPuntos.push(p.id));
+        lineasCad.filter((l) => l.capaId === cp.id).forEach((l) => idsLineas.push(l.id));
+        polilineasCad.filter((pl) => pl.capaId === cp.id).forEach((pl) => idsPolilineas.push(pl.id));
+      }
+    });
+    const cpTal = capas.find((c) => c.id === "capa-taladros");
+    if (cpTal?.visible !== false) {
+      taladros.forEach((t) => idsTal.push(t.id));
+    }
+
+    setPuntosSeleccionados(idsPuntos);
+    setLineasSeleccionadas(idsLineas);
+    setPolilineasSeleccionadas(idsPolilineas);
+    setTaladrosSeleccionados(idsTal);
+    mostrarAviso(`✓ ${idsPuntos.length + idsLineas.length + idsPolilineas.length + idsTal.length} entidades visibles seleccionadas.`);
+  }
+
+  function handleLimpiarSeleccionMallaFinal() {
+    setPuntosSeleccionados([]);
+    setLineasSeleccionadas([]);
+    setPolilineasSeleccionadas([]);
+    setTaladrosSeleccionados([]);
+    setIndicesSeleccionados([]);
+    mostrarAviso("Selección limpiada.");
+  }
+
   // Limpiar dibujo CAD
   function handleLimpiarCad() {
     if (totalEntidadesCad === 0) {
@@ -2242,10 +2421,128 @@ export default function EditorCadMalla({
     mostrarAviso("Banco rectangular 24m x 16m creado");
   }
 
+  // Cambiar vistas ortogonales / isométrica de la cámara 3D (Panel ESCENA)
+  function handleCambiarVistaCamara(vista: "frontal" | "superior" | "lateral" | "iso") {
+    setVistaCamaraActiva(vista);
+    const camera = cameraRef.current;
+    if (!camera) return;
+
+    if (vista === "frontal") {
+      orbitRef.current.theta = 0;
+      orbitRef.current.phi = 0.04;
+      handleCentrarDibujoCompleto();
+      mostrarAviso("Vista Frontal activa (Plano de labor)");
+    } else if (vista === "superior") {
+      orbitRef.current.theta = 0;
+      orbitRef.current.phi = Math.PI / 2;
+      mostrarAviso("Vista Superior activa (Planta / Techo)");
+    } else if (vista === "lateral") {
+      orbitRef.current.theta = Math.PI / 2;
+      orbitRef.current.phi = Math.PI / 2;
+      mostrarAviso("Vista Lateral activa (Perfil de hastial)");
+    } else if (vista === "iso") {
+      orbitRef.current.theta = Math.PI / 4;
+      orbitRef.current.phi = Math.PI / 3;
+      mostrarAviso("Vista Isométrica 3D activa");
+    }
+
+    const { theta, phi, radius, target } = orbitRef.current;
+    camera.position.x = target.x + radius * Math.sin(phi) * Math.sin(theta);
+    camera.position.y = target.y + radius * Math.cos(phi);
+    camera.position.z = target.z + radius * Math.sin(phi) * Math.cos(theta);
+    camera.lookAt(target);
+  }
+
+  function handleEncuadrarFrente() {
+    handleCambiarVistaCamara("frontal");
+    mostrarAviso("🎯 Frente de labor encuadrado");
+  }
+
   function handleGuardar() {
     const data = JSON.stringify({ poligonoCresta, puntosCad, taladros, sistemaCoords, capas, carpetas }, null, 2);
     descargarTexto("malla-3d-namicad.json", data, "application/json");
     mostrarAviso("Proyecto guardado");
+  }
+
+  // Exportar Malla y Taladros a Formato DXF 3D Estándar (AutoCAD / Datamine / Deswik / Vulcan)
+  function handleExportarDXF3D() {
+    let dxf = "0\nSECTION\n2\nHEADER\n9\n$ACADVER\n1\nAC1009\n0\nENDSEC\n";
+    dxf += "0\nSECTION\n2\nTABLES\n0\nTABLE\n2\nLAYER\n70\n9\n";
+
+    const capasDxf = [
+      { n: "CONTORNO_GALERIA", c: 3 },
+      { n: "TALADROS_ALIVIO", c: 4 },
+      { n: "TALADROS_ARRANQUE", c: 1 },
+      { n: "TALADROS_CUADRANTES", c: 2 },
+      { n: "TALADROS_PRODUCCION", c: 6 },
+      { n: "TALADROS_CORONA", c: 3 },
+      { n: "TALADROS_HASTIAL", c: 5 },
+      { n: "TALADROS_ARRASTRE", c: 2 },
+      { n: "DIBUJO_CAD", c: 7 },
+    ];
+
+    for (const cp of capasDxf) {
+      dxf += `0\nLAYER\n2\n${cp.n}\n70\n0\n62\n${cp.c}\n6\nCONTINUOUS\n`;
+    }
+    dxf += "0\nENDTAB\n0\nENDSEC\n";
+
+    dxf += "0\nSECTION\n2\nENTITIES\n";
+
+    // 1. Contorno de la labor (Polyline cerrada 3D)
+    if (poligonoCresta && poligonoCresta.length >= 2) {
+      dxf += "0\nPOLYLINE\n8\nCONTORNO_GALERIA\n66\n1\n70\n1\n";
+      for (const p of poligonoCresta) {
+        dxf += `0\nVERTEX\n8\nCONTORNO_GALERIA\n10\n${p.x.toFixed(4)}\n20\n${(p.y).toFixed(4)}\n30\n0.0000\n`;
+      }
+      dxf += "0\nSEQEND\n";
+    }
+
+    // 2. Líneas 3D de los taladros (Collar a Fondo en -Z)
+    const mapZonaCapa: Record<string, string> = {
+      alivio: "TALADROS_ALIVIO",
+      arranque: "TALADROS_ARRANQUE",
+      cuadrante: "TALADROS_CUADRANTES",
+      cuadrante1: "TALADROS_ARRANQUE",
+      cuadrante2: "TALADROS_CUADRANTES",
+      cuadrante3: "TALADROS_CUADRANTES",
+      cuadrante4: "TALADROS_CUADRANTES",
+      produccion: "TALADROS_PRODUCCION",
+      cuadradores: "TALADROS_HASTIAL",
+      hastial: "TALADROS_HASTIAL",
+      corona: "TALADROS_CORONA",
+      recorte: "TALADROS_CORONA",
+      arrastre: "TALADROS_ARRASTRE",
+    };
+
+    let totalLinTal = 0;
+    if (taladros && taladros.length > 0) {
+      taladros.forEach((t) => {
+        const zona = (t as any).zona || "produccion";
+        const capa = mapZonaCapa[zona] || "TALADROS_PRODUCCION";
+        const x1 = t.collar.x;
+        const y1 = t.collar.y;
+        const z1 = t.collar.z || 0;
+
+        const prof = Math.max(0.5, t.profundidad_m || 3.6);
+        const x2 = t.fondo ? t.fondo.x : t.collar.x;
+        const y2 = t.fondo ? t.fondo.y : t.collar.y;
+        const z2 = -Math.abs(t.fondo?.z && Math.abs(t.fondo.z) > 0.01 ? t.fondo.z : prof);
+
+        dxf += `0\nLINE\n8\n${capa}\n10\n${x1.toFixed(4)}\n20\n${y1.toFixed(4)}\n30\n${z1.toFixed(4)}\n11\n${x2.toFixed(4)}\n21\n${y2.toFixed(4)}\n31\n${z2.toFixed(4)}\n`;
+        totalLinTal++;
+      });
+    }
+
+    // 3. Líneas CAD adicionales
+    if (lineasCad && lineasCad.length > 0) {
+      lineasCad.forEach((l) => {
+        dxf += `0\nLINE\n8\nDIBUJO_CAD\n10\n${l.p1.x.toFixed(4)}\n20\n${l.p1.y.toFixed(4)}\n30\n${(l.p1.z || 0).toFixed(4)}\n11\n${l.p2.x.toFixed(4)}\n21\n${l.p2.y.toFixed(4)}\n31\n${(l.p2.z || 0).toFixed(4)}\n`;
+      });
+    }
+
+    dxf += "0\nENDSEC\n0\nEOF\n";
+    descargarTexto("malla-perforacion-3d.dxf", dxf, "application/dxf");
+    mostrarAviso(`✓ DXF 3D exportado (${totalLinTal} taladros 3D compatibles con AutoCAD / Datamine / Deswik).`);
   }
 
   const area = useMemo(() => areaPoligono_m2(poligonoCresta), [poligonoCresta]);
@@ -2490,48 +2787,49 @@ export default function EditorCadMalla({
         group.add(talGroupObj);
 
         // Barreno 3D proyectado hacia el fondo (look-out / gradiente real)
-        // 100% SÓLIDO Y NÍTIDO (elimina el aspecto borroso)
-        if (t.fondo) {
-          const pCollar = new THREE.Vector3(t.collar.x, cy, t.collar.y);
-          const pFondo = new THREE.Vector3(t.fondo.x, (t.fondo.z || 0) + 0.08, t.fondo.y);
+        // LÍNEAS TÉCNICAS NÍTIDAS Y LIMPIAS EN UNA SOLA DIRECCIÓN (-Z hacia el macizo)
+        const profTal = Math.max(0.5, t.profundidad_m || 3.6);
+        const pCollar = new THREE.Vector3(t.collar.x, cy - 0.006, t.collar.y);
+        
+        // La perforación entra SIEMPRE hacia el interior del macizo (-Z en coordenadas de labor, -Y en Three.js)
+        const zProf = -Math.abs(t.fondo?.z && Math.abs(t.fondo.z) > 0.01 ? t.fondo.z : profTal);
+        const pFondo = new THREE.Vector3(
+          t.fondo ? t.fondo.x : t.collar.x,
+          zProf + 0.08,
+          t.fondo ? t.fondo.y : t.collar.y
+        );
 
-          // 1. Cilindro 3D con grosor real de barreno (diámetro visible ~3.6 cm)
-          const dir = new THREE.Vector3().subVectors(pFondo, pCollar);
-          const len = dir.length();
-          if (len > 0.01) {
-            const radStick = esSeleccionado ? 0.022 : 0.016;
-            const cylGeo = new THREE.CylinderGeometry(radStick, radStick, len, 6);
-            const cylMat = new THREE.MeshBasicMaterial({ color: colorHex, depthTest: true });
-            const stickMesh = new THREE.Mesh(cylGeo, cylMat);
-            stickMesh.position.copy(pCollar).addScaledVector(dir, 0.5);
-            stickMesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
-            group.add(stickMesh);
-          }
+        const dir = new THREE.Vector3().subVectors(pFondo, pCollar);
+        const len = dir.length();
 
-          // 2. Línea central y marcador de punta — solo si el taladro tiene largo real. Cuando
-          // fondo == collar (mallas esquemáticas 2D, ver PanelDatosRmrMetodo.tsx) dibujar esto
-          // igual crea una cruz "+" flotando sobre el símbolo de zona (o sola, si la zona no
-          // coincide con ningún caso del switch de arriba) — un mismo taladro no debería mostrar
-          // dos marcas en el mismo punto.
-          if (len > 0.01) {
-            const stickGeo = new THREE.BufferGeometry().setFromPoints([pCollar, pFondo]);
-            const stickMat = new THREE.LineBasicMaterial({
-              color: colorHex,
-              depthTest: true,
-            });
-            const stickLine = new THREE.Line(stickGeo, stickMat);
-            group.add(stickLine);
+        if (len > 0.05) {
+          // 1. Línea central de perforación (Eje del taladro simple y nítido)
+          const stickGeo = new THREE.BufferGeometry().setFromPoints([pCollar, pFondo]);
+          const stickMat = new THREE.LineBasicMaterial({
+            color: esSeleccionado ? 0x00ffff : colorHex,
+            linewidth: esSeleccionado ? 2 : 1,
+            depthTest: true,
+            depthWrite: true,
+          });
+          const stickLine = new THREE.Line(stickGeo, stickMat);
+          group.add(stickLine);
 
-            // Marcador de fondo (toe) reforzado
-            const sToe = 0.04;
-            const toeGeo = new THREE.BufferGeometry().setFromPoints([
-              new THREE.Vector3(pFondo.x - sToe, pFondo.y, pFondo.z),
-              new THREE.Vector3(pFondo.x + sToe, pFondo.y, pFondo.z),
-              new THREE.Vector3(pFondo.x, pFondo.y, pFondo.z - sToe),
-              new THREE.Vector3(pFondo.x, pFondo.y, pFondo.z + sToe),
-            ]);
-            group.add(new THREE.LineSegments(toeGeo, stickMat));
-          }
+          // 2. Marcador de fondo de barreno (Toe) en cruz 3D nítida
+          const sToe = 0.045;
+          const toeGeo = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(pFondo.x - sToe, pFondo.y, pFondo.z),
+            new THREE.Vector3(pFondo.x + sToe, pFondo.y, pFondo.z),
+            new THREE.Vector3(pFondo.x, pFondo.y, pFondo.z - sToe),
+            new THREE.Vector3(pFondo.x, pFondo.y, pFondo.z + sToe),
+          ]);
+          group.add(new THREE.LineSegments(toeGeo, stickMat));
+
+          // 3. Punto / Nodo en el fondo
+          const dotToeGeo = new THREE.SphereGeometry(esSeleccionado ? 0.025 : 0.018, 8, 8);
+          const dotToeMat = new THREE.MeshBasicMaterial({ color: esSeleccionado ? 0x00ffff : colorHex });
+          const dotToe = new THREE.Mesh(dotToeGeo, dotToeMat);
+          dotToe.position.copy(pFondo);
+          group.add(dotToe);
         }
       });
     }
@@ -3364,8 +3662,8 @@ export default function EditorCadMalla({
       const sprite = new THREE.Sprite(spriteMat);
       sprite.renderOrder = 99999;
 
-      // Tamaño fijo AutoCAD en metros (altura estándar DIMTXT = 0.35 m, ancho 1.4 m)
-      const altoCad = 0.35;
+      // Tamaño optimizado AutoCAD en metros (altura estándar DIMTXT = 0.20 m, ancho 0.80 m)
+      const altoCad = 0.20;
       const anchoCad = altoCad * (256 / 64);
       sprite.scale.set(anchoCad, altoCad, 1);
       return sprite;
@@ -3988,10 +4286,17 @@ export default function EditorCadMalla({
     if (!camera) return;
 
     if (orbitRef.current.dragButton === 0) {
-      // 360° horizontal sin límite
-      orbitRef.current.theta -= dx * 0.008;
-      // Rotación vertical suave y completa evitando singularidades (0.04 a PI - 0.04)
-      orbitRef.current.phi = Math.max(0.04, Math.min(Math.PI - 0.04, orbitRef.current.phi - dy * 0.008));
+      if (bloquearOrientacionCamara) {
+        // Modo orientación bloqueada: Pan / traslación plana en lugar de rotar la órbita
+        const panFactor = orbitRef.current.radius * 0.0012;
+        orbitRef.current.target.x -= dx * panFactor;
+        orbitRef.current.target.y += dy * panFactor;
+      } else {
+        // 360° horizontal sin límite
+        orbitRef.current.theta -= dx * 0.008;
+        // Rotación vertical suave y completa evitando singularidades (0.04 a PI - 0.04)
+        orbitRef.current.phi = Math.max(0.04, Math.min(Math.PI - 0.04, orbitRef.current.phi - dy * 0.008));
+      }
     } else {
       // Panorámica con botón secundario / derecho
       const panFactor = orbitRef.current.radius * 0.0012;
@@ -5918,18 +6223,39 @@ export default function EditorCadMalla({
   function handleEjecutarGenerarB() {
     let centro = cotCentro;
     if (!centro) {
-      if (puntosCad.length > 0) {
-        centro = { x: puntosCad[puntosCad.length - 1].x, y: puntosCad[puntosCad.length - 1].y, z: puntosCad[puntosCad.length - 1].z || 0 };
-      } else if (poligonoCresta.length >= 3) {
-        const cx = poligonoCresta.reduce((s, p) => s + p.x, 0) / poligonoCresta.length;
-        const cy = poligonoCresta.reduce((s, p) => s + p.y, 0) / poligonoCresta.length;
+      // 1. Priorizar taladros de alivio
+      const alivios = taladros.filter(
+        (t) =>
+          (t as any).zona === "alivio" ||
+          (t as any).tipo === "alivio" ||
+          (!(t as any).cargado && t.diametroMm > 60)
+      );
+      if (alivios.length > 0) {
+        const cx = alivios.reduce((s, t) => s + t.collar.x, 0) / alivios.length;
+        const cy = alivios.reduce((s, t) => s + t.collar.y, 0) / alivios.length;
         centro = { x: Math.round(cx * 100) / 100, y: Math.round(cy * 100) / 100, z: 0 };
+      } else if (poligonoCresta.length >= 3) {
+        const minX = Math.min(...poligonoCresta.map((p) => p.x));
+        const maxX = Math.max(...poligonoCresta.map((p) => p.x));
+        const minY = Math.min(...poligonoCresta.map((p) => p.y));
+        const maxY = Math.max(...poligonoCresta.map((p) => p.y));
+        centro = {
+          x: Math.round(((minX + maxX) / 2) * 100) / 100,
+          y: Math.round((minY + (maxY - minY) * 0.42) * 100) / 100,
+          z: 0,
+        };
+      } else if (puntosCad.length > 0) {
+        centro = {
+          x: puntosCad[puntosCad.length - 1].x,
+          y: puntosCad[puntosCad.length - 1].y,
+          z: puntosCad[puntosCad.length - 1].z || 0,
+        };
       } else {
         centro = { x: 0, y: 0, z: 0 };
       }
     }
 
-    const distB = parseFloat(cotDistanciaB) || 0.50;
+    const distB = parseFloat(cotDistanciaB) || 0.5;
     generarCuadranteB(centro, cotModo, distB, cotCuadradoAlineado);
   }
 
@@ -6137,6 +6463,20 @@ export default function EditorCadMalla({
           <button
             type="button"
             className="btn-exact-icon"
+            onClick={handleExportarDXF3D}
+            style={{ display: "flex", alignItems: "center", gap: 5, padding: "0 8px", width: "auto", fontSize: 11, fontWeight: 700, color: "#38bdf8", borderColor: "rgba(56, 189, 248, 0.4)" }}
+            title="Descargar Malla en Formato DXF 3D (AutoCAD / Datamine / Deswik)"
+          >
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            <span>DXF 3D</span>
+          </button>
+          <button
+            type="button"
+            className="btn-exact-icon"
             onClick={onIrARender}
             title="Confirmar y ver modelo 3D"
           >
@@ -6230,6 +6570,11 @@ export default function EditorCadMalla({
                     setPanelSolVisible(h === "SOL");
                     setPanelGriVisible(h === "GRI");
 
+                    // Cerrar paneles adicionales para evitar solapamiento de ventanas
+                    setPanelEdicionVisible(false);
+                    setPanelCapasVisible(false);
+                    setPanelDatosRmrVisible(false);
+
                     // Mostrar siempre la ventana en su modelo completo expandido al seleccionarla
                     if (h === "SEL") setPanelSelMinimizado(false);
                     if (h === "LIN") setPanelLinMinimizado(false);
@@ -6262,8 +6607,23 @@ export default function EditorCadMalla({
             onClick={() => {
               const nuevo = !panelDatosRmrVisible;
               setPanelDatosRmrVisible(nuevo);
-              if (nuevo && typeof window !== "undefined" && window.innerWidth <= 768) {
+              if (nuevo) {
+                // Cerrar otras herramientas y ventanas para evitar redundancia
                 setPanelEdicionVisible(false);
+                setPanelCapasVisible(false);
+                setPanelSelVisible(false);
+                setPanelLinVisible(false);
+                setPanelPtoVisible(false);
+                setPanelPlVisible(false);
+                setPanelArcVisible(false);
+                setPanelRecVisible(false);
+                setPanelUniVisible(false);
+                setPanelDivVisible(false);
+                setPanelOffVisible(false);
+                setPanelCotVisible(false);
+                setPanelTalVisible(false);
+                setPanelSolVisible(false);
+                setPanelGriVisible(false);
               }
             }}
             title="Datos / RMR / Método (Σ)"
@@ -6277,8 +6637,24 @@ export default function EditorCadMalla({
             onClick={() => {
               const nuevo = !panelEdicionVisible;
               setPanelEdicionVisible(nuevo);
-              if (nuevo && typeof window !== "undefined" && window.innerWidth <= 768) {
+              if (nuevo) {
+                setPanelEdicionMinimizado(false);
+                // Cerrar otras herramientas y ventanas para evitar redundancia
                 setPanelDatosRmrVisible(false);
+                setPanelCapasVisible(false);
+                setPanelSelVisible(false);
+                setPanelLinVisible(false);
+                setPanelPtoVisible(false);
+                setPanelPlVisible(false);
+                setPanelArcVisible(false);
+                setPanelRecVisible(false);
+                setPanelUniVisible(false);
+                setPanelDivVisible(false);
+                setPanelOffVisible(false);
+                setPanelCotVisible(false);
+                setPanelTalVisible(false);
+                setPanelSolVisible(false);
+                setPanelGriVisible(false);
               }
             }}
             title="Edición CAD (ED)"
@@ -6286,32 +6662,44 @@ export default function EditorCadMalla({
             ED
           </button>
 
+          {/* Botón ES: Abre el panel de ESCENA exacto a la captura del usuario */}
           <button
             type="button"
-            className="btn-dock-circle-exact"
+            className={`btn-dock-circle-exact ${panelEscenaVisible ? "tool-active-pink" : ""}`}
             onClick={() => {
-              setSnapActivo(!snapActivo);
-              mostrarAviso(snapActivo ? "Snap desactivado" : "Snap a 1m activado");
+              const nuevo = !panelEscenaVisible;
+              setPanelEscenaVisible(nuevo);
+              if (nuevo) {
+                setPanelEscenaMinimizado(false);
+                setPanelDatosRmrVisible(false);
+                setPanelEdicionVisible(false);
+                setPanelCapasVisible(false);
+                setPanelSelVisible(false);
+                setPanelLinVisible(false);
+                setPanelPtoVisible(false);
+                setPanelPlVisible(false);
+                setPanelArcVisible(false);
+                setPanelRecVisible(false);
+                setPanelUniVisible(false);
+                setPanelDivVisible(false);
+                setPanelOffVisible(false);
+                setPanelCotVisible(false);
+                setPanelTalVisible(false);
+                setPanelSolVisible(false);
+                setPanelGriVisible(false);
+              }
             }}
-            title="Snap a Grilla (ES)"
+            title="Escena CAD y Cámara (ES)"
           >
             ES
           </button>
 
-          {/* Botón PM: Snap y Visualización de Punto Medio */}
           <button
             type="button"
-            className={`btn-dock-circle-exact ${mostrarPuntoMedio ? "tool-active-pink" : ""}`}
-            onClick={() => {
-              setMostrarPuntoMedio(!mostrarPuntoMedio);
-              mostrarAviso(!mostrarPuntoMedio ? "▲ Puntos medios de líneas activados (marcadores en pantalla)" : "Puntos medios desactivados");
-            }}
-            title={mostrarPuntoMedio ? "Desactivar Punto Medio (PM)" : "Mostrar y Encajar Punto Medio (PM)"}
+            className="btn-dock-circle-exact"
+            onClick={onIrARender}
+            title="Confirmar e Ir a Render 3D (✓)"
           >
-            PM
-          </button>
-
-          <button type="button" className="btn-dock-circle-exact" onClick={onIrARender} title="Confirmar (✓)">
             ✓
           </button>
 
@@ -9406,8 +9794,13 @@ export default function EditorCadMalla({
           onCambiarPoligono={onCambiarPoligono}
           lineasCad={lineasCad}
           polilineasCad={polilineasCad}
+          cotasCad={cotasCad}
+          puntosCad={puntosCad}
           taladros={taladros}
           onCambiarTaladros={onCambiarTaladros}
+          onCambiarCotasCad={setCotasCad}
+          onCambiarPolilineasCad={setPolilineasCad}
+          onCambiarPuntosCad={setPuntosCad}
           onAplicarParametros={(params) => {
             mostrarAviso(`Parámetros aplicados: ${params.ancho}x${params.alto}m | RMR ${params.rmr}`);
           }}
@@ -9452,7 +9845,7 @@ export default function EditorCadMalla({
                     <h2 className="panel-edicion-title">EDICIÓN</h2>
                     <p className="panel-edicion-subtitle">Edición manual sobre la geometría real.</p>
                   </div>
-                  <div className="panel-edicion-header-actions">
+                  <div className="panel-header-buttons">
                     <button
                       type="button"
                       className="btn-header-round-min"
@@ -9463,14 +9856,11 @@ export default function EditorCadMalla({
                     </button>
                     <button
                       type="button"
-                      className="btn-ocultar-exact"
+                      className="btn-header-round-close"
                       onClick={() => setPanelEdicionVisible(false)}
-                      title="Ocultar panel"
+                      title="Cerrar panel (✕)"
                     >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" strokeWidth="2.5">
-                        <polyline points="9 18 15 12 9 6" />
-                      </svg>
-                      <span>OCULTAR</span>
+                      ✕
                     </button>
                   </div>
                 </div>
@@ -9498,41 +9888,275 @@ export default function EditorCadMalla({
 
                 {/* Texto explicativo fiel a la imagen */}
                 <p className="panel-edicion-descripcion">
-                  Holmberg solo genera una propuesta. Después de convertirla, la geometría CAD es editable y puede publicarse exactamente como Malla final.
+                  Holmberg solo genera una propuesta. Después de convertirla, la geometría CAD es editable y puede guardarse como diseño.
                 </p>
-
-                {/* Acciones para cerrar el ciclo si ya hay entidades CAD creadas */}
-                {totalEntidadesCad > 0 && (
-                  <div className="panel-edicion-secondary-actions">
-                    <button
-                      type="button"
-                      className="btn-publicar-cad-malla"
-                      onClick={handlePublicarCadAMalla}
-                      title="Publicar los cambios de CAD de vuelta como la Malla final"
-                    >
-                      ✓ PUBLICAR CAD A MALLA FINAL
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-limpiar-cad"
-                      onClick={handleLimpiarCad}
-                      title="Limpiar todas las entidades de CAD"
-                    >
-                      Limpiar CAD
-                    </button>
-                  </div>
-                )}
               </>
             )}
           </div>
         )}
+
+        {/* =========================================================================
+            PANEL ESCENA (ACTIVADO POR EL BOTÓN 'ES' EN EL DOCK DERECHO - EXACTO A LA CAPTURA)
+           ========================================================================= */}
+        {panelEscenaVisible && (
+          <div
+            className={`cad-panel-edicion-exact ${panelEscenaMinimizado ? "panel-comprimido" : ""}`}
+            style={{ width: "min(340px, calc(100vw - 20px))", maxHeight: "calc(100vh - 120px)", overflowY: "auto", zIndex: 120 }}
+            onPointerDown={(e) => e.stopPropagation()}
+            onPointerUp={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {panelEscenaMinimizado ? (
+              <div className="panel-mini-strip">
+                <div className="mini-coords-info">
+                  <strong>ESCENA:</strong> Vista {vistaCamaraActiva.toUpperCase()}
+                </div>
+                <div className="mini-actions">
+                  <button type="button" className="btn-mini-expand" onClick={() => setPanelEscenaMinimizado(false)}>
+                    ⤢ Expandir
+                  </button>
+                  <button type="button" className="btn-header-round-close" onClick={() => setPanelEscenaVisible(false)}>
+                    ✕
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Header: ESCENA / Cámara y presentación de la única escena CAD. / Botones − y ✕ */}
+                <div className="panel-edicion-header">
+                  <div className="panel-edicion-title-col">
+                    <h2 className="panel-edicion-title" style={{ fontSize: 13, fontWeight: 900, letterSpacing: "0.04em", color: "#ffffff", textTransform: "uppercase" }}>
+                      ESCENA
+                    </h2>
+                    <p className="panel-edicion-subtitle" style={{ fontSize: 10, color: "#94a3b8", margin: "2px 0 0 0" }}>
+                      Cámara y presentación de la única escena CAD.
+                    </p>
+                  </div>
+                  <div className="panel-header-buttons" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <button
+                      type="button"
+                      className="btn-header-round-min"
+                      onClick={() => setPanelEscenaMinimizado(true)}
+                      title="Minimizar panel (−)"
+                    >
+                      −
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-header-round-close"
+                      onClick={() => setPanelEscenaVisible(false)}
+                      title="Cerrar panel (✕)"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* 1. Bloquear orientación de cámara */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "10px 0 12px 0",
+                    borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+                  }}
+                >
+                  <span style={{ fontSize: 11, fontWeight: 600, color: "#f8fafc" }}>
+                    Bloquear orientación de cámara
+                  </span>
+                  <div
+                    className={`toggle-switch-track ${bloquearOrientacionCamara ? "active" : ""}`}
+                    onClick={() => {
+                      const nuevo = !bloquearOrientacionCamara;
+                      setBloquearOrientacionCamara(nuevo);
+                      mostrarAviso(nuevo ? "🔒 Orientación de cámara bloqueada (Modo plano / traslación)" : "🔓 Orientación de cámara desbloqueada (Órbita 3D activa)");
+                    }}
+                  >
+                    <div className="toggle-switch-thumb" />
+                  </div>
+                </div>
+
+                {/* 2. Vistas de cámara · una sola escena XYZ */}
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#f1f5f9", marginBottom: 8 }}>
+                    Vistas de cámara · una sola escena XYZ
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6 }}>
+                    {(
+                      [
+                        { id: "frontal", label: "Frontal" },
+                        { id: "superior", label: "Superior" },
+                        { id: "lateral", label: "Lateral" },
+                        { id: "iso", label: "ISO" },
+                      ] as const
+                    ).map((v) => {
+                      const activo = vistaCamaraActiva === v.id;
+                      return (
+                        <button
+                          key={v.id}
+                          type="button"
+                          onClick={() => handleCambiarVistaCamara(v.id)}
+                          style={{
+                            padding: "7px 4px",
+                            borderRadius: 8,
+                            fontSize: 10.5,
+                            fontWeight: 700,
+                            background: activo ? "rgba(249, 115, 22, 0.2)" : "rgba(15, 23, 42, 0.6)",
+                            border: activo ? "1px solid var(--acento, #f97316)" : "1px solid #334155",
+                            color: activo ? "#ffffff" : "#94a3b8",
+                            cursor: "pointer",
+                            transition: "all 0.15s ease",
+                            textAlign: "center",
+                          }}
+                        >
+                          {v.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 3. Botón Azul Cian Grande: ENCUADRAR FRENTE */}
+                <button
+                  type="button"
+                  onClick={handleEncuadrarFrente}
+                  style={{
+                    marginTop: 14,
+                    width: "100%",
+                    padding: "11px 16px",
+                    borderRadius: 24,
+                    background: "#06b6d4",
+                    border: "none",
+                    color: "#ffffff",
+                    fontSize: 12,
+                    fontWeight: 800,
+                    letterSpacing: "0.05em",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                    boxShadow: "0 4px 14px rgba(6, 182, 212, 0.35)",
+                    transition: "all 0.15s ease",
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <circle cx="12" cy="12" r="7" />
+                    <line x1="12" y1="2" x2="12" y2="6" />
+                    <line x1="12" y1="18" x2="12" y2="22" />
+                    <line x1="2" y1="12" x2="6" y2="12" />
+                    <line x1="18" y1="12" x2="22" y2="12" />
+                    <circle cx="12" cy="12" r="2" fill="currentColor" />
+                  </svg>
+                  <span>ENCUADRAR FRENTE</span>
+                </button>
+
+                {/* 4. Toggles de Presentación */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 16 }}>
+                  {/* Malla calculada visible */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: "#e2e8f0" }}>
+                      Malla calculada visible
+                    </span>
+                    <div
+                      className={`toggle-switch-track ${mallaCalculadaVisible ? "active" : ""}`}
+                      onClick={() => setMallaCalculadaVisible(!mallaCalculadaVisible)}
+                    >
+                      <div className="toggle-switch-thumb" />
+                    </div>
+                  </div>
+
+                  {/* Símbolo de taladro fijo al zoom */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: "#e2e8f0" }}>
+                      Símbolo de taladro fijo al zoom
+                    </span>
+                    <div
+                      className={`toggle-switch-track ${simboloTaladroFijoZoom ? "active" : ""}`}
+                      onClick={() => setSimboloTaladroFijoZoom(!simboloTaladroFijoZoom)}
+                    >
+                      <div className="toggle-switch-thumb" />
+                    </div>
+                  </div>
+
+                  {/* Volumen de galería */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: "#e2e8f0" }}>
+                      Volumen de galería
+                    </span>
+                    <div
+                      className={`toggle-switch-track ${volumenGaleriaVisible ? "active" : ""}`}
+                      onClick={() => setVolumenGaleriaVisible(!volumenGaleriaVisible)}
+                    >
+                      <div className="toggle-switch-thumb" />
+                    </div>
+                  </div>
+
+                  {/* Longitud 3D de taladros */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: "#e2e8f0" }}>
+                      Longitud 3D de taladros
+                    </span>
+                    <div
+                      className={`toggle-switch-track ${longitud3dTaladrosVisible ? "active" : ""}`}
+                      onClick={() => setLongitud3dTaladrosVisible(!longitud3dTaladrosVisible)}
+                    >
+                      <div className="toggle-switch-thumb" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 5. Nota al pie */}
+                <p
+                  style={{
+                    fontSize: 9.5,
+                    color: "#64748b",
+                    marginTop: 18,
+                    marginBottom: 4,
+                    lineHeight: 1.45,
+                    textAlign: "left",
+                  }}
+                >
+                  El eje XYZ aparece automáticamente cuando abandonas la vista frontal mediante órbita.
+                </p>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Fin paneles */}
       </div>
 
       {/* 3. Barra Inferior de Escena */}
       <div className="cad-bottom-scene-exact">
-        <div className="scene-exact-left" onClick={() => setPanelCapasVisible(!panelCapasVisible)} style={{ cursor: "pointer" }}>
+        <div
+          className="scene-exact-left"
+          onClick={() => {
+            const nuevo = !panelCapasVisible;
+            setPanelCapasVisible(nuevo);
+            if (nuevo) {
+              setPanelEdicionVisible(false);
+              setPanelDatosRmrVisible(false);
+              setPanelSelVisible(false);
+              setPanelLinVisible(false);
+              setPanelPtoVisible(false);
+              setPanelPlVisible(false);
+              setPanelArcVisible(false);
+              setPanelRecVisible(false);
+              setPanelUniVisible(false);
+              setPanelDivVisible(false);
+              setPanelOffVisible(false);
+              setPanelCotVisible(false);
+              setPanelTalVisible(false);
+              setPanelSolVisible(false);
+              setPanelGriVisible(false);
+            }
+          }}
+          style={{ cursor: "pointer" }}
+        >
           <div className="scene-cyan-diamond">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#06b6d4" strokeWidth="2">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#f97316" strokeWidth="2">
               <path d="M12 2L2 7l10 5 10-5-10-5z" />
               <path d="M2 17l10 5 10-5" />
               <path d="M2 12l10 5 10-5" />

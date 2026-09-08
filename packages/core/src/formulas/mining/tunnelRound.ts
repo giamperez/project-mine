@@ -43,6 +43,7 @@ import type {
   ResultadoTaladrosFrente,
   SeccionArranque,
   TipoCorteSubterraneo,
+  TipoCorteArranque,
 } from "../../domain/tunnelRound.js";
 import { CATALOGO_EXPLOSIVOS_PERU } from "../../domain/tunnelRound.js";
 import { centroide, puntoEnPoligono, type Punto2D } from "./geometry.js";
@@ -546,6 +547,7 @@ export function generarLayoutCompletoTunel(opciones: {
   rmr: number;
   metodo?: MetodoDisenoSubterraneo;
   patronContorno?: "uniforme" | "corona_recorte" | "recorte_continuo";
+  tipoCorte?: TipoCorteArranque;
 }): {
   puntos: Array<{
     x: number;
@@ -573,6 +575,7 @@ export function generarLayoutCompletoTunel(opciones: {
     rmr,
     metodo = "holmberg_1982",
     patronContorno = "corona_recorte",
+    tipoCorte = "paralelo_quemado",
   } = opciones;
 
   const W = Math.max(1.0, ancho_m);
@@ -666,8 +669,8 @@ export function generarLayoutCompletoTunel(opciones: {
         if (Math.hypot(p.x - x, p.y - y) < 0.12) return false;
         continue;
       }
-      // Distancia entre dos taladros cargados: mínimo 0.28m para evitar intersección o simpatía
-      if (Math.hypot(p.x - x, p.y - y) < 0.28) {
+      // Distancia entre dos taladros cargados: mínimo 0.24m para evitar intersección o simpatía
+      if (Math.hypot(p.x - x, p.y - y) < 0.24) {
         return false;
       }
     }
@@ -691,7 +694,12 @@ export function generarLayoutCompletoTunel(opciones: {
   // =========================================================================
   const nAliv = Math.max(1, Math.min(6, Math.round(numAlivios)));
   const dAlivM = diametroAlivioMm / 1000;
-  if (nAliv === 1) {
+  if (tipoCorte === "cuna") {
+    // Corte en cuña: 2 alivios centrales como plano guía vertical
+    const dSep = Math.max(0.12, dAlivM * 0.45);
+    agregarPuntoSeguro(cx, cy + dSep, "alivio", false, "#00f0ff", diametroAlivioMm);
+    agregarPuntoSeguro(cx, cy - dSep, "alivio", false, "#00f0ff", diametroAlivioMm);
+  } else if (nAliv === 1) {
     agregarPuntoSeguro(cx, cy, "alivio", false, "#00f0ff", diametroAlivioMm);
   } else if (nAliv === 2) {
     const dSep = dAlivM * 0.55;
@@ -712,39 +720,173 @@ export function generarLayoutCompletoTunel(opciones: {
   }
 
   // =========================================================================
-  // 2. CUELE HOLMBERG: SECCIÓN 1 (ARRANQUE - ROMBO A 45°)
+  // 2 Y 3. CUELE SEGÚN TIPO DE CORTE (PARALELO, CUÑA, PIRAMIDAL, ABANICO, DIAMANTE)
   // =========================================================================
   const b1 = Math.max(0.20, Math.min(0.32, seccionesCorte[0]?.burden_m ?? 0.28));
-  for (let j = 0; j < 4; j++) {
-    const ang = Math.PI / 4 + j * (Math.PI / 2);
-    agregarPuntoSeguro(
-      cx + b1 * Math.cos(ang),
-      cy + b1 * Math.sin(ang),
-      "cuadrante1",
-      true,
-      "#ef4444",
-      diametroProdMm,
-      0,
-      1
-    );
-  }
+  const b2 = Math.max(0.36, Math.min(0.52, seccionesCorte[1]?.burden_m ?? b1 * Math.SQRT2));
 
-  // =========================================================================
-  // 3. CUELE HOLMBERG: SECCIÓN 2 (PRIMERA AYUDA - CUADRADO ORTOGONAL)
-  // =========================================================================
-  const b2 = Math.max(0.36, Math.min(0.48, seccionesCorte[1]?.burden_m ?? b1 * Math.SQRT2));
-  for (let j = 0; j < 4; j++) {
-    const ang = j * (Math.PI / 2); // 0°, 90°, 180°, 270°
-    agregarPuntoSeguro(
-      cx + b2 * Math.cos(ang),
-      cy + b2 * Math.sin(ang),
-      "cuadrante2",
-      true,
-      "#f97316",
-      diametroProdMm,
-      0,
-      2
-    );
+  if (tipoCorte === "piramidal") {
+    // -----------------------------------------------------------------------
+    // TIPO 2: CORTE PIRAMIDAL (CUÑA CUÁDRUPLE EN "X" - IMAGEN 2)
+    // Taladros alineados estrictamente a lo largo de las 4 diagonales en X
+    // -----------------------------------------------------------------------
+    // Nivel 1 de la Pirámide (4 taladros interiores a 45°, 135°, 225°, 315°)
+    for (let j = 0; j < 4; j++) {
+      const ang = Math.PI / 4 + j * (Math.PI / 2);
+      agregarPuntoSeguro(
+        cx + b1 * Math.cos(ang),
+        cy + b1 * Math.sin(ang),
+        "cuadrante1",
+        true,
+        "#a855f7",
+        diametroProdMm,
+        0,
+        1
+      );
+    }
+    // Nivel 2 de la Pirámide (4 taladros en las mismas diagonales en X a mayor radio)
+    const rPiram2 = b1 + 0.32;
+    for (let j = 0; j < 4; j++) {
+      const ang = Math.PI / 4 + j * (Math.PI / 2);
+      agregarPuntoSeguro(
+        cx + rPiram2 * Math.cos(ang),
+        cy + rPiram2 * Math.sin(ang),
+        "cuadrante2",
+        true,
+        "#a855f7",
+        diametroProdMm,
+        0,
+        2
+      );
+    }
+  } else if (tipoCorte === "diamante") {
+    // -----------------------------------------------------------------------
+    // TIPO 3: CORTE EN DIAMANTE / CRUZ ORTOGONAL (+) (IMAGEN 3)
+    // Taladros sobre los ejes ortogonales X e Y (arriba, abajo, izq, der)
+    // -----------------------------------------------------------------------
+    // Capa 1: Cruz ortogonal interior (+)
+    for (let j = 0; j < 4; j++) {
+      const ang = j * (Math.PI / 2);
+      agregarPuntoSeguro(
+        cx + b1 * Math.cos(ang),
+        cy + b1 * Math.sin(ang),
+        "cuadrante1",
+        true,
+        "#a855f7",
+        diametroProdMm,
+        0,
+        1
+      );
+    }
+    // Capa 2: Cruz ortogonal exterior (+) sobre los mismos ejes
+    const rDia2 = b1 + 0.28;
+    for (let j = 0; j < 4; j++) {
+      const ang = j * (Math.PI / 2);
+      agregarPuntoSeguro(
+        cx + rDia2 * Math.cos(ang),
+        cy + rDia2 * Math.sin(ang),
+        "cuadrante2",
+        true,
+        "#a855f7",
+        diametroProdMm,
+        0,
+        2
+      );
+    }
+    // Taladros auxiliares en eje vertical y horizontal extendido
+    agregarPuntoSeguro(cx, cy + rDia2 + 0.32, "produccion", true, "#a855f7", diametroProdMm, 0, 3);
+    agregarPuntoSeguro(cx, cy - rDia2 - 0.32, "produccion", true, "#a855f7", diametroProdMm, 0, 3);
+    agregarPuntoSeguro(cx - rDia2 - 0.32, cy, "produccion", true, "#a855f7", diametroProdMm, 0, 3);
+    agregarPuntoSeguro(cx + rDia2 + 0.32, cy, "produccion", true, "#a855f7", diametroProdMm, 0, 3);
+  } else if (tipoCorte === "cuna") {
+    // -----------------------------------------------------------------------
+    // TIPO 4: CORTE EN CUÑA / V-CUT (IMAGEN 4)
+    // 2 bandas verticales paralelas convergentes en V hacia el eje central
+    // -----------------------------------------------------------------------
+    const dxCuna1 = 0.24;
+    const dyCuna = 0.20;
+    // V Interior (3 taladros a la izquierda y 3 a la derecha)
+    agregarPuntoSeguro(cx - dxCuna1, cy + dyCuna, "cuadrante1", true, "#a855f7", diametroProdMm, 0, 1);
+    agregarPuntoSeguro(cx - dxCuna1, cy, "cuadrante1", true, "#a855f7", diametroProdMm, 0, 1);
+    agregarPuntoSeguro(cx - dxCuna1, cy - dyCuna, "cuadrante1", true, "#a855f7", diametroProdMm, 0, 1);
+
+    agregarPuntoSeguro(cx + dxCuna1, cy + dyCuna, "cuadrante1", true, "#a855f7", diametroProdMm, 0, 1);
+    agregarPuntoSeguro(cx + dxCuna1, cy, "cuadrante1", true, "#a855f7", diametroProdMm, 0, 1);
+    agregarPuntoSeguro(cx + dxCuna1, cy - dyCuna, "cuadrante1", true, "#a855f7", diametroProdMm, 0, 1);
+
+    // V Exterior / Ayudas de cuña (2 taladros a cada lado más separados)
+    const dxCuna2 = 0.52;
+    agregarPuntoSeguro(cx - dxCuna2, cy + dyCuna * 0.9, "cuadrante2", true, "#a855f7", diametroProdMm, 0, 2);
+    agregarPuntoSeguro(cx - dxCuna2, cy - dyCuna * 0.9, "cuadrante2", true, "#a855f7", diametroProdMm, 0, 2);
+    agregarPuntoSeguro(cx + dxCuna2, cy + dyCuna * 0.9, "cuadrante2", true, "#a855f7", diametroProdMm, 0, 2);
+    agregarPuntoSeguro(cx + dxCuna2, cy - dyCuna * 0.9, "cuadrante2", true, "#a855f7", diametroProdMm, 0, 2);
+  } else if (tipoCorte === "abanico") {
+    // -----------------------------------------------------------------------
+    // TIPO 5: CORTE EN ABANICO / FAN CUT (IMAGEN 5)
+    // Anillo octogonal radial + abanico superior
+    // -----------------------------------------------------------------------
+    // Anillo radial de 8 taladros (4 a 45° y 4 ortogonales)
+    for (let j = 0; j < 8; j++) {
+      const ang = j * (Math.PI / 4);
+      agregarPuntoSeguro(
+        cx + b1 * Math.cos(ang),
+        cy + b1 * Math.sin(ang),
+        "cuadrante1",
+        true,
+        "#a855f7",
+        diametroProdMm,
+        0,
+        1
+      );
+    }
+    // Segunda hilera en abanico
+    const rAban2 = b1 + 0.30;
+    for (let j = 0; j < 6; j++) {
+      const ang = (j / 5) * Math.PI; // de 0° a 180° por el semicírculo superior
+      agregarPuntoSeguro(
+        cx + rAban2 * Math.cos(ang),
+        cy + rAban2 * Math.sin(ang),
+        "cuadrante2",
+        true,
+        "#a855f7",
+        diametroProdMm,
+        0,
+        2
+      );
+    }
+    agregarPuntoSeguro(cx, cy - rAban2, "cuadrante2", true, "#a855f7", diametroProdMm, 0, 2);
+  } else {
+    // -----------------------------------------------------------------------
+    // TIPO 1: PARALELO / QUEMADO HOLMBERG (IMAGEN 1 - ESTÁNDAR)
+    // Sección 1: Rombo a 45°
+    // -----------------------------------------------------------------------
+    for (let j = 0; j < 4; j++) {
+      const ang = Math.PI / 4 + j * (Math.PI / 2);
+      agregarPuntoSeguro(
+        cx + b1 * Math.cos(ang),
+        cy + b1 * Math.sin(ang),
+        "cuadrante1",
+        true,
+        "#ef4444",
+        diametroProdMm,
+        0,
+        1
+      );
+    }
+    // Sección 2: Cuadrado ortogonal
+    for (let j = 0; j < 4; j++) {
+      const ang = j * (Math.PI / 2);
+      agregarPuntoSeguro(
+        cx + b2 * Math.cos(ang),
+        cy + b2 * Math.sin(ang),
+        "cuadrante2",
+        true,
+        "#f97316",
+        diametroProdMm,
+        0,
+        2
+      );
+    }
   }
 
   // =========================================================================

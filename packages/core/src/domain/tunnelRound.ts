@@ -43,6 +43,8 @@ export interface ResultadoArranqueHolmberg {
   secciones: SeccionArranque[];
 }
 
+export type TipoCorteArranque = "paralelo_quemado" | "cuna" | "piramidal" | "abanico" | "diamante";
+
 export type ZonaTaladroTunel =
   | "alivio"
   | "cuadrante1"

@@ -15,9 +15,11 @@ import {
   type PropiedadesExplosivoMina,
 } from "@suite/core";
 import type { Punto2D, Taladro } from "@suite/core";
-import type { LineaCad3D, PolilineaCad3D } from "./EditorCadMalla.js";
+import type { LineaCad3D, PolilineaCad3D, CotaCad3D, PuntoCad3D } from "./EditorCadMalla.js";
+import EsquemaArranqueCotas, { type TipoArranqueSubterraneo } from "./EsquemaArranqueCotas.js";
+import { BotonInfoTeoria, TarjetaTeoriaMalla, type DatosEnVivoMalla } from "./TarjetaTeoriaMalla.js";
 
-export type TabPanel = "datos" | "rmr" | "metodo" | "resultado";
+export type TabPanel = "datos" | "rmr" | "arranque" | "resultado";
 export type TipoSeccionPlantilla = "rectangular" | "herradura" | "tipo_d" | "arco_personalizado";
 export type TipoPatronContorno = "uniforme" | "corona_recorte" | "recorte_continuo";
 export type MetodoDisenoArranque =
@@ -29,6 +31,443 @@ export type MetodoDisenoArranque =
   | "practico_empirico";
 export type TipoCorteArranque = "paralelo_quemado" | "cuna" | "piramidal" | "abanico" | "diamante";
 
+// ============================================================================
+// ICONOS VECTORIALES TÉCNICOS SVG (ESTILO DASHBOARD DE INGENIERÍA)
+// ============================================================================
+
+export function IconoMalla({ size = 16, color = "currentColor" }: { size?: number; color?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" strokeOpacity="0.35" />
+      <circle cx="12" cy="12" r="6" strokeOpacity="0.7" />
+      <circle cx="12" cy="12" r="2" fill={color} />
+      <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+    </svg>
+  );
+}
+
+export function IconoSeccion({ size = 15, color = "currentColor" }: { size?: number; color?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 21V11a8 8 0 0 1 16 0v10" />
+      <path d="M4 21h16" />
+      <line x1="2" y1="21" x2="22" y2="21" />
+      <line x1="4" y1="11" x2="20" y2="11" strokeDasharray="2 2" strokeOpacity="0.4" />
+    </svg>
+  );
+}
+
+export function IconoGeomecanica({ size = 15, color = "currentColor" }: { size?: number; color?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 12h4l2.5-6 4 13 2.5-7h5" />
+      <path d="M4 19h16" strokeDasharray="2 2" strokeOpacity="0.5" />
+    </svg>
+  );
+}
+
+export function IconoMallaArranque({ size = 15, color = "currentColor" }: { size?: number; color?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9.5" strokeOpacity="0.35" />
+      <rect x="7.5" y="7.5" width="9" height="9" transform="rotate(45 12 12)" strokeOpacity="0.75" />
+      <circle cx="12" cy="12" r="2.2" fill={color} />
+      <circle cx="8" cy="8" r="1.2" fill="currentColor" />
+      <circle cx="16" cy="8" r="1.2" fill="currentColor" />
+      <circle cx="8" cy="16" r="1.2" fill="currentColor" />
+      <circle cx="16" cy="16" r="1.2" fill="currentColor" />
+      <line x1="12" y1="2.5" x2="12" y2="21.5" strokeDasharray="2 2" strokeOpacity="0.4" />
+      <line x1="2.5" y1="12" x2="21.5" y2="12" strokeDasharray="2 2" strokeOpacity="0.4" />
+    </svg>
+  );
+}
+
+export function IconoAnalitica({ size = 15, color = "currentColor" }: { size?: number; color?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 3v18h18" />
+      <path d="M7 16l4-5 4 3 5-7" />
+      <circle cx="11" cy="11" r="1.5" fill={color} />
+      <circle cx="15" cy="14" r="1.5" fill={color} />
+      <circle cx="20" cy="7" r="1.5" fill={color} />
+    </svg>
+  );
+}
+
+export function IconoPerfilHerradura({ size = 16, color = "currentColor" }: { size?: number; color?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 20V12a7 7 0 0 1 14 0v8" />
+      <path d="M4 20h16" />
+    </svg>
+  );
+}
+
+export function IconoPerfilTunel({ size = 16, color = "currentColor" }: { size?: number; color?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 20V9a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v11" />
+      <path d="M3 20h18" />
+    </svg>
+  );
+}
+
+export function IconoPerfilTipoD({ size = 16, color = "currentColor" }: { size?: number; color?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 20V15c0-4.5 3.6-8 8-8s8 3.5 8 8v5" />
+      <path d="M3 20h18" />
+    </svg>
+  );
+}
+
+export function IconoPerfilRectangular({ size = 16, color = "currentColor" }: { size?: number; color?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="4" y="6" width="16" height="14" rx="1.5" />
+      <line x1="3" y1="20" x2="21" y2="20" />
+    </svg>
+  );
+}
+
+export function IconoBroca({ size = 15, color = "currentColor" }: { size?: number; color?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="8" />
+      <circle cx="12" cy="12" r="3.5" strokeOpacity="0.6" />
+      <circle cx="12" cy="12" r="1.2" fill={color} />
+      <line x1="12" y1="4" x2="12" y2="8.5" />
+      <line x1="12" y1="15.5" x2="12" y2="20" />
+      <line x1="4" y1="12" x2="8.5" y2="12" />
+      <line x1="15.5" y1="12" x2="20" y2="12" />
+    </svg>
+  );
+}
+
+export function IconoExplosivo({ size = 15, color = "currentColor" }: { size?: number; color?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="7" y="7" width="10" height="14" rx="2" />
+      <line x1="7" y1="11" x2="17" y2="11" strokeOpacity="0.5" />
+      <line x1="7" y1="16" x2="17" y2="16" strokeOpacity="0.5" />
+      <path d="M12 7V3" />
+      <path d="M9 3h6" />
+    </svg>
+  );
+}
+
+export function IconoCalculo({ size = 15, color = "currentColor" }: { size?: number; color?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="4" y="3" width="16" height="18" rx="2" />
+      <line x1="8" y1="7" x2="16" y2="7" />
+      <line x1="8" y1="11" x2="11" y2="11" />
+      <line x1="13" y1="11" x2="16" y2="11" />
+      <line x1="8" y1="15" x2="11" y2="15" />
+      <line x1="13" y1="15" x2="16" y2="15" />
+    </svg>
+  );
+}
+
+export function IconoEscudo({ size = 15, color = "currentColor" }: { size?: number; color?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      <path d="M9 12l2 2 4-4" strokeWidth="2" />
+    </svg>
+  );
+}
+
+export function IconoCronometro({ size = 15, color = "currentColor" }: { size?: number; color?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="13" r="8" />
+      <path d="M12 9v4l2.5 2" />
+      <path d="M10 2h4" />
+      <line x1="12" y1="2" x2="12" y2="5" />
+    </svg>
+  );
+}
+
+export function IconoMinimizar({ size = 13, color = "currentColor" }: { size?: number; color?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke={color} strokeWidth="2.4" strokeLinecap="round">
+      <line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+  );
+}
+
+export function IconoExpandir({ size = 13, color = "currentColor" }: { size?: number; color?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="4" y="4" width="16" height="16" rx="2" />
+      <line x1="4" y1="10" x2="20" y2="10" />
+    </svg>
+  );
+}
+
+export function IconoCerrar({ size = 13, color = "currentColor" }: { size?: number; color?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round">
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  );
+}
+
+export function IconoDockLateral({ size = 13, color = "currentColor" }: { size?: number; color?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <line x1="15" y1="3" x2="15" y2="21" />
+    </svg>
+  );
+}
+
+export function IconoDockAbajo({ size = 13, color = "currentColor" }: { size?: number; color?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <line x1="3" y1="15" x2="21" y2="15" />
+    </svg>
+  );
+}
+
+export function IconoLimpiar({ size = 13, color = "currentColor" }: { size?: number; color?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+      <line x1="10" y1="11" x2="10" y2="17" />
+      <line x1="14" y1="11" x2="14" y2="17" />
+    </svg>
+  );
+}
+
+// Control numérico con botones +/- perfectamente responsivo y sin flechas nativas
+interface ControlPasoNumeroProps {
+  label: string;
+  valor: number;
+  unidad?: string;
+  paso?: number;
+  min?: number;
+  max?: number;
+  decimales?: number;
+  onChange: (nuevoValor: number) => void;
+  titleTooltip?: string;
+}
+
+function ControlPasoNumero({
+  label,
+  valor,
+  unidad = "",
+  paso = 0.1,
+  min = 0,
+  max,
+  decimales = 1,
+  onChange,
+  titleTooltip,
+}: ControlPasoNumeroProps) {
+  const [textoLocal, setTextoLocal] = useState<string>(
+    Number.isFinite(valor) ? (decimales > 0 ? valor.toFixed(decimales) : String(valor)) : "0"
+  );
+  const [estaEnfocado, setEstaEnfocado] = useState(false);
+
+  useEffect(() => {
+    if (!estaEnfocado) {
+      setTextoLocal(
+        Number.isFinite(valor) ? (decimales > 0 ? valor.toFixed(decimales) : String(valor)) : "0"
+      );
+    }
+  }, [valor, estaEnfocado, decimales]);
+
+  const decrementar = () => {
+    const factor = Math.pow(10, decimales);
+    const nuevo = Math.round((valor - paso) * factor) / factor;
+    const finalVal = Math.max(min, nuevo);
+    onChange(finalVal);
+    setTextoLocal(decimales > 0 ? finalVal.toFixed(decimales) : String(finalVal));
+  };
+
+  const incrementar = () => {
+    const factor = Math.pow(10, decimales);
+    const nuevo = Math.round((valor + paso) * factor) / factor;
+    const finalVal = max !== undefined ? Math.min(max, nuevo) : nuevo;
+    onChange(finalVal);
+    setTextoLocal(decimales > 0 ? finalVal.toFixed(decimales) : String(finalVal));
+  };
+
+  const handleBlur = () => {
+    setEstaEnfocado(false);
+    const val = parseFloat(textoLocal.replace(",", "."));
+    if (!isNaN(val)) {
+      const finalVal = Math.max(min, max !== undefined ? Math.min(max, val) : val);
+      onChange(finalVal);
+      setTextoLocal(decimales > 0 ? finalVal.toFixed(decimales) : String(finalVal));
+    } else {
+      setTextoLocal(decimales > 0 ? valor.toFixed(decimales) : String(valor));
+    }
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0, width: "100%" }}>
+      <label
+        title={titleTooltip || `${label} ${unidad ? `(${unidad})` : ""}`}
+        style={{
+          fontSize: 10.5,
+          fontWeight: 600,
+          color: "#94a3b8",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          lineHeight: 1.2,
+          padding: "0 2px",
+        }}
+      >
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{label}</span>
+        {unidad && (
+          <span style={{ fontSize: 9.5, color: "#38bdf8", marginLeft: 4, flexShrink: 0, fontWeight: 700 }}>
+            ({unidad})
+          </span>
+        )}
+      </label>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "stretch",
+          background: "rgba(7, 12, 22, 0.95)",
+          border: estaEnfocado ? "1px solid var(--acento, #f97316)" : "1px solid #334155",
+          borderRadius: 6,
+          overflow: "hidden",
+          height: 32,
+          boxSizing: "border-box",
+          transition: "border-color 0.15s ease",
+        }}
+      >
+        <button
+          type="button"
+          onClick={decrementar}
+          disabled={valor <= min}
+          style={{
+            width: 28,
+            flexShrink: 0,
+            border: "none",
+            background: "rgba(255, 255, 255, 0.03)",
+            borderRight: "1px solid #1e293b",
+            color: valor <= min ? "#475569" : "#cbd5e1",
+            fontSize: 14,
+            fontWeight: 700,
+            cursor: valor <= min ? "not-allowed" : "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 0,
+            lineHeight: 1,
+            transition: "all 0.15s ease",
+            userSelect: "none",
+          }}
+          onMouseEnter={(e) => {
+            if (valor > min) {
+              e.currentTarget.style.background = "rgba(249, 115, 22, 0.2)";
+              e.currentTarget.style.color = "#ffffff";
+            }
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "rgba(255, 255, 255, 0.03)";
+            e.currentTarget.style.color = valor <= min ? "#475569" : "#cbd5e1";
+          }}
+          title={`Reducir ${paso} ${unidad}`}
+        >
+          −
+        </button>
+        <input
+          type="text"
+          inputMode="decimal"
+          pattern="[0-9]*[.,]?[0-9]*"
+          value={textoLocal}
+          onFocus={() => setEstaEnfocado(true)}
+          onChange={(e) => {
+            const txt = e.target.value;
+            if (/^-?[\d.,]*$/.test(txt) || txt === "") {
+              setTextoLocal(txt);
+              const val = parseFloat(txt.replace(",", "."));
+              if (!isNaN(val)) {
+                onChange(Math.max(min, max !== undefined ? Math.min(max, val) : val));
+              }
+            }
+          }}
+          onBlur={handleBlur}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              (e.target as HTMLInputElement).blur();
+            } else if (e.key === "ArrowUp") {
+              e.preventDefault();
+              incrementar();
+            } else if (e.key === "ArrowDown") {
+              e.preventDefault();
+              decrementar();
+            }
+          }}
+          style={{
+            flex: 1,
+            minWidth: 0,
+            width: "100%",
+            padding: "0 2px",
+            background: "transparent",
+            border: "none",
+            color: "#ffffff",
+            fontSize: 12,
+            fontWeight: 700,
+            fontVariantNumeric: "tabular-nums",
+            textAlign: "center",
+            boxSizing: "border-box",
+            outline: "none",
+          }}
+        />
+        <button
+          type="button"
+          onClick={incrementar}
+          disabled={max !== undefined && valor >= max}
+          style={{
+            width: 28,
+            flexShrink: 0,
+            border: "none",
+            background: "rgba(255, 255, 255, 0.03)",
+            borderLeft: "1px solid #1e293b",
+            color: max !== undefined && valor >= max ? "#475569" : "#cbd5e1",
+            fontSize: 14,
+            fontWeight: 700,
+            cursor: max !== undefined && valor >= max ? "not-allowed" : "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 0,
+            lineHeight: 1,
+            transition: "all 0.15s ease",
+            userSelect: "none",
+          }}
+          onMouseEnter={(e) => {
+            if (max === undefined || valor < max) {
+              e.currentTarget.style.background = "rgba(249, 115, 22, 0.2)";
+              e.currentTarget.style.color = "#ffffff";
+            }
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "rgba(255, 255, 255, 0.03)";
+            e.currentTarget.style.color = max !== undefined && valor >= max ? "#475569" : "#cbd5e1";
+          }}
+          title={`Aumentar ${paso} ${unidad}`}
+        >
+          +
+        </button>
+      </div>
+    </div>
+  );
+}
+
 interface Props {
   visible: boolean;
   onOcultar: () => void;
@@ -36,9 +475,14 @@ interface Props {
   onCambiarPoligono?: (pts: Punto2D[]) => void;
   lineasCad?: LineaCad3D[];
   polilineasCad?: PolilineaCad3D[];
+  cotasCad?: CotaCad3D[];
+  puntosCad?: PuntoCad3D[];
   taladros?: Taladro[];
   onCambiarTaladros?: (nuevos: Taladro[]) => void;
   onGenerarTaladros?: (nuevos: Taladro[]) => void;
+  onCambiarCotasCad?: (cotas: CotaCad3D[] | ((prev: CotaCad3D[]) => CotaCad3D[])) => void;
+  onCambiarPolilineasCad?: (pls: PolilineaCad3D[] | ((prev: PolilineaCad3D[]) => PolilineaCad3D[])) => void;
+  onCambiarPuntosCad?: (pts: PuntoCad3D[] | ((prev: PuntoCad3D[]) => PuntoCad3D[])) => void;
   onAplicarParametros?: (params: {
     ancho: number;
     alto: number;
@@ -90,7 +534,7 @@ export const PLANTILLAS_MALLA_PRESET: PlantillaMalla[] = [
     descripcion: "Cuele Holmberg con 4 alivios centrales Ø102mm, arrastres, corona y hastiales (cantidad de taladros calculada según RMR).",
     badge: "2.5 × 2.5m",
     color: "#f97316",
-    icono: "🚇",
+    icono: "HER",
   },
   {
     id: "herradura-3.0x3.0",
@@ -107,7 +551,7 @@ export const PLANTILLAS_MALLA_PRESET: PlantillaMalla[] = [
     descripcion: "Galería de transporte y acarreo principal con 4 cuadrantes y corona reforzada.",
     badge: "3.0 × 3.0m",
     color: "#38bdf8",
-    icono: "⛏️",
+    icono: "TUN",
   },
   {
     id: "tipo-d-3.5x3.0",
@@ -124,7 +568,7 @@ export const PLANTILLAS_MALLA_PRESET: PlantillaMalla[] = [
     descripcion: "Sección abovedada rebajada para optimización de gálibo de equipos LHD y volquetes.",
     badge: "3.5 × 3.0m",
     color: "#a855f7",
-    icono: "🔷",
+    icono: "TP-D",
   },
   {
     id: "rectangular-2.5x2.5",
@@ -141,7 +585,7 @@ export const PLANTILLAS_MALLA_PRESET: PlantillaMalla[] = [
     descripcion: "Corte rectangular para labores de avance en vetas angostas y subniveles de explotación.",
     badge: "2.5 × 2.5m",
     color: "#10b981",
-    icono: "🟧",
+    icono: "REC",
   },
 ];
 
@@ -271,6 +715,7 @@ function construirTaladrosMalla(opciones: {
   rmr: number;
   metodoDiseno: MetodoDisenoArranque;
   patronContorno: TipoPatronContorno;
+  tipoCorte?: TipoCorteArranque;
 }): Taladro[] {
   const { puntos } = generarLayoutCompletoTunel({
     ancho_m: opciones.ancho,
@@ -293,26 +738,70 @@ function construirTaladrosMalla(opciones: {
         ? "area_influencia_coneingemmet"
         : "holmberg_1982",
     patronContorno: opciones.patronContorno,
+    tipoCorte: opciones.tipoCorte,
   });
 
+  const L = Math.max(0.5, opciones.avanceM);
+  const cx = opciones.ancho / 2;
+
   return puntos.map((p, idx) => {
+    // Divergencia angular minera estándar: ~2.5° (0.043 rad = ~11 a 15 cm de apertura al fondo)
+    // SOLO para taladros perimetrales (arrastres, hastiales, cuadradores, corona, recorte)
+    const esContorno =
+      p.zona === "arrastre" ||
+      p.zona === "hastial" ||
+      p.zona === "cuadradores" ||
+      p.zona === "corona" ||
+      p.zona === "recorte";
+
+    const anguloLookout = esContorno ? 0.0436 : 0; // 2.5° exactos
+    let dx = 0;
+    let dy = 0;
+
+    if (p.zona === "arrastre") {
+      // Zapateras: divergencia sutil hacia el piso para mantener la rasante
+      dy = -L * Math.sin(anguloLookout);
+      if (Math.abs(p.x - cx) > opciones.ancho * 0.35) {
+        dx = (p.x < cx ? -1 : 1) * L * Math.sin(anguloLookout) * 0.5;
+      }
+    } else if (p.zona === "hastial" || p.zona === "cuadradores") {
+      // Hastiales: divergencia lateral hacia las cajas
+      dx = (p.x < cx ? -1 : 1) * L * Math.sin(anguloLookout);
+    } else if (p.zona === "corona" || p.zona === "recorte") {
+      // Corona: divergencia hacia el techo para no perder gálibo
+      dy = L * Math.sin(anguloLookout);
+      if (Math.abs(p.x - cx) > opciones.ancho * 0.35) {
+        dx = (p.x < cx ? -1 : 1) * L * Math.sin(anguloLookout) * 0.4;
+      }
+    }
+    // Arranque, cuadrantes 1..4, ayudas y alivios: dx = 0, dy = 0 (100% paralelos al eje)
+
+    // Dirección UNIFORME hacia el macizo rocoso (-Z siempre negativo)
+    const dz = -L * Math.cos(anguloLookout);
+    const xToe = Math.round((p.x + dx) * 1000) / 1000;
+    const yToe = Math.round((p.y + dy) * 1000) / 1000;
+    const zToe = Math.round(dz * 1000) / 1000;
+
+    const taco = p.cargado ? Math.round(((p.diamMm * 10) / 1000) * 100) / 100 : 0;
+    const longCarga = p.cargado ? Math.max(0, L - taco) : 0;
+
     const tal: Taladro = {
       id: `tal-live-${idx + 1}`,
       fila: idx + 1,
       columna: 1,
       collar: { x: p.x, y: p.y, z: 0 },
-      fondo: { x: p.x, y: p.y, z: 0 },
+      fondo: { x: xToe, y: yToe, z: zToe },
       diametroMm: p.diamMm,
-      profundidad_m: opciones.avanceM,
-      taco_m: p.cargado ? Math.round(((p.diamMm * 10) / 1000) * 100) / 100 : 0,
-      longitudCarga_m: p.cargado ? Math.max(0, opciones.avanceM - (p.diamMm * 10) / 1000) : 0,
+      profundidad_m: L,
+      taco_m: taco,
+      longitudCarga_m: longCarga,
     };
     (tal as any).zona = p.zona;
     (tal as any).cargado = p.cargado;
     (tal as any).tipo = p.cargado ? "produccion" : "alivio";
     (tal as any).color = p.color;
-    (tal as any).lookout = p.lookout ?? 0;
-    (tal as any).anguloLookoutRad = p.anguloLookoutRad;
+    (tal as any).lookout = esContorno ? (p.lookout ?? (anguloLookout > 0 ? Math.round((anguloLookout * 180) / Math.PI * 10) / 10 : 0)) : 0;
+    (tal as any).anguloLookoutRad = esContorno ? (p.anguloLookoutRad ?? anguloLookout) : undefined;
     (tal as any).etapa = p.etapa;
     return tal;
   });
@@ -325,9 +814,14 @@ export default function PanelDatosRmrMetodo({
   onCambiarPoligono,
   lineasCad = [],
   polilineasCad = [],
+  cotasCad = [],
+  puntosCad = [],
   taladros = [],
   onCambiarTaladros,
   onGenerarTaladros,
+  onCambiarCotasCad,
+  onCambiarPolilineasCad,
+  onCambiarPuntosCad,
   onAplicarParametros,
   mostrarAviso,
 }: Props) {
@@ -351,10 +845,10 @@ export default function PanelDatosRmrMetodo({
   // Navegación entre pestañas
   const [tab, setTab] = useState<TabPanel>("datos");
   const tabs: { id: TabPanel; label: string }[] = [
-    { id: "datos", label: "Datos" },
-    { id: "rmr", label: "RMR" },
-    { id: "metodo", label: "Método" },
-    { id: "resultado", label: "Resultado" },
+    { id: "datos", label: "Datos & Sección" },
+    { id: "rmr", label: "RMR Geomecánica" },
+    { id: "arranque", label: "Arranque & Método" },
+    { id: "resultado", label: "Resultado CAD" },
   ];
 
   // TAB 1: DATOS GEOMÉTRICOS & PLANTILLA
@@ -381,6 +875,7 @@ export default function PanelDatosRmrMetodo({
   // TAB 3: MÉTODO Y SECUENCIA DE CORTE
   const [metodoDiseno, setMetodoDiseno] = useState<MetodoDisenoArranque>("holmberg_1982");
   const [tipoCorte, setTipoCorte] = useState<TipoCorteArranque>("paralelo_quemado");
+  const [tipoArranqueSubterraneo, setTipoArranqueSubterraneo] = useState<TipoArranqueSubterraneo>("cuatro_cuadrantes_holmberg");
 
   // Control de activación de la malla (en blanco hasta que el usuario jale/cargue una plantilla o diseñe)
   const [mallaGenerada, setMallaGenerada] = useState<boolean>(() => {
@@ -517,6 +1012,58 @@ export default function PanelDatosRmrMetodo({
   );
 
   // =========================================================================
+  // CÁLCULO DEL CENTRO DEL CUELE / ALIVIOS (CAD REAL POSITION)
+  // =========================================================================
+  const centroAliviosCalculado = useMemo<{ x: number; y: number }>(() => {
+    if (taladros && taladros.length > 0) {
+      const alivios = taladros.filter(
+        (t) =>
+          (t as any).zona === "alivio" ||
+          (t as any).tipo === "alivio" ||
+          (!(t as any).cargado && t.diametroMm > 60)
+      );
+      if (alivios.length > 0) {
+        const cx = alivios.reduce((acc, t) => acc + t.collar.x, 0) / alivios.length;
+        const cy = alivios.reduce((acc, t) => acc + t.collar.y, 0) / alivios.length;
+        return { x: Math.round(cx * 1000) / 1000, y: Math.round(cy * 1000) / 1000 };
+      }
+    }
+
+    if (poligonoCresta && poligonoCresta.length >= 3) {
+      const minX = Math.min(...poligonoCresta.map((p) => p.x));
+      const maxX = Math.max(...poligonoCresta.map((p) => p.x));
+      const minY = Math.min(...poligonoCresta.map((p) => p.y));
+      const maxY = Math.max(...poligonoCresta.map((p) => p.y));
+      const w = maxX - minX;
+      const h = maxY - minY;
+      const cx = minX + w / 2;
+      let hCorona = 0;
+      if (tipoSeccion === "herradura") {
+        hCorona = w / 2;
+      } else if (tipoSeccion === "tipo_d") {
+        hCorona = Math.min(w * 0.35, h * 0.5);
+      }
+      const hHastial = Math.max(0, h - hCorona);
+      const cy =
+        minY + (tipoSeccion === "rectangular" ? h * 0.44 : Math.min(hHastial * 0.75, h * 0.4));
+      return { x: Math.round(cx * 1000) / 1000, y: Math.round(cy * 1000) / 1000 };
+    }
+
+    const w = anchoGaleria;
+    const h = altoGaleria;
+    const cx = w / 2;
+    let hCorona = 0;
+    if (tipoSeccion === "herradura") {
+      hCorona = w / 2;
+    } else if (tipoSeccion === "tipo_d") {
+      hCorona = Math.min(w * 0.35, h * 0.5);
+    }
+    const hHastial = Math.max(0, h - hCorona);
+    const cy = tipoSeccion === "rectangular" ? h * 0.44 : Math.min(hHastial * 0.75, h * 0.4);
+    return { x: Math.round(cx * 1000) / 1000, y: Math.round(cy * 1000) / 1000 };
+  }, [taladros, poligonoCresta, tipoSeccion, anchoGaleria, altoGaleria]);
+
+  // =========================================================================
   // MOTOR DE LAYOUT COMPLETO TUNEL (SUBTERRÁNEO EQUILIBRADO)
   // =========================================================================
   const layoutCalculado = useMemo(() => {
@@ -540,6 +1087,7 @@ export default function PanelDatosRmrMetodo({
           : metodoDiseno === "area_influencia_coneingemmet"
           ? "area_influencia_coneingemmet"
           : "holmberg_1982",
+      tipoCorte,
       patronContorno,
     });
   }, [
@@ -553,6 +1101,7 @@ export default function PanelDatosRmrMetodo({
     avanceM,
     rmrScore,
     metodoDiseno,
+    tipoCorte,
     patronContorno,
   ]);
 
@@ -689,6 +1238,70 @@ export default function PanelDatosRmrMetodo({
     return Math.max(1, numeroTaladrosPorRmr(rmrScore, anchoGaleria, altoGaleria, factorGeometrico));
   }, [rmrScore, anchoGaleria, altoGaleria, tipoSeccion]);
 
+  // Datos consolidados en tiempo real para las fichas de teoría minera (?)
+  const datosEnVivoParaTeoria: DatosEnVivoMalla = useMemo(() => {
+    return {
+      tipoSeccion,
+      anchoGaleria,
+      altoGaleria,
+      alturaCorona,
+      areaSeccion: metricasSeccion.area,
+      perimetroSeccion: metricasSeccion.perimetro,
+      numAlivios,
+      diametroAlivioMm,
+      diametroProdMm,
+      diametroEquivalenteDeMm: diametroEquivalente.deMm,
+      avanceM,
+      rmrScore,
+      claseRmr: recomendacionRmr.clase,
+      tipoRoca: recomendacionRmr.tipo,
+      explosivoNombre: explosivoActual.nombre,
+      explosivoVod: explosivoActual.vodMs,
+      explosivoDensidad: explosivoActual.densidadGcm3,
+      explosivoPresionDetKbar: explosivoActual.presionDetonacionKbar,
+      explosivoRws: explosivoActual.rwsPeso,
+      factorCargaKgM3: factorCargaEstimado.factorCargaKgM3,
+      volumenRotoM3: factorCargaEstimado.volumenM3,
+      toneladasRotas: factorCargaEstimado.toneladas,
+      pesoTotalExplosivoKg: factorCargaEstimado.pesoTotalKg,
+      cargaLinealKgM: factorCargaEstimado.q_l_kg_m,
+      metodoDiseno,
+      patronContorno,
+      totalTaladros: taladrosDetectados.total > 0 ? taladrosDetectados.total : desgloseZonas.totalTaladros,
+      taladrosCargados: taladrosDetectados.cargados > 0 ? taladrosDetectados.cargados : desgloseZonas.totalCargados,
+      taladrosAlivio: taladrosDetectados.alivio > 0 ? taladrosDetectados.alivio : desgloseZonas.alivios,
+      kuzRamX50Cm: resultadoKuzRam.x50_cm,
+      kuzRamUniformidadN: resultadoKuzRam.indiceUniformidad_n,
+      kuzRamSobretamanoPct: resultadoKuzRam.porcentajeSobretamano_30cm,
+      kuzRamFinosPct: resultadoKuzRam.porcentajeFinos_5cm,
+      holmbergPpvContorno: resultadoHolmbergPersson.ppvContorno_mms,
+      holmbergRadioDanoM: resultadoHolmbergPersson.radioDanoCritico_m,
+      etapasHolmberg: etapasArranque,
+    };
+  }, [
+    tipoSeccion,
+    anchoGaleria,
+    altoGaleria,
+    alturaCorona,
+    metricasSeccion,
+    numAlivios,
+    diametroAlivioMm,
+    diametroProdMm,
+    diametroEquivalente,
+    avanceM,
+    rmrScore,
+    recomendacionRmr,
+    explosivoActual,
+    factorCargaEstimado,
+    metodoDiseno,
+    patronContorno,
+    taladrosDetectados,
+    desgloseZonas,
+    resultadoKuzRam,
+    resultadoHolmbergPersson,
+    etapasArranque,
+  ]);
+
   // =========================================================================
   // GENERACIÓN DE MALLA EN VIVO (LIVE REAL-TIME CALCULATION)
   // =========================================================================
@@ -758,6 +1371,7 @@ export default function PanelDatosRmrMetodo({
       avanceM,
       rmr: rmrScore,
       metodoDiseno,
+      tipoCorte,
       patronContorno,
     });
 
@@ -785,6 +1399,7 @@ export default function PanelDatosRmrMetodo({
       avanceM: p.avanceM,
       rmr: p.rmr,
       metodoDiseno,
+      tipoCorte,
       patronContorno,
     });
 
@@ -797,7 +1412,7 @@ export default function PanelDatosRmrMetodo({
       onCambiarTaladros(lista);
     }
 
-    mostrarAviso?.(`⚡ Plantilla cargada: ${p.nombre} (${p.badge}) - ${lista.length} taladros.`);
+    mostrarAviso?.(`Plantilla cargada: ${p.nombre} (${p.badge}) - ${lista.length} taladros.`);
   };
 
   const handleLimpiarLienzo = () => {
@@ -815,6 +1430,85 @@ export default function PanelDatosRmrMetodo({
       // noop
     }
     mostrarAviso?.("✓ Lienzo en blanco: Malla y contorno limpiados.");
+  };
+
+  // Limpiar capas de guías/cotas superpuestas del CAD para que la vista quede limpia
+  const handleLimpiarGuiasCad = () => {
+    const capaId = "capa-arranque-cotas";
+    if (onCambiarPolilineasCad) {
+      onCambiarPolilineasCad((prev) => prev.filter((p) => p.capaId !== capaId && !p.id.startsWith("pl-q")));
+    }
+    if (onCambiarCotasCad) {
+      onCambiarCotasCad((prev) =>
+        prev.filter((c) => c.capaId !== capaId && !c.id.startsWith("cot-b") && !c.id.startsWith("cot-e"))
+      );
+    }
+    if (onCambiarPuntosCad) {
+      onCambiarPuntosCad((prev) =>
+        prev.filter((p) => p.capaId !== capaId && !p.id.startsWith("pto-q") && !p.id.startsWith("pto-alivio"))
+      );
+    }
+    mostrarAviso?.("✓ Capas de guías y cotas limpiadas del CAD 3D.");
+  };
+
+  // Aplicar un trazo de arranque del catálogo visual oficial
+  const handleAplicarTrazoSeleccionado = (config: {
+    numAlivios: number;
+    diametroAlivioMm: number;
+    tipoCorte: string;
+    nombreTrazo: string;
+  }) => {
+    // 1. Limpiar cualquier residuo de cotas anteriores
+    handleLimpiarGuiasCad();
+
+    // 2. Aplicar los parámetros a la malla
+    setNumAlivios(config.numAlivios);
+    setDiametroAlivioMm(config.diametroAlivioMm);
+    setTipoCorte(config.tipoCorte as TipoCorteArranque);
+    setMallaGenerada(true);
+
+    // 3. Regenerar los taladros inmediatamente con la nueva configuración
+    const contorno = calcularContornoEnVivo(tipoSeccion, anchoGaleria, altoGaleria, alturaCorona);
+    const nuevosTaladros = construirTaladrosMalla({
+      ancho: anchoGaleria,
+      alto: altoGaleria,
+      tipoSeccion,
+      corona: alturaCorona,
+      numAlivios: config.numAlivios,
+      diametroAlivioMm: config.diametroAlivioMm,
+      diametroProdMm,
+      avanceM,
+      rmr: rmrScore,
+      metodoDiseno,
+      tipoCorte: config.tipoCorte as TipoCorteArranque,
+      patronContorno,
+    });
+
+    if (onCambiarPoligono) {
+      onCambiarPoligono(contorno);
+    }
+    if (onGenerarTaladros) {
+      onGenerarTaladros(nuevosTaladros);
+    } else if (onCambiarTaladros) {
+      onCambiarTaladros(nuevosTaladros);
+    }
+
+    if (onAplicarParametros) {
+      onAplicarParametros({
+        ancho: anchoGaleria,
+        alto: altoGaleria,
+        area: metricasSeccion.area,
+        perimetro: metricasSeccion.perimetro,
+        tipoSeccion,
+        rmr: rmrScore,
+        numAlivios: config.numAlivios,
+        diametroAlivioMm: config.diametroAlivioMm,
+        diametroProdMm,
+        tipoCorte: config.tipoCorte as TipoCorteArranque,
+      });
+    }
+
+    mostrarAviso?.(`✓ Trazo aplicado a la malla: ${config.nombreTrazo}`);
   };
 
   // Efecto reactivo para actualizar la malla EN VIVO en el Canvas 3D (solo si la malla está activa)
@@ -1108,7 +1802,7 @@ export default function PanelDatosRmrMetodo({
               color: "#ffffff",
               display: "flex",
               alignItems: "center",
-              gap: 6,
+              gap: 8,
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
@@ -1116,6 +1810,7 @@ export default function PanelDatosRmrMetodo({
               minWidth: 0,
             }}
           >
+            <IconoMalla size={17} color="var(--acento, #f97316)" />
             <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {isMobile ? "DISEÑO DE MALLA" : "DISEÑO DE MALLA · SUBTERRÁNEA"}
             </span>
@@ -1137,7 +1832,7 @@ export default function PanelDatosRmrMetodo({
             )}
           </h2>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
             {/* Botón para alternar posición entre Abajo y Lateral (solo desktop) */}
             {!isMobile && (
               <button
@@ -1150,57 +1845,90 @@ export default function PanelDatosRmrMetodo({
                   color: "#94a3b8",
                   fontSize: 11,
                   fontWeight: 600,
-                  padding: "3px 8px",
+                  padding: "4px 8px",
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
-                  gap: 4,
+                  gap: 5,
+                  transition: "all 0.15s ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = "#ffffff";
+                  e.currentTarget.style.borderColor = "var(--acento, #f97316)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = "#94a3b8";
+                  e.currentTarget.style.borderColor = "#334155";
                 }}
                 title={posicion === "abajo" ? "Cambiar a panel lateral derecho" : "Acoplar abajo como panel inferior"}
               >
-                {posicion === "abajo" ? "◫ Lateral" : "⬕ Abajo"}
+                {posicion === "abajo" ? <IconoDockLateral size={13} /> : <IconoDockAbajo size={13} />}
+                <span>{posicion === "abajo" ? "Lateral" : "Abajo"}</span>
               </button>
             )}
 
-            {/* Botón Minimizar / Expandir */}
+            {/* Botón Minimizar (-) estilo CAD profesional */}
             <button
               type="button"
               onClick={() => setMinimizado(!minimizado)}
               style={{
+                width: 26,
+                height: 26,
+                borderRadius: 6,
                 background: "rgba(255, 255, 255, 0.08)",
                 border: "1px solid #334155",
-                borderRadius: 6,
-                color: "#cbd5e1",
-                fontSize: 11,
-                fontWeight: 700,
-                padding: isMobile ? "3px 8px" : "3px 8px",
+                color: "#94a3b8",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
                 cursor: "pointer",
+                padding: 0,
+                lineHeight: 1,
+                transition: "all 0.15s ease",
               }}
-              title={minimizado ? "Expandir menú completo" : "Comprimir menú"}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = "#ffffff";
+                e.currentTarget.style.borderColor = "var(--acento, #f97316)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = "#94a3b8";
+                e.currentTarget.style.borderColor = "#334155";
+              }}
+              title={minimizado ? "Expandir / Restaurar panel" : "Minimizar panel (-)"}
             >
-              {isMobile ? (minimizado ? "▲" : "▼") : (minimizado ? "▲ Expandir" : "▼ Comprimir")}
+              {minimizado ? <IconoExpandir size={13} /> : <IconoMinimizar size={13} />}
             </button>
 
-            {/* Botón Ocultar */}
+            {/* Botón Cerrar (✕) estilo CAD profesional */}
             <button
               type="button"
               onClick={onOcultar}
               style={{
-                background: "transparent",
-                border: "none",
-                color: "var(--acento, #f97316)",
-                fontSize: 11,
-                fontWeight: 800,
-                letterSpacing: "0.05em",
-                cursor: "pointer",
+                width: 26,
+                height: 26,
+                borderRadius: 6,
+                background: "rgba(239, 68, 68, 0.12)",
+                border: "1px solid rgba(239, 68, 68, 0.35)",
+                color: "#f87171",
                 display: "flex",
                 alignItems: "center",
-                gap: 2,
-                padding: isMobile ? "3px 5px" : "3px 6px",
+                justifyContent: "center",
+                cursor: "pointer",
+                padding: 0,
+                lineHeight: 1,
+                transition: "all 0.15s ease",
               }}
-              title="Ocultar panel"
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgba(239, 68, 68, 0.25)";
+                e.currentTarget.style.color = "#ffffff";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "rgba(239, 68, 68, 0.12)";
+                e.currentTarget.style.color = "#f87171";
+              }}
+              title="Cerrar panel (✕)"
             >
-              <span>{isMobile ? "✕" : "✕ OCULTAR"}</span>
+              <IconoCerrar size={13} />
             </button>
           </div>
         </div>
@@ -1223,7 +1951,7 @@ export default function PanelDatosRmrMetodo({
                   type="button"
                   onClick={() => setTab(t.id)}
                   style={{
-                    padding: isMobile ? "5px 2px" : "6px 2px",
+                    padding: isMobile ? "6px 2px" : "7px 6px",
                     fontSize: isMobile ? 10 : 11,
                     fontWeight: activa ? 700 : 500,
                     borderRadius: 6,
@@ -1232,13 +1960,21 @@ export default function PanelDatosRmrMetodo({
                     color: activa ? "#ffffff" : "#94a3b8",
                     cursor: "pointer",
                     transition: "all 0.15s ease",
-                    textAlign: "center",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 5,
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
                   }}
+                  title={t.label}
                 >
-                  {t.label}
+                  {t.id === "datos" && <IconoSeccion size={14} color={activa ? "var(--acento, #f97316)" : "#94a3b8"} />}
+                  {t.id === "rmr" && <IconoGeomecanica size={14} color={activa ? "var(--acento, #f97316)" : "#94a3b8"} />}
+                  {t.id === "arranque" && <IconoMallaArranque size={14} color={activa ? "var(--acento, #f97316)" : "#94a3b8"} />}
+                  {t.id === "resultado" && <IconoAnalitica size={14} color={activa ? "var(--acento, #f97316)" : "#94a3b8"} />}
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{t.label}</span>
                 </button>
               );
             })}
@@ -1276,308 +2012,214 @@ export default function PanelDatosRmrMetodo({
               alignItems: "start",
             }}
           >
-            {/* SECCIÓN 0: BANNER DE PLANTILLAS RÁPIDAS (JALAR PLANTILLA) */}
+            {/* SECCIÓN UNIFICADA: PLANTILLA Y GEOMETRÍA DE SECCIÓN */}
             <div
               style={{
-                background: mallaGenerada ? "rgba(15, 23, 42, 0.5)" : "linear-gradient(135deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%)",
+                background: "rgba(15, 23, 42, 0.7)",
                 borderRadius: 12,
                 padding: 14,
                 border: mallaGenerada ? "1px solid #1e293b" : "1.5px solid var(--acento, #f97316)",
                 boxShadow: mallaGenerada ? "none" : "0 0 20px rgba(249, 115, 22, 0.2)",
               }}
             >
+              {/* Cabecera con estado y concepto */}
               <div
                 style={{
                   fontSize: 12,
                   fontWeight: 800,
                   color: "#ffffff",
-                  marginBottom: 6,
+                  marginBottom: 8,
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
                 }}
               >
-                <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span>⚡</span>
-                  <span>{mallaGenerada ? "Plantilla Activa (En Vivo)" : "Jalar / Cargar Plantilla de Malla"}</span>
+                <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                  <IconoSeccion size={16} color="var(--acento, #f97316)" />
+                  <span>Geometría de Sección y Plantillas</span>
                 </span>
-                <span
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    padding: "2px 7px",
-                    borderRadius: 10,
-                    background: mallaGenerada ? "rgba(16, 185, 129, 0.15)" : "rgba(249, 115, 22, 0.15)",
-                    color: mallaGenerada ? "#10b981" : "var(--acento, #f97316)",
-                    border: mallaGenerada ? "1px solid rgba(16, 185, 129, 0.3)" : "1px solid rgba(249, 115, 22, 0.3)",
-                  }}
-                >
-                  {mallaGenerada ? "● EN VIVO" : "○ EN BLANCO"}
-                </span>
-              </div>
-
-              <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 10, lineHeight: 1.4 }}>
-                {mallaGenerada
-                  ? "Cualquier cambio se actualiza en tiempo real en el visor 3D. Puedes cambiar de plantilla o limpiar el lienzo:"
-                  : "El lienzo está en blanco. Selecciona una plantilla predefinida para generar la malla de perforación:"}
-              </div>
-
-              {/* Grid de mini tarjetas de plantilla */}
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: 6,
-                  marginBottom: 10,
-                }}
-              >
-                {PLANTILLAS_MALLA_PRESET.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => handleCargarPlantilla(p)}
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span
                     style={{
-                      padding: "8px 8px",
-                      borderRadius: 8,
-                      border: "1px solid #334155",
-                      background: "rgba(15, 23, 42, 0.6)",
-                      color: "#f8fafc",
-                      textAlign: "left",
-                      cursor: "pointer",
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 2,
-                      transition: "all 0.15s ease",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = "var(--acento, #f97316)";
-                      e.currentTarget.style.background = "rgba(249, 115, 22, 0.12)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = "#334155";
-                      e.currentTarget.style.background = "rgba(15, 23, 42, 0.6)";
+                      fontSize: 10,
+                      fontWeight: 700,
+                      padding: "2px 7px",
+                      borderRadius: 10,
+                      background: mallaGenerada ? "rgba(16, 185, 129, 0.15)" : "rgba(249, 115, 22, 0.15)",
+                      color: mallaGenerada ? "#10b981" : "var(--acento, #f97316)",
+                      border: mallaGenerada ? "1px solid rgba(16, 185, 129, 0.3)" : "1px solid rgba(249, 115, 22, 0.3)",
                     }}
                   >
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: "#ffffff" }}>
-                        {p.icono} {p.nombre}
+                    {mallaGenerada ? "● EN VIVO" : "○ EN BLANCO"}
+                  </span>
+                  <BotonInfoTeoria
+                    activo={conceptoAbierto === "seccion"}
+                    onClick={() => setConceptoAbierto(conceptoAbierto === "seccion" ? null : "seccion")}
+                    titulo="Ver teoría de geometría de sección, distribución de esfuerzos y fórmulas (?)"
+                  />
+                </div>
+              </div>
+
+              {conceptoAbierto === "seccion" && (
+                <TarjetaTeoriaMalla
+                  id="seccion"
+                  onCerrar={() => setConceptoAbierto(null)}
+                  datosEnVivo={datosEnVivoParaTeoria}
+                />
+              )}
+
+              {/* BARRA DE PLANTILLAS RÁPIDAS CON ICONOS CAD */}
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 5 }}>
+                  Plantillas estándar de minería (cargar predefinido):
+                </div>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
+                    gap: 6,
+                  }}
+                >
+                  {PLANTILLAS_MALLA_PRESET.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => handleCargarPlantilla(p)}
+                      style={{
+                        padding: "6px 8px",
+                        borderRadius: 6,
+                        border: "1px solid #334155",
+                        background: "rgba(15, 23, 42, 0.5)",
+                        color: "#f8fafc",
+                        textAlign: "left",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        transition: "all 0.15s ease",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = "var(--acento, #f97316)";
+                        e.currentTarget.style.background = "rgba(249, 115, 22, 0.12)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = "#334155";
+                        e.currentTarget.style.background = "rgba(15, 23, 42, 0.5)";
+                      }}
+                    >
+                      <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10.5, fontWeight: 700, color: "#ffffff" }}>
+                        {p.tipoSeccion === "herradura" && <IconoPerfilHerradura size={14} color={p.color} />}
+                        {p.tipoSeccion === "tipo_d" && <IconoPerfilTipoD size={14} color={p.color} />}
+                        {p.tipoSeccion === "rectangular" && <IconoPerfilRectangular size={14} color={p.color} />}
+                        {p.tipoSeccion === "arco_personalizado" && <IconoPerfilTunel size={14} color={p.color} />}
+                        <span>{p.nombre}</span>
                       </span>
                       <span style={{ fontSize: 9, color: p.color, fontWeight: 700 }}>
                         {p.badge}
                       </span>
-                    </div>
-                    <span style={{ fontSize: 9.5, color: "#94a3b8", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {p.numAlivios} Alivios · RMR {p.rmr}
-                    </span>
-                  </button>
-                ))}
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              {mallaGenerada && (
-                <button
-                  type="button"
-                  onClick={handleLimpiarLienzo}
-                  style={{
-                    width: "100%",
-                    padding: "7px 10px",
-                    fontSize: 10.5,
-                    fontWeight: 700,
-                    borderRadius: 6,
-                    border: "1px solid #475569",
-                    background: "rgba(30, 41, 59, 0.5)",
-                    color: "#cbd5e1",
-                    cursor: "pointer",
-                    textAlign: "center",
-                  }}
-                >
-                  ✕ Limpiar Malla (Volver a Lienzo en Blanco)
-                </button>
-              )}
-            </div>
-
-            {/* SECCIÓN 1: PLANTILLA GEOMÉTRICA */}
-            <div
-              style={{
-                background: "rgba(15, 23, 42, 0.65)",
-                borderRadius: 12,
-                padding: 14,
-                border: "1px solid #1e293b",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: "#e2e8f0",
-                  marginBottom: 10,
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <span>Plantilla geométrica de sección</span>
-                <span
-                  style={{
-                    fontSize: 10,
-                    color: "var(--acento, #f97316)",
-                    cursor: "pointer",
-                  }}
-                  onClick={() =>
-                    setConceptoAbierto(conceptoAbierto === "seccion" ? null : "seccion")
-                  }
-                  title="Ver concepto geológico y de diseño"
-                >
-                  {conceptoAbierto === "seccion" ? "▲ Ocultar info" : "ⓘ Concepto"}
-                </span>
-              </div>
-
-              {conceptoAbierto === "seccion" && (
+              {/* SELECTOR DE FORMA DE SECCIÓN */}
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 5 }}>
+                  Forma geométrica del arco:
+                </div>
                 <div
                   style={{
-                    fontSize: 11,
-                    color: "#cbd5e1",
-                    background: "rgba(30, 41, 59, 0.7)",
-                    borderRadius: 8,
-                    padding: 10,
-                    marginBottom: 12,
-                    lineHeight: 1.45,
-                    borderLeft: "3px solid var(--acento, #f97316)",
+                    display: "grid",
+                    gridTemplateColumns: "repeat(4, 1fr)",
+                    gap: 4,
                   }}
                 >
-                  <b>Concepto Minero:</b> La forma de la galería distribuye los esfuerzos del macizo
-                  rocoso. La sección <i>Herradura</i> distribuye favorablemente el esfuerzo tensional
-                  hacia los hastiales, mientras que el <i>Arco rebajado (Tipo D)</i> optimiza el gálibo
-                  en vetas angostas y labores de transporte.
-                </div>
-              )}
-
-              {/* Botones de plantilla */}
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: 6,
-                  marginBottom: 12,
-                }}
-              >
-                {(
-                  [
-                    { id: "rectangular", label: "Rectangular" },
-                    { id: "herradura", label: "Herradura" },
-                    { id: "tipo_d", label: "Tipo D" },
-                    { id: "arco_personalizado", label: "Arco personalizado" },
-                  ] as const
-                ).map((sec) => (
-                  <button
-                    key={sec.id}
-                    type="button"
-                    onClick={() => {
-                      setTipoSeccion(sec.id);
-                      setMallaGenerada(true);
-                    }}
-                    style={{
-                      padding: "8px 4px",
-                      fontSize: 11,
-                      fontWeight: tipoSeccion === sec.id ? 700 : 500,
-                      borderRadius: 6,
-                      border:
-                        tipoSeccion === sec.id
-                          ? "1px solid var(--acento, #f97316)"
-                          : "1px solid #334155",
-                      background:
-                        tipoSeccion === sec.id
-                          ? "rgba(249, 115, 22, 0.2)"
-                          : "rgba(15, 23, 42, 0.4)",
-                      color: tipoSeccion === sec.id ? "#ffffff" : "#94a3b8",
-                      cursor: "pointer",
-                    }}
-                  >
-                    {sec.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Inputs de dimensiones */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 8 }}>
-                <div>
-                  <label style={{ fontSize: 10, color: "#94a3b8", display: "block", marginBottom: 4 }}>
-                    Ancho galería (m)
-                  </label>
-                  <input
-                    type="number"
-                    min={0.5}
-                    step={0.1}
-                    value={anchoGaleria}
-                    onChange={(e) => {
-                      setAnchoGaleria(Math.max(0.5, Number(e.target.value)));
-                      setMallaGenerada(true);
-                    }}
-                    style={{
-                      width: "100%",
-                      padding: "7px 10px",
-                      background: "#070c16",
-                      border: "1px solid #334155",
-                      borderRadius: 6,
-                      color: "#ffffff",
-                      fontSize: 12,
-                      boxSizing: "border-box",
-                    }}
-                  />
-                </div>
-                <div>
-                  <label style={{ fontSize: 10, color: "#94a3b8", display: "block", marginBottom: 4 }}>
-                    Alto galería (m)
-                  </label>
-                  <input
-                    type="number"
-                    min={0.5}
-                    step={0.1}
-                    value={altoGaleria}
-                    onChange={(e) => {
-                      setAltoGaleria(Math.max(0.5, Number(e.target.value)));
-                      setMallaGenerada(true);
-                    }}
-                    style={{
-                      width: "100%",
-                      padding: "7px 10px",
-                      background: "#070c16",
-                      border: "1px solid #334155",
-                      borderRadius: 6,
-                      color: "#ffffff",
-                      fontSize: 12,
-                      boxSizing: "border-box",
-                    }}
-                  />
+                  {(
+                    [
+                      { id: "rectangular", label: "Rectangular", Icon: IconoPerfilRectangular },
+                      { id: "herradura", label: "Herradura", Icon: IconoPerfilHerradura },
+                      { id: "tipo_d", label: "Tipo D", Icon: IconoPerfilTipoD },
+                      { id: "arco_personalizado", label: "Arco pers.", Icon: IconoPerfilTunel },
+                    ] as const
+                  ).map((sec) => {
+                    const activa = tipoSeccion === sec.id;
+                    const IconComp = sec.Icon;
+                    return (
+                      <button
+                        key={sec.id}
+                        type="button"
+                        onClick={() => {
+                          setTipoSeccion(sec.id);
+                          setMallaGenerada(true);
+                        }}
+                        style={{
+                          padding: "6px 2px",
+                          fontSize: 10,
+                          fontWeight: activa ? 700 : 500,
+                          borderRadius: 6,
+                          border: activa ? "1px solid var(--acento, #f97316)" : "1px solid #334155",
+                          background: activa ? "rgba(249, 115, 22, 0.2)" : "rgba(15, 23, 42, 0.4)",
+                          color: activa ? "#ffffff" : "#94a3b8",
+                          cursor: "pointer",
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          gap: 3,
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        <IconComp size={15} color={activa ? "var(--acento, #f97316)" : "#64748b"} />
+                        <span>{sec.label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
-              {tipoSeccion === "arco_personalizado" && (
-                <div style={{ marginBottom: 8 }}>
-                  <label style={{ fontSize: 10, color: "#94a3b8", display: "block", marginBottom: 4 }}>
-                    Altura de flecha / corona (m)
-                  </label>
-                  <input
-                    type="number"
+              {/* Inputs de dimensiones con botones +/- profesionales y responsivos */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 115px), 1fr))", gap: 8, marginBottom: 8 }}>
+                <ControlPasoNumero
+                  label="Ancho galería"
+                  unidad="m"
+                  valor={anchoGaleria}
+                  paso={0.1}
+                  min={0.5}
+                  decimales={1}
+                  onChange={(val) => {
+                    setAnchoGaleria(val);
+                    setMallaGenerada(true);
+                  }}
+                  titleTooltip="Ancho útil de la labor en metros"
+                />
+                <ControlPasoNumero
+                  label="Alto galería"
+                  unidad="m"
+                  valor={altoGaleria}
+                  paso={0.1}
+                  min={0.5}
+                  decimales={1}
+                  onChange={(val) => {
+                    setAltoGaleria(val);
+                    setMallaGenerada(true);
+                  }}
+                  titleTooltip="Alto útil de la labor en metros"
+                />
+                {tipoSeccion === "arco_personalizado" && (
+                  <ControlPasoNumero
+                    label="Altura corona"
+                    unidad="m"
+                    valor={alturaCorona}
+                    paso={0.05}
                     min={0.1}
-                    step={0.05}
-                    value={alturaCorona}
-                    onChange={(e) => {
-                      setAlturaCorona(Math.max(0.1, Number(e.target.value)));
+                    decimales={2}
+                    onChange={(val) => {
+                      setAlturaCorona(val);
                       setMallaGenerada(true);
                     }}
-                    style={{
-                      width: "100%",
-                      padding: "7px 10px",
-                      background: "#070c16",
-                      border: "1px solid #334155",
-                      borderRadius: 6,
-                      color: "#ffffff",
-                      fontSize: 12,
-                      boxSizing: "border-box",
-                    }}
+                    titleTooltip="Altura de flecha / corona en metros"
                   />
-                </div>
-              )}
+                )}
+              </div>
 
               {/* Métricas calculadas en vivo */}
               <div
@@ -1601,25 +2243,45 @@ export default function PanelDatosRmrMetodo({
                   <b style={{ color: "#ffffff" }}>{metricasSeccion.perimetro.toFixed(3)} m</b>
                 </div>
               </div>
-            </div>
 
-            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 2, marginBottom: 6 }}>
-              <button
-                type="button"
-                onClick={restablecerProporciones}
-                style={{
-                  padding: "5px 10px",
-                  fontSize: 10,
-                  fontWeight: 600,
-                  borderRadius: 6,
-                  border: "1px solid #334155",
-                  background: "rgba(15, 23, 42, 0.4)",
-                  color: "#94a3b8",
-                  cursor: "pointer",
-                }}
-              >
-                ↺ Restablecer proporciones
-              </button>
+              {/* Botones de acción inferior */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10, gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={restablecerProporciones}
+                  style={{
+                    padding: "5px 10px",
+                    fontSize: 10,
+                    fontWeight: 600,
+                    borderRadius: 6,
+                    border: "1px solid #334155",
+                    background: "rgba(15, 23, 42, 0.4)",
+                    color: "#94a3b8",
+                    cursor: "pointer",
+                  }}
+                >
+                  ↺ Restablecer proporciones
+                </button>
+
+                {mallaGenerada && (
+                  <button
+                    type="button"
+                    onClick={handleLimpiarLienzo}
+                    style={{
+                      padding: "5px 10px",
+                      fontSize: 10,
+                      fontWeight: 700,
+                      borderRadius: 6,
+                      border: "1px solid #475569",
+                      background: "rgba(239, 68, 68, 0.15)",
+                      color: "#f87171",
+                      cursor: "pointer",
+                    }}
+                  >
+                    ✕ Limpiar Malla
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* SECCIÓN 2: PATRÓN DE CONTORNO */}
@@ -1631,9 +2293,26 @@ export default function PanelDatosRmrMetodo({
                 border: "1px solid #1e293b",
               }}
             >
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#e2e8f0", marginBottom: 8 }}>
-                Patrón de contorno
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#e2e8f0", marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                  <IconoPerfilTunel size={16} color="#38bdf8" />
+                  <span>Patrón de contorno</span>
+                </div>
+                <BotonInfoTeoria
+                  activo={conceptoAbierto === "patron_contorno"}
+                  onClick={() => setConceptoAbierto(conceptoAbierto === "patron_contorno" ? null : "patron_contorno")}
+                  titulo="Ver justificación técnica de voladura de contorno y smooth blasting (?)"
+                />
               </div>
+
+              {conceptoAbierto === "patron_contorno" && (
+                <TarjetaTeoriaMalla
+                  id="patron_contorno"
+                  onCerrar={() => setConceptoAbierto(null)}
+                  datosEnVivo={datosEnVivoParaTeoria}
+                />
+              )}
+
               <div
                 style={{
                   display: "grid",
@@ -1676,16 +2355,6 @@ export default function PanelDatosRmrMetodo({
                     {pat.label}
                   </button>
                 ))}
-              </div>
-              <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 10, lineHeight: 1.4 }}>
-                Cambia el espaciamiento de <b>corona</b> (techo) y <b>cuadradores</b> (hastiales):{" "}
-                <b>Corona uniforme</b> = todo el contorno a espaciamiento normal, sin control (regla
-                práctica de 2 pies por pulgada de diámetro). <b>Corona + recorte</b> = solo el techo
-                a espaciamiento de smooth blasting (según RMR) — convención típica en obra minera.{" "}
-                <b>Recorte continuo</b> = techo y hastiales juntos a espaciamiento de smooth
-                blasting, como "taladros periféricos" — convención de obra civil y de voladura
-                controlada en túneles (Diéguez, "Diseño de voladuras de contorno para el laboreo de
-                túneles", <i>Minería y Geología</i>, ISMM).
               </div>
 
               {/* Leyenda Geométrica */}
@@ -1757,112 +2426,63 @@ export default function PanelDatosRmrMetodo({
                   alignItems: "center",
                 }}
               >
-                <span>Corte y Alivio (Cálculo De)</span>
-                <span
-                  style={{
-                    fontSize: 10,
-                    color: "var(--acento, #f97316)",
-                    cursor: "pointer",
-                  }}
-                  onClick={() =>
-                    setConceptoAbierto(conceptoAbierto === "alivio" ? null : "alivio")
-                  }
-                >
-                  {conceptoAbierto === "alivio" ? "▲ Ocultar info" : "ⓘ Concepto"}
+                <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                  <IconoBroca size={16} color="#38bdf8" />
+                  <span>Corte y Alivio (Cálculo De)</span>
                 </span>
+                <BotonInfoTeoria
+                  activo={conceptoAbierto === "alivio"}
+                  onClick={() => setConceptoAbierto(conceptoAbierto === "alivio" ? null : "alivio")}
+                  titulo="Ver fundamento de diámetro equivalente, cara libre y fórmulas (?)"
+                />
               </div>
 
               {conceptoAbierto === "alivio" && (
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: "#cbd5e1",
-                    background: "rgba(30, 41, 59, 0.7)",
-                    borderRadius: 8,
-                    padding: 10,
-                    marginBottom: 10,
-                    lineHeight: 1.45,
-                    borderLeft: "3px solid #38bdf8",
-                  }}
-                >
-                  <b>¿Por qué Diámetro Equivalente?</b> En voladura subterránea no hay cara libre. Los
-                  taladros vacíos sin cargar proporcionan el volumen de expansión inicial. Según la
-                  fórmula sueca: <code>De = D · √N</code>. Múltiples alivios pequeños actúan
-                  dinámicamente como un gran cilindro central de alivio.
-                </div>
+                <TarjetaTeoriaMalla
+                  id="alivio"
+                  onCerrar={() => setConceptoAbierto(null)}
+                  datosEnVivo={datosEnVivoParaTeoria}
+                />
               )}
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 8 }}>
-                <div>
-                  <label style={{ fontSize: 10, color: "#94a3b8", display: "block", marginBottom: 4 }}>
-                    N° taladros alivio (N)
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={6}
-                    value={numAlivios}
-                    onChange={(e) => setNumAlivios(Math.max(1, Number(e.target.value)))}
-                    style={{
-                      width: "100%",
-                      padding: "7px 10px",
-                      background: "#070c16",
-                      border: "1px solid #334155",
-                      borderRadius: 6,
-                      color: "#ffffff",
-                      fontSize: 12,
-                      boxSizing: "border-box",
-                    }}
-                  />
-                </div>
-                <div>
-                  <label style={{ fontSize: 10, color: "#94a3b8", display: "block", marginBottom: 4 }}>
-                    Ø individual alivio (mm)
-                  </label>
-                  <input
-                    type="number"
-                    min={50}
-                    step={1}
-                    value={diametroAlivioMm}
-                    onChange={(e) => setDiametroAlivioMm(Math.max(25, Number(e.target.value)))}
-                    style={{
-                      width: "100%",
-                      padding: "7px 10px",
-                      background: "#070c16",
-                      border: "1px solid #334155",
-                      borderRadius: 6,
-                      color: "#ffffff",
-                      fontSize: 12,
-                      boxSizing: "border-box",
-                    }}
-                  />
-                </div>
-                <div>
-                  <label style={{ fontSize: 10, color: "#94a3b8", display: "block", marginBottom: 4 }}>
-                    Ø taladros producción (mm)
-                  </label>
-                  <input
-                    type="number"
-                    min={25}
-                    step={1}
-                    value={diametroProdMm}
-                    onChange={(e) => setDiametroProdMm(Math.max(25, Number(e.target.value)))}
-                    style={{
-                      width: "100%",
-                      padding: "7px 10px",
-                      background: "#070c16",
-                      border: "1px solid #334155",
-                      borderRadius: 6,
-                      color: "#ffffff",
-                      fontSize: 12,
-                      boxSizing: "border-box",
-                    }}
-                  />
-                  <span style={{ fontSize: 9, color: "#64748b", display: "block", marginTop: 3 }}>
-                    Referencia: dura 34mm · semidura 36mm · blanda 38mm (Mamani López)
-                  </span>
-                </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 115px), 1fr))", gap: 8, marginBottom: 8 }}>
+                <ControlPasoNumero
+                  label="N° taladros alivio"
+                  unidad="N"
+                  valor={numAlivios}
+                  paso={1}
+                  min={1}
+                  max={8}
+                  decimales={0}
+                  onChange={(val) => setNumAlivios(val)}
+                  titleTooltip="Número de taladros escariadores sin carga"
+                />
+                <ControlPasoNumero
+                  label="Ø individual alivio"
+                  unidad="mm"
+                  valor={diametroAlivioMm}
+                  paso={13}
+                  min={25}
+                  max={250}
+                  decimales={0}
+                  onChange={(val) => setDiametroAlivioMm(val)}
+                  titleTooltip="Diámetro de cada taladro de alivio (mm)"
+                />
+                <ControlPasoNumero
+                  label="Ø producción"
+                  unidad="mm"
+                  valor={diametroProdMm}
+                  paso={2}
+                  min={25}
+                  max={75}
+                  decimales={0}
+                  onChange={(val) => setDiametroProdMm(val)}
+                  titleTooltip="Diámetro de los barrenos cargados (mm)"
+                />
               </div>
+              <span style={{ fontSize: 9.5, color: "#64748b", display: "block", marginBottom: 8 }}>
+                Referencia taladros cargados: dura 34mm · semidura 36mm · blanda 38mm (Mamani López)
+              </span>
 
               {/* Resultado del Diámetro Equivalente */}
               <div
@@ -1905,36 +2525,23 @@ export default function PanelDatosRmrMetodo({
                   alignItems: "center",
                 }}
               >
-                <span>🧨 Explosivo Industrial (Catálogo Perú)</span>
-                <span
-                  style={{
-                    fontSize: 10,
-                    color: "var(--acento, #f97316)",
-                    cursor: "pointer",
-                  }}
-                  onClick={() =>
-                    setConceptoAbierto(conceptoAbierto === "explosivo" ? null : "explosivo")
-                  }
-                >
-                  {conceptoAbierto === "explosivo" ? "▲ Ocultar info" : "ⓘ Fórmulas"}
+                <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                  <IconoExplosivo size={16} color="#f97316" />
+                  <span>Explosivo Industrial (Catálogo Perú)</span>
                 </span>
+                <BotonInfoTeoria
+                  activo={conceptoAbierto === "explosivo"}
+                  onClick={() => setConceptoAbierto(conceptoAbierto === "explosivo" ? null : "explosivo")}
+                  titulo="Ver termodinámica del explosivo, VOD, presión de detonación y fórmulas (?)"
+                />
               </div>
 
               {conceptoAbierto === "explosivo" && (
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: "#cbd5e1",
-                    background: "rgba(30, 41, 59, 0.7)",
-                    borderRadius: 8,
-                    padding: 10,
-                    marginBottom: 10,
-                    lineHeight: 1.45,
-                    borderLeft: "3px solid var(--acento, #f97316)",
-                  }}
-                >
-                  <b>Propiedades Termodinámicas:</b> La velocidad de detonación (VOD) y la densidad &rho;<sub>e</sub> determinan la presión de detonación (<i>P<sub>det</sub> = 0.25 &middot; &rho;<sub>e</sub> &middot; VOD<sup>2</sup> &middot; 10<sup>-5</sup></i> kbar). La carga lineal por metro de barreno se calcula como <i>q<sub>l</sub> = (&pi;/4) &middot; d<sup>2</sup> &middot; &rho;<sub>e</sub> &middot; 1000</i> (kg/m).
-                </div>
+                <TarjetaTeoriaMalla
+                  id="explosivo"
+                  onCerrar={() => setConceptoAbierto(null)}
+                  datosEnVivo={datosEnVivoParaTeoria}
+                />
               )}
 
               <div style={{ marginBottom: 10 }}>
@@ -1997,32 +2604,56 @@ export default function PanelDatosRmrMetodo({
                 </div>
               </div>
 
-              {/* Longitud de Perforación y Avance de la ronda */}
-              <div>
-                <label style={{ fontSize: 10, color: "#94a3b8", display: "block", marginBottom: 4 }}>
-                  Longitud de Perforación / Avance (m)
-                </label>
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <input
-                    type="number"
-                    min={1.0}
-                    max={6.0}
-                    step={0.1}
-                    value={avanceM}
-                    onChange={(e) => setAvanceM(Math.max(0.5, Number(e.target.value)))}
-                    style={{
-                      flex: 1,
-                      padding: "7px 10px",
-                      background: "#070c16",
-                      border: "1px solid #334155",
-                      borderRadius: 6,
-                      color: "#ffffff",
-                      fontSize: 12,
-                    }}
+              {/* Longitud de Perforación y Avance de la ronda con botones +/- */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "#cbd5e1" }}>Longitud & Avance</span>
+                  <BotonInfoTeoria
+                    activo={conceptoAbierto === "avance"}
+                    onClick={() => setConceptoAbierto(conceptoAbierto === "avance" ? null : "avance")}
+                    titulo="Ver justificación de avance, taco y fórmulas (?)"
+                    tamano="sm"
                   />
-                  <span style={{ fontSize: 11, color: "#38bdf8", fontWeight: 600, whiteSpace: "nowrap" }}>
+                </div>
+                {conceptoAbierto === "avance" && (
+                  <TarjetaTeoriaMalla
+                    id="avance"
+                    onCerrar={() => setConceptoAbierto(null)}
+                    datosEnVivo={datosEnVivoParaTeoria}
+                  />
+                )}
+                <div style={{ display: "flex", alignItems: "flex-end", gap: 10, flexWrap: "wrap" }}>
+                  <div style={{ flex: "1 1 200px", minWidth: 160 }}>
+                    <ControlPasoNumero
+                      label="Longitud de Perforación / Avance"
+                      unidad="m"
+                      valor={avanceM}
+                      paso={0.1}
+                      min={0.5}
+                      max={6.0}
+                      decimales={1}
+                      onChange={(val) => setAvanceM(val)}
+                      titleTooltip="Longitud de barrena y profundidad de perforación por ronda"
+                    />
+                  </div>
+                  <div
+                    style={{
+                      padding: "7px 10px",
+                      background: "rgba(56, 189, 248, 0.1)",
+                      border: "1px solid rgba(56, 189, 248, 0.25)",
+                      borderRadius: 6,
+                      fontSize: 11,
+                      color: "#38bdf8",
+                      fontWeight: 600,
+                      whiteSpace: "nowrap",
+                      height: 32,
+                      boxSizing: "border-box",
+                      display: "flex",
+                      alignItems: "center",
+                    }}
+                  >
                     Avance real ~{(avanceM * 0.92).toFixed(2)} m (92%)
-                  </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2049,7 +2680,10 @@ export default function PanelDatosRmrMetodo({
                   gap: 8,
                 }}
               >
-                <span>🔍</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
                 <span>INSPECCIONAR Y DETECTAR ELEMENTOS EN ESCENA CAD</span>
               </button>
             </div>
@@ -2084,42 +2718,23 @@ export default function PanelDatosRmrMetodo({
                   marginBottom: 10,
                 }}
               >
-                <span style={{ fontSize: 13, fontWeight: 700, color: "#ffffff" }}>
-                  Clasificación Geomecánica (RMR)
+                <span style={{ fontSize: 13, fontWeight: 700, color: "#ffffff", display: "flex", alignItems: "center", gap: 7 }}>
+                  <IconoGeomecanica size={16} color="var(--acento, #f97316)" />
+                  <span>Clasificación Geomecánica (RMR)</span>
                 </span>
-                <span
-                  style={{
-                    fontSize: 10,
-                    color: "var(--acento, #f97316)",
-                    cursor: "pointer",
-                  }}
-                  onClick={() =>
-                    setConceptoAbierto(conceptoAbierto === "rmr" ? null : "rmr")
-                  }
-                >
-                  {conceptoAbierto === "rmr" ? "▲ Ocultar info" : "ⓘ Concepto"}
-                </span>
+                <BotonInfoTeoria
+                  activo={conceptoAbierto === "rmr"}
+                  onClick={() => setConceptoAbierto(conceptoAbierto === "rmr" ? null : "rmr")}
+                  titulo="Ver fundamento geomecánico de Bieniawski (1989) y fórmulas (?)"
+                />
               </div>
 
               {conceptoAbierto === "rmr" && (
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: "#cbd5e1",
-                    background: "rgba(30, 41, 59, 0.7)",
-                    borderRadius: 8,
-                    padding: 10,
-                    marginBottom: 12,
-                    lineHeight: 1.45,
-                    borderLeft: "3px solid var(--acento, #f97316)",
-                  }}
-                >
-                  <b>Concepto Geomecánico:</b> El sistema RMR (Bieniawski) integra la resistencia de la
-                  roca intacta, RQD, espaciamiento de discontinuidades y presencia de agua. En
-                  voladura, un RMR bajo (roca fracturada o dura y confinada) exige menor espaciamiento
-                  entre barrenos y un mayor factor de roca <i>K</i> para garantizar fragmentación
-                  homogénea sin soplado.
-                </div>
+                <TarjetaTeoriaMalla
+                  id="rmr"
+                  onCerrar={() => setConceptoAbierto(null)}
+                  datosEnVivo={datosEnVivoParaTeoria}
+                />
               )}
 
               {/* Slider interactivo y valor numérico */}
@@ -2261,9 +2876,27 @@ export default function PanelDatosRmrMetodo({
                 border: "1px solid #1e293b",
               }}
             >
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", marginBottom: 8 }}>
-                Matriz de Recomendaciones por Calidad
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <IconoMallaArranque size={14} color="#f97316" />
+                  <span>Matriz de Recomendaciones por Calidad (Mamani López / Beltrán)</span>
+                </div>
+                <BotonInfoTeoria
+                  activo={conceptoAbierto === "matriz_roca"}
+                  onClick={() => setConceptoAbierto(conceptoAbierto === "matriz_roca" ? null : "matriz_roca")}
+                  titulo="Ver matriz de tenacidad, espaciamiento y carga (?)"
+                  tamano="sm"
+                />
               </div>
+
+              {conceptoAbierto === "matriz_roca" && (
+                <TarjetaTeoriaMalla
+                  id="matriz_roca"
+                  onCerrar={() => setConceptoAbierto(null)}
+                  datosEnVivo={datosEnVivoParaTeoria}
+                />
+              )}
+
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {(() => {
                   const areaM2 = metricasSeccion.area;
@@ -2317,18 +2950,6 @@ export default function PanelDatosRmrMetodo({
                   </div>
                 ))}
               </div>
-              <div style={{ fontSize: 10, color: "#64748b", marginTop: 8, lineHeight: 1.4 }}>
-                Espaciamiento: tabla "distancia entre taladros de contorno" (tenaz 0.50-0.55 m,
-                intermedio 0.60-0.65 m, friable 0.70-0.75 m). Factor de carga (FC): tabla "kilos de
-                explosivo estimados por m³ de roca" según área de la sección — ambas de Mamani
-                López, R.J., <i>Diseño de mallas de perforación en minería subterránea</i>{" "}
-                (material de curso, Bolivia). N° de taladros: Beltrán Velásquez, S. (2022){" "}
-                <i>
-                  Diseño de malla de perforación y voladura para optimizar la productividad en una
-                  mina subterránea en Pataz, La Libertad 2020
-                </i>
-                , tesis de titulación, Universidad Privada del Norte, Ecuación 2 (N = RMR·√Sección/2.5).
-              </div>
             </div>
 
             {/* TARJETA 3: FÓRMULAS EMPÍRICAS DE PERFORACIÓN (3 PILARES) */}
@@ -2352,38 +2973,23 @@ export default function PanelDatosRmrMetodo({
                   alignItems: "center",
                 }}
               >
-                <span>📐 Estimación de Taladros (3 Fórmulas Empíricas)</span>
-                <span
-                  style={{
-                    fontSize: 10,
-                    color: "var(--acento, #f97316)",
-                    cursor: "pointer",
-                  }}
-                  onClick={() =>
-                    setConceptoAbierto(conceptoAbierto === "empirico" ? null : "empirico")
-                  }
-                >
-                  {conceptoAbierto === "empirico" ? "▲ Ocultar" : "ⓘ Fórmulas"}
+                <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                  <IconoCalculo size={16} color="#38bdf8" />
+                  <span>Estimación de Taladros (3 Fórmulas Empíricas)</span>
                 </span>
+                <BotonInfoTeoria
+                  activo={conceptoAbierto === "empirico"}
+                  onClick={() => setConceptoAbierto(conceptoAbierto === "empirico" ? null : "empirico")}
+                  titulo="Ver ecuaciones empíricas (Sueca, Precisa, FAMESA, Beltrán) y cálculos (?)"
+                />
               </div>
 
               {conceptoAbierto === "empirico" && (
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: "#cbd5e1",
-                    background: "rgba(30, 41, 59, 0.7)",
-                    borderRadius: 8,
-                    padding: 10,
-                    marginBottom: 10,
-                    lineHeight: 1.45,
-                    borderLeft: "3px solid #38bdf8",
-                  }}
-                >
-                  <b>1. Regla rápida sueca:</b> <code>N = 10 · √S</code> (estimación de primera aproximación).<br />
-                  <b>2. Regla precisa:</b> <code>N = (P / dt) + c · S</code> (considera perímetro P, distancia entre periféricos dt y constante de roca c).<br />
-                  <b>3. FAMESA (Walter Guillén):</b> <code>N = (P / E) + K · S</code> (factor K según dureza del macizo: 1.5 a 2.0).
-                </div>
+                <TarjetaTeoriaMalla
+                  id="empirico"
+                  onCerrar={() => setConceptoAbierto(null)}
+                  datosEnVivo={datosEnVivoParaTeoria}
+                />
               )}
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 11, marginBottom: 10 }}>
@@ -2444,9 +3050,25 @@ export default function PanelDatosRmrMetodo({
                   alignItems: "center",
                 }}
               >
-                <span>🏔️ Área de Influencia CONEINGEMMET (2003)</span>
-                <span style={{ fontSize: 10, color: "#94a3b8" }}>San Rafael / Ananea</span>
+                <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                  <IconoAnalitica size={16} color="#c084fc" />
+                  <span>Área de Influencia CONEINGEMMET (2003)</span>
+                </span>
+                <BotonInfoTeoria
+                  activo={conceptoAbierto === "coneingemmet"}
+                  onClick={() => setConceptoAbierto(conceptoAbierto === "coneingemmet" ? null : "coneingemmet")}
+                  titulo="Ver fórmula de burden crítico según PoD y resistencia de roca (?)"
+                  tamano="sm"
+                />
               </div>
+
+              {conceptoAbierto === "coneingemmet" && (
+                <TarjetaTeoriaMalla
+                  id="coneingemmet"
+                  onCerrar={() => setConceptoAbierto(null)}
+                  datosEnVivo={datosEnVivoParaTeoria}
+                />
+              )}
 
               <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 8, lineHeight: 1.4 }}>
                 Fórmula de burden crítico: <code>B = &empty; &middot; [ PoD / (Fs &middot; &sigma;<sub>r</sub> &middot; RQD) + 1 ]</code> según presión de detonación PoD ({explosivoActual.presionDetonacionKbar} kbar) y resistencia del macizo.
@@ -2475,17 +3097,44 @@ export default function PanelDatosRmrMetodo({
         )}
 
         {/* ================================================================= */}
-        {/* TAB 3: MÉTODO (SECUENCIA GEOMÉTRICA DEL ARRANQUE Y ZONAS) */}
+        {/* TAB 3: ARRANQUE & MÉTODO (CATÁLOGO OFICIAL, CÁLCULO Y SECUENCIA)  */}
         {/* ================================================================= */}
-        {tab === "metodo" && (
+        {tab === "arranque" && (
           <div
             style={{
-              display: "grid",
-              gridTemplateColumns: isMobile ? "1fr" : posicion === "abajo" ? "repeat(auto-fit, minmax(300px, 1fr))" : "1fr",
+              display: "flex",
+              flexDirection: "column",
               gap: 12,
-              alignItems: "start",
+              alignItems: "stretch",
             }}
           >
+            {/* CATÁLOGO DE TRAZOS DISPONIBLES PARA EL CUELE */}
+            <EsquemaArranqueCotas
+              numAlivios={numAlivios}
+              diametroAlivioMm={diametroAlivioMm}
+              diametroProdMm={diametroProdMm}
+              avanceM={avanceM}
+              rmr={rmrScore}
+              anchoGaleria={anchoGaleria}
+              altoGaleria={altoGaleria}
+              tipoSeccion={tipoSeccion}
+              centroCuele={centroAliviosCalculado}
+              taladros={taladros}
+              tipoArranque={tipoArranqueSubterraneo}
+              explosivoId={explosivoId}
+              onCambiarTipoArranque={setTipoArranqueSubterraneo}
+              onAplicarTrazoSeleccionado={handleAplicarTrazoSeleccionado}
+              onLimpiarGuiasCad={handleLimpiarGuiasCad}
+            />
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: isMobile ? "1fr" : posicion === "abajo" ? "repeat(auto-fit, minmax(300px, 1fr))" : "1fr",
+                gap: 12,
+                alignItems: "start",
+              }}
+            >
             {/* SELECTOR DE MÉTODO DE DISEÑO */}
             <div
               style={{
@@ -2495,9 +3144,27 @@ export default function PanelDatosRmrMetodo({
                 border: "1px solid #1e293b",
               }}
             >
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", marginBottom: 8 }}>
-                Método de cálculo y diseño del cuele
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                  <IconoCalculo size={15} color="#38bdf8" />
+                  <span>Método de cálculo y diseño del cuele</span>
+                </div>
+                <BotonInfoTeoria
+                  activo={conceptoAbierto === "metodo_arranque"}
+                  onClick={() => setConceptoAbierto(conceptoAbierto === "metodo_arranque" ? null : "metodo_arranque")}
+                  titulo="Ver comparación de métodos de cuele (Holmberg, Langefors, FAMESA) (?)"
+                  tamano="sm"
+                />
               </div>
+
+              {conceptoAbierto === "metodo_arranque" && (
+                <TarjetaTeoriaMalla
+                  id="metodo_arranque"
+                  onCerrar={() => setConceptoAbierto(null)}
+                  datosEnVivo={datosEnVivoParaTeoria}
+                />
+              )}
+
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 8 }}>
                 {(
                   [
@@ -2536,37 +3203,55 @@ export default function PanelDatosRmrMetodo({
                 ))}
               </div>
 
-              {/* Selector de Tipo de Corte */}
+              {/* Selector de Tipo de Corte / Arranque */}
               <div style={{ marginTop: 10, marginBottom: 6 }}>
-                <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 4 }}>
-                  Tipo de corte en el frente
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#cbd5e1", marginBottom: 6, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span>Tipo de corte / arranque</span>
+                  <span style={{ fontSize: 9, color: "var(--acento, #f97316)", fontWeight: 600 }}>5 Geometrías Subterráneas</span>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 4 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(105px, 1fr))", gap: 5 }}>
                   {(
                     [
-                      { id: "paralelo_quemado", label: "Paralelo / Cilíndrico" },
-                      { id: "cuna", label: "En Cuña (V-Cut)" },
-                      { id: "abanico", label: "En Abanico" },
+                      { id: "paralelo_quemado", label: "Paralelo", sub: "Holmberg / Cuadrantes" },
+                      { id: "cuna", label: "En Cuña", sub: "V-Cut Angular" },
+                      { id: "piramidal", label: "Piramidal", sub: "4 Diagonales en X" },
+                      { id: "abanico", label: "En Abanico", sub: "Radial / Fan Cut" },
+                      { id: "diamante", label: "Diamante", sub: "Ortogonal / Cruz" },
                     ] as const
-                  ).map((c) => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => setTipoCorte(c.id)}
-                      style={{
-                        padding: "5px 2px",
-                        fontSize: 9,
-                        fontWeight: tipoCorte === c.id ? 700 : 500,
-                        borderRadius: 5,
-                        border: tipoCorte === c.id ? "1px solid #38bdf8" : "1px solid #334155",
-                        background: tipoCorte === c.id ? "rgba(56, 189, 248, 0.18)" : "transparent",
-                        color: tipoCorte === c.id ? "#ffffff" : "#94a3b8",
-                        cursor: "pointer",
-                      }}
-                    >
-                      {c.label}
-                    </button>
-                  ))}
+                  ).map((c) => {
+                    const activo = tipoCorte === c.id;
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => setTipoCorte(c.id)}
+                        style={{
+                          padding: "6px 4px",
+                          borderRadius: 6,
+                          border: activo
+                            ? "1px solid var(--acento, #f97316)"
+                            : "1px solid #334155",
+                          background: activo
+                            ? "rgba(249, 115, 22, 0.22)"
+                            : "rgba(15, 23, 42, 0.5)",
+                          color: activo ? "#ffffff" : "#94a3b8",
+                          cursor: "pointer",
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          gap: 2,
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        <span style={{ fontSize: 10, fontWeight: activo ? 700 : 600, color: activo ? "#ffffff" : "#cbd5e1" }}>
+                          {c.label}
+                        </span>
+                        <span style={{ fontSize: 8, color: activo ? "var(--acento, #f97316)" : "#64748b" }}>
+                          {c.sub}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -2592,38 +3277,23 @@ export default function PanelDatosRmrMetodo({
                   marginBottom: 6,
                 }}
               >
-                <div style={{ fontSize: 13, fontWeight: 800, color: "#ffffff" }}>
-                  Secuencia geométrica del arranque ({etapasArranque.length} etapas)
+                <div style={{ fontSize: 13, fontWeight: 800, color: "#ffffff", display: "flex", alignItems: "center", gap: 7 }}>
+                  <IconoMallaArranque size={16} color="var(--acento, #f97316)" />
+                  <span>Secuencia geométrica del arranque ({etapasArranque.length} etapas)</span>
                 </div>
-                <span
-                  style={{
-                    fontSize: 10,
-                    color: "var(--acento, #f97316)",
-                    cursor: "pointer",
-                  }}
-                  onClick={() =>
-                    setConceptoAbierto(conceptoAbierto === "holmberg" ? null : "holmberg")
-                  }
-                >
-                  {conceptoAbierto === "holmberg" ? "▲ Ocultar" : "ⓘ Concepto"}
-                </span>
+                <BotonInfoTeoria
+                  activo={conceptoAbierto === "holmberg_secuencia"}
+                  onClick={() => setConceptoAbierto(conceptoAbierto === "holmberg_secuencia" ? null : "holmberg_secuencia")}
+                  titulo="Ver deducción matemática de cuadrantes Holmberg Bn y En (?)"
+                />
               </div>
 
-              {conceptoAbierto === "holmberg" && (
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: "#cbd5e1",
-                    background: "rgba(30, 41, 59, 0.7)",
-                    borderRadius: 8,
-                    padding: 10,
-                    marginBottom: 12,
-                    lineHeight: 1.45,
-                    borderLeft: "3px solid var(--acento, #f97316)",
-                  }}
-                >
-                  <b>Fundamento Físico:</b> Cada cuadrante de taladros abre una cavidad cuadrada hacia la cual rompe el siguiente. El <i>Burden (Bn)</i> es la distancia crítica a la cara libre para evitar soplado. En la Etapa 1: <code>B1 = 1.5 × De</code> y <code>E1 = B1 × √2</code>; en etapas sucesivas: <code>Bn = E(n-1)</code> y <code>En = 1.5 × Bn × √2</code>. Se truncan si exceden el gálibo útil de la galería ({anchoGaleria}×{altoGaleria} m).
-                </div>
+              {conceptoAbierto === "holmberg_secuencia" && (
+                <TarjetaTeoriaMalla
+                  id="holmberg_secuencia"
+                  onCerrar={() => setConceptoAbierto(null)}
+                  datosEnVivo={datosEnVivoParaTeoria}
+                />
               )}
 
               {/* LISTA DE ETAPAS (BURDEN, ESPACIAMIENTO Y FACTOR) */}
@@ -2714,35 +3384,72 @@ export default function PanelDatosRmrMetodo({
                   alignItems: "center",
                 }}
               >
-                <span>🎯 Desglose de Taladros por Zona</span>
-                <span style={{ fontSize: 11, color: "#ffffff", fontWeight: 700 }}>
-                  {desgloseZonas.totalCargados} cargados / {desgloseZonas.totalTaladros} total
+                <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                  <IconoSeccion size={16} color="#10b981" />
+                  <span>Desglose de Taladros por Zona</span>
                 </span>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 11, color: "#ffffff", fontWeight: 700 }}>
+                    {desgloseZonas.totalCargados} cargados / {desgloseZonas.totalTaladros} total
+                  </span>
+                  <BotonInfoTeoria
+                    activo={conceptoAbierto === "desglose_zonas"}
+                    onClick={() => setConceptoAbierto(conceptoAbierto === "desglose_zonas" ? null : "desglose_zonas")}
+                    titulo="Ver funciones y roles mecánicos por cada zona (?)"
+                    tamano="sm"
+                  />
+                </div>
               </div>
 
+              {conceptoAbierto === "desglose_zonas" && (
+                <TarjetaTeoriaMalla
+                  id="desglose_zonas"
+                  onCerrar={() => setConceptoAbierto(null)}
+                  datosEnVivo={datosEnVivoParaTeoria}
+                />
+              )}
+
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, fontSize: 11 }}>
-                <div style={{ background: "rgba(7, 12, 22, 0.7)", padding: "7px 10px", borderRadius: 6, display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: "#38bdf8" }}>⚪ Alivios (vacíos):</span>
+                <div style={{ background: "rgba(7, 12, 22, 0.7)", padding: "7px 10px", borderRadius: 6, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ color: "#38bdf8", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#38bdf8", display: "inline-block" }} />
+                    Alivios (vacíos):
+                  </span>
                   <b style={{ color: "#ffffff" }}>{desgloseZonas.alivios} tal</b>
                 </div>
-                <div style={{ background: "rgba(7, 12, 22, 0.7)", padding: "7px 10px", borderRadius: 6, display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: "var(--acento, #f97316)" }}>🔴 Arranque (cuele):</span>
+                <div style={{ background: "rgba(7, 12, 22, 0.7)", padding: "7px 10px", borderRadius: 6, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ color: "var(--acento, #f97316)", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--acento, #f97316)", display: "inline-block" }} />
+                    Arranque (cuele):
+                  </span>
                   <b style={{ color: "#ffffff" }}>{desgloseZonas.arranque} tal</b>
                 </div>
-                <div style={{ background: "rgba(7, 12, 22, 0.7)", padding: "7px 10px", borderRadius: 6, display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: "#eab308" }}>🟡 Ayudas de destroza:</span>
+                <div style={{ background: "rgba(7, 12, 22, 0.7)", padding: "7px 10px", borderRadius: 6, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ color: "#eab308", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#eab308", display: "inline-block" }} />
+                    Ayudas de destroza:
+                  </span>
                   <b style={{ color: "#ffffff" }}>{desgloseZonas.ayudas} tal</b>
                 </div>
-                <div style={{ background: "rgba(7, 12, 22, 0.7)", padding: "7px 10px", borderRadius: 6, display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: "#a855f7" }}>🟣 Cuadradores:</span>
+                <div style={{ background: "rgba(7, 12, 22, 0.7)", padding: "7px 10px", borderRadius: 6, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ color: "#a855f7", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#a855f7", display: "inline-block" }} />
+                    Cuadradores:
+                  </span>
                   <b style={{ color: "#ffffff" }}>{desgloseZonas.cuadradores} tal</b>
                 </div>
-                <div style={{ background: "rgba(7, 12, 22, 0.7)", padding: "7px 10px", borderRadius: 6, display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: "#10b981" }}>🟢 Corona (techo):</span>
+                <div style={{ background: "rgba(7, 12, 22, 0.7)", padding: "7px 10px", borderRadius: 6, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ color: "#10b981", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#10b981", display: "inline-block" }} />
+                    Corona (techo):
+                  </span>
                   <b style={{ color: "#ffffff" }}>{desgloseZonas.corona} tal</b>
                 </div>
-                <div style={{ background: "rgba(7, 12, 22, 0.7)", padding: "7px 10px", borderRadius: 6, display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: "#64748b" }}>🟤 Arrastres (piso):</span>
+                <div style={{ background: "rgba(7, 12, 22, 0.7)", padding: "7px 10px", borderRadius: 6, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ color: "#94a3b8", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#64748b", display: "inline-block" }} />
+                    Arrastres (piso):
+                  </span>
                   <b style={{ color: "#ffffff" }}>{desgloseZonas.arrastre} tal</b>
                 </div>
               </div>
@@ -2757,9 +3464,26 @@ export default function PanelDatosRmrMetodo({
                 border: "1px solid #334155",
               }}
             >
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#e2e8f0", marginBottom: 6 }}>
-                ⏱️ Secuencia de Salida y Retardos Recomendada
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#e2e8f0", marginBottom: 6, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <IconoCronometro size={15} color="#f59e0b" />
+                  <span>Secuencia de Salida y Retardos Recomendada</span>
+                </div>
+                <BotonInfoTeoria
+                  activo={conceptoAbierto === "timing"}
+                  onClick={() => setConceptoAbierto(conceptoAbierto === "timing" ? null : "timing")}
+                  titulo="Ver justificación de micro-retardos MS vs periodo largo LP (?)"
+                  tamano="sm"
+                />
               </div>
+
+              {conceptoAbierto === "timing" && (
+                <TarjetaTeoriaMalla
+                  id="timing"
+                  onCerrar={() => setConceptoAbierto(null)}
+                  datosEnVivo={datosEnVivoParaTeoria}
+                />
+              )}
               <div style={{ display: "flex", flexDirection: "column", gap: 5, fontSize: 10, color: "#cbd5e1" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", background: "rgba(7, 12, 22, 0.5)", padding: "4px 8px", borderRadius: 4 }}>
                   <span>1. Arranque Central:</span>
@@ -2780,6 +3504,7 @@ export default function PanelDatosRmrMetodo({
               </div>
             </div>
           </div>
+        </div>
         )}
 
         {/* ================================================================= */}
@@ -2812,13 +3537,33 @@ export default function PanelDatosRmrMetodo({
                   marginBottom: 8,
                   display: "flex",
                   justifyContent: "space-between",
+                  alignItems: "center",
                 }}
               >
-                <span>GALERÍA Y GEOMETRÍA</span>
-                <span style={{ fontSize: 10, color: "#94a3b8" }}>
-                  {anchoGaleria}×{altoGaleria} m · {tipoSeccion.toUpperCase()}
+                <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                  <IconoPerfilHerradura size={16} color="#10b981" />
+                  <span>GALERÍA Y GEOMETRÍA</span>
                 </span>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 10, color: "#94a3b8" }}>
+                    {anchoGaleria}×{altoGaleria} m · {tipoSeccion.toUpperCase()}
+                  </span>
+                  <BotonInfoTeoria
+                    activo={conceptoAbierto === "galeria"}
+                    onClick={() => setConceptoAbierto(conceptoAbierto === "galeria" ? null : "galeria")}
+                    titulo="Ver teoría de geometría de labor y fórmulas (?)"
+                    tamano="sm"
+                  />
+                </div>
               </div>
+
+              {conceptoAbierto === "galeria" && (
+                <TarjetaTeoriaMalla
+                  id="seccion"
+                  onCerrar={() => setConceptoAbierto(null)}
+                  datosEnVivo={datosEnVivoParaTeoria}
+                />
+              )}
 
               <div
                 style={{
@@ -2860,9 +3605,13 @@ export default function PanelDatosRmrMetodo({
                   marginBottom: 8,
                   display: "flex",
                   justifyContent: "space-between",
+                  alignItems: "center",
                 }}
               >
-                <span>TALADROS Y PERFORACIÓN</span>
+                <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                  <IconoBroca size={16} color="#06b6d4" />
+                  <span>TALADROS Y PERFORACIÓN</span>
+                </span>
                 <span style={{ fontSize: 10, color: "#cbd5e1" }}>
                   &empty; Alivio {diametroAlivioMm}mm &middot; &empty; Prod {diametroProdMm}mm
                 </span>
@@ -2907,372 +3656,435 @@ export default function PanelDatosRmrMetodo({
                   ).toFixed(2)}{" "}
                   tal/m²
                 </b>{" "}
-                · Perforación específica:{" "}
-                <b>
-                  {(
-                    (desgloseZonas.totalTaladros * avanceM) /
-                    Math.max(0.1, factorCargaEstimado.volumenM3)
-                  ).toFixed(2)}{" "}
-                  m/m³
-                </b>
-              </div>
-            </div>
-
-            {/* TARJETA TÉCNICA: DESGLOSE COMPLETO POR TIPO DE TALADRO Y CARGA */}
-            <div
-              style={{
-                gridColumn: isMobile ? "1" : "1 / -1",
-                background: "rgba(15, 23, 42, 0.85)",
-                borderRadius: 12,
-                padding: 14,
-                border: "1px solid #3b82f6",
-                overflowX: "auto",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 12,
-                  fontWeight: 800,
-                  color: "#60a5fa",
-                  letterSpacing: "0.05em",
-                  marginBottom: 10,
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <span>📋 CUADRO TÉCNICO DETALLADO POR TIPO DE TALADRO</span>
-                <span style={{ fontSize: 10, color: "#94a3b8" }}>
-                  Norma Orica / EXSA / FAMESA · Avance {avanceM} m
-                </span>
+                  · Perforación específica:{" "}
+                  <b>
+                    {(
+                      (desgloseZonas.totalTaladros * avanceM) /
+                      Math.max(0.1, factorCargaEstimado.volumenM3)
+                    ).toFixed(2)}{" "}
+                    m/m³
+                  </b>
+                </div>
               </div>
 
-              <table
-                style={{
-                  width: "100%",
-                  borderCollapse: "collapse",
-                  fontSize: 11,
-                  textAlign: "left",
-                  minWidth: 640,
-                }}
-              >
-                <thead>
-                  <tr style={{ borderBottom: "1px solid #334155", color: "#94a3b8" }}>
-                    <th style={{ padding: "6px 8px" }}>Zona / Tipo</th>
-                    <th style={{ padding: "6px 8px", textAlign: "center" }}>N.° Tal</th>
-                    <th style={{ padding: "6px 8px", textAlign: "center" }}>Ø (mm)</th>
-                    <th style={{ padding: "6px 8px", textAlign: "center" }}>Long. (m)</th>
-                    <th style={{ padding: "6px 8px" }}>Explosivo Asignado</th>
-                    <th style={{ padding: "6px 8px" }}>Tipo de Carga</th>
-                    <th style={{ padding: "6px 8px", textAlign: "center" }}>Taco (m)</th>
-                    <th style={{ padding: "6px 8px", textAlign: "center" }}>Look-out</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr style={{ borderBottom: "1px solid rgba(51, 65, 85, 0.4)" }}>
-                    <td style={{ padding: "6px 8px", display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#00f0ff", display: "inline-block" }} />
-                      <b>Alivio (Escariadores)</b>
-                    </td>
-                    <td style={{ padding: "6px 8px", textAlign: "center", fontWeight: 700, color: "#38bdf8" }}>{desgloseZonas.alivios}</td>
-                    <td style={{ padding: "6px 8px", textAlign: "center" }}>{diametroAlivioMm}</td>
-                    <td style={{ padding: "6px 8px", textAlign: "center" }}>{avanceM}</td>
-                    <td style={{ padding: "6px 8px", color: "#64748b" }}>Ninguno (Hueco vacío)</td>
-                    <td style={{ padding: "6px 8px", color: "#94a3b8" }}>Sin carga (Expansión)</td>
-                    <td style={{ padding: "6px 8px", textAlign: "center", color: "#64748b" }}>0.00</td>
-                    <td style={{ padding: "6px 8px", textAlign: "center" }}>0°</td>
-                  </tr>
-                  <tr style={{ borderBottom: "1px solid rgba(51, 65, 85, 0.4)" }}>
-                    <td style={{ padding: "6px 8px", display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#ef4444", display: "inline-block" }} />
-                      <b>Arranque (Cuele Q1)</b>
-                    </td>
-                    <td style={{ padding: "6px 8px", textAlign: "center", fontWeight: 700, color: "#ef4444" }}>{desgloseZonas.arranque}</td>
-                    <td style={{ padding: "6px 8px", textAlign: "center" }}>{diametroProdMm}</td>
-                    <td style={{ padding: "6px 8px", textAlign: "center" }}>{avanceM}</td>
-                    <td style={{ padding: "6px 8px", color: "#f87171" }}>Semexsa 65% / Emulnor Alto Poder</td>
-                    <td style={{ padding: "6px 8px", color: "#fca5a5" }}>Carga concentrada de fondo</td>
-                    <td style={{ padding: "6px 8px", textAlign: "center" }}>0.45</td>
-                    <td style={{ padding: "6px 8px", textAlign: "center" }}>0°</td>
-                  </tr>
-                  <tr style={{ borderBottom: "1px solid rgba(51, 65, 85, 0.4)" }}>
-                    <td style={{ padding: "6px 8px", display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#f97316", display: "inline-block" }} />
-                      <b>Ayudas Cuele (Q2)</b>
-                    </td>
-                    <td style={{ padding: "6px 8px", textAlign: "center", fontWeight: 700, color: "#f97316" }}>4</td>
-                    <td style={{ padding: "6px 8px", textAlign: "center" }}>{diametroProdMm}</td>
-                    <td style={{ padding: "6px 8px", textAlign: "center" }}>{avanceM}</td>
-                    <td style={{ padding: "6px 8px", color: "#fdba74" }}>Semexsa 65% / Dinamita</td>
-                    <td style={{ padding: "6px 8px", color: "#cbd5e1" }}>Columna intermedia</td>
-                    <td style={{ padding: "6px 8px", textAlign: "center" }}>0.50</td>
-                    <td style={{ padding: "6px 8px", textAlign: "center" }}>0°</td>
-                  </tr>
-                  <tr style={{ borderBottom: "1px solid rgba(51, 65, 85, 0.4)" }}>
-                    <td style={{ padding: "6px 8px", display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#ec4899", display: "inline-block" }} />
-                      <b>Destroza / Tajeo</b>
-                    </td>
-                    <td style={{ padding: "6px 8px", textAlign: "center", fontWeight: 700, color: "#ec4899" }}>{Math.max(0, desgloseZonas.ayudas - 4)}</td>
-                    <td style={{ padding: "6px 8px", textAlign: "center" }}>{diametroProdMm}</td>
-                    <td style={{ padding: "6px 8px", textAlign: "center" }}>{avanceM}</td>
-                    <td style={{ padding: "6px 8px", color: "#f472b6" }}>{explosivoActual.nombre} / ANFO</td>
-                    <td style={{ padding: "6px 8px", color: "#cbd5e1" }}>Columna de producción</td>
-                    <td style={{ padding: "6px 8px", textAlign: "center" }}>0.60</td>
-                    <td style={{ padding: "6px 8px", textAlign: "center" }}>0°</td>
-                  </tr>
-                  <tr style={{ borderBottom: "1px solid rgba(51, 65, 85, 0.4)" }}>
-                    <td style={{ padding: "6px 8px", display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#38bdf8", display: "inline-block" }} />
-                      <b>Cuadradores (Hastiales)</b>
-                    </td>
-                    <td style={{ padding: "6px 8px", textAlign: "center", fontWeight: 700, color: "#38bdf8" }}>{desgloseZonas.cuadradores}</td>
-                    <td style={{ padding: "6px 8px", textAlign: "center" }}>{diametroProdMm}</td>
-                    <td style={{ padding: "6px 8px", textAlign: "center" }}>{avanceM}</td>
-                    <td style={{ padding: "6px 8px", color: "#7dd3fc" }}>{patronContorno === "recorte_continuo" ? "Exsablock / Desacoplada" : "Semexsa 45%"}</td>
-                    <td style={{ padding: "6px 8px", color: "#cbd5e1" }}>{patronContorno === "recorte_continuo" ? "Voladura suave (desacoplada)" : "Columna convencional"}</td>
-                    <td style={{ padding: "6px 8px", textAlign: "center" }}>0.50</td>
-                    <td style={{ padding: "6px 8px", textAlign: "center", color: "#38bdf8" }}>+3°</td>
-                  </tr>
-                  <tr style={{ borderBottom: "1px solid rgba(51, 65, 85, 0.4)" }}>
-                    <td style={{ padding: "6px 8px", display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#22c55e", display: "inline-block" }} />
-                      <b>Corona (Techo)</b>
-                    </td>
-                    <td style={{ padding: "6px 8px", textAlign: "center", fontWeight: 700, color: "#22c55e" }}>{desgloseZonas.corona}</td>
-                    <td style={{ padding: "6px 8px", textAlign: "center" }}>{diametroProdMm}</td>
-                    <td style={{ padding: "6px 8px", textAlign: "center" }}>{avanceM}</td>
-                    <td style={{ padding: "6px 8px", color: "#86efac" }}>{patronContorno !== "uniforme" ? "Cartuchos 7/8\" (22mm) / Caña" : "Semexsa 45%"}</td>
-                    <td style={{ padding: "6px 8px", color: "#cbd5e1" }}>{patronContorno !== "uniforme" ? "Desacoplada (Smooth Blasting)" : "Carga normal"}</td>
-                    <td style={{ padding: "6px 8px", textAlign: "center" }}>0.40</td>
-                    <td style={{ padding: "6px 8px", textAlign: "center", color: "#22c55e" }}>+3°</td>
-                  </tr>
-                  <tr>
-                    <td style={{ padding: "6px 8px", display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#eab308", display: "inline-block" }} />
-                      <b>Arrastres (Zapateras)</b>
-                    </td>
-                    <td style={{ padding: "6px 8px", textAlign: "center", fontWeight: 700, color: "#eab308" }}>{desgloseZonas.arrastre}</td>
-                    <td style={{ padding: "6px 8px", textAlign: "center" }}>{diametroProdMm}</td>
-                    <td style={{ padding: "6px 8px", textAlign: "center" }}>{avanceM}</td>
-                    <td style={{ padding: "6px 8px", color: "#fde047" }}>Semexsa 80% / Gelignita (Fondo)</td>
-                    <td style={{ padding: "6px 8px", color: "#fef08a" }}>Carga pesada fondo (solera)</td>
-                    <td style={{ padding: "6px 8px", textAlign: "center" }}>0.35</td>
-                    <td style={{ padding: "6px 8px", textAlign: "center", color: "#eab308" }}>-3°</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            {/* TARJETA 3: BALANCE DE EXPLOSIVOS & FACTOR DE CARGA (POWDER FACTOR) */}
-            <div
-              style={{
-                background: "rgba(15, 23, 42, 0.75)",
-                borderRadius: 12,
-                padding: 14,
-                border: factorCargaEstimado.rangoOptimo
-                  ? "1.5px solid #10b981"
-                  : "1.5px solid var(--acento, #f97316)",
-              }}
-            >
+              {/* TARJETA TÉCNICA: DESGLOSE COMPLETO POR TIPO DE TALADRO Y CARGA */}
               <div
                 style={{
-                  fontSize: 12,
-                  fontWeight: 800,
-                  color: factorCargaEstimado.rangoOptimo ? "#10b981" : "var(--acento, #f97316)",
-                  letterSpacing: "0.05em",
-                  marginBottom: 8,
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
+                  gridColumn: isMobile ? "1" : "1 / -1",
+                  background: "rgba(15, 23, 42, 0.85)",
+                  borderRadius: 12,
+                  padding: 14,
+                  border: "1px solid #3b82f6",
+                  overflowX: "auto",
                 }}
               >
-                <span>🧨 BALANCE DE EXPLOSIVOS Y FACTOR DE CARGA</span>
-                <span
+                <div
                   style={{
-                    fontSize: 9,
-                    fontWeight: 700,
-                    padding: "2px 6px",
-                    borderRadius: 4,
-                    background: factorCargaEstimado.rangoOptimo
-                      ? "rgba(16, 185, 129, 0.2)"
-                      : "rgba(249, 115, 22, 0.2)",
+                    fontSize: 12,
+                    fontWeight: 800,
+                    color: "#60a5fa",
+                    letterSpacing: "0.05em",
+                    marginBottom: 10,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                    <IconoAnalitica size={16} color="#60a5fa" />
+                    <span>CUADRO TÉCNICO DETALLADO POR TIPO DE TALADRO</span>
+                  </span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 10, color: "#94a3b8" }}>
+                      Norma Orica / EXSA / FAMESA · Avance {avanceM} m
+                    </span>
+                    <BotonInfoTeoria
+                      activo={conceptoAbierto === "cuadro_tecnico"}
+                      onClick={() => setConceptoAbierto(conceptoAbierto === "cuadro_tecnico" ? null : "cuadro_tecnico")}
+                      titulo="Ver justificación técnica de tacos, look-out y desacoplamiento (?)"
+                      tamano="sm"
+                    />
+                  </div>
+                </div>
+
+                {conceptoAbierto === "cuadro_tecnico" && (
+                  <TarjetaTeoriaMalla
+                    id="cuadro_tecnico"
+                    onCerrar={() => setConceptoAbierto(null)}
+                    datosEnVivo={datosEnVivoParaTeoria}
+                  />
+                )}
+
+                <table
+                  style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                    fontSize: 11,
+                    textAlign: "left",
+                    minWidth: 640,
+                  }}
+                >
+                  <thead>
+                    <tr style={{ borderBottom: "1px solid #334155", color: "#94a3b8" }}>
+                      <th style={{ padding: "6px 8px" }}>Zona / Tipo</th>
+                      <th style={{ padding: "6px 8px", textAlign: "center" }}>N.° Tal</th>
+                      <th style={{ padding: "6px 8px", textAlign: "center" }}>Ø (mm)</th>
+                      <th style={{ padding: "6px 8px", textAlign: "center" }}>Long. (m)</th>
+                      <th style={{ padding: "6px 8px" }}>Explosivo Asignado</th>
+                      <th style={{ padding: "6px 8px" }}>Tipo de Carga</th>
+                      <th style={{ padding: "6px 8px", textAlign: "center" }}>Taco (m)</th>
+                      <th style={{ padding: "6px 8px", textAlign: "center" }}>Look-out</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr style={{ borderBottom: "1px solid rgba(51, 65, 85, 0.4)" }}>
+                      <td style={{ padding: "6px 8px", display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#00f0ff", display: "inline-block" }} />
+                        <b>Alivio (Escariadores)</b>
+                      </td>
+                      <td style={{ padding: "6px 8px", textAlign: "center", fontWeight: 700, color: "#00f0ff" }}>{desgloseZonas.alivios}</td>
+                      <td style={{ padding: "6px 8px", textAlign: "center" }}>{diametroAlivioMm} mm</td>
+                      <td style={{ padding: "6px 8px", textAlign: "center" }}>{avanceM} m</td>
+                      <td style={{ padding: "6px 8px", color: "#94a3b8" }}>Ninguno (Taladro Vacío)</td>
+                      <td style={{ padding: "6px 8px", color: "#94a3b8" }}>Sin Carga</td>
+                      <td style={{ padding: "6px 8px", textAlign: "center", color: "#94a3b8" }}>-</td>
+                      <td style={{ padding: "6px 8px", textAlign: "center" }}>0°</td>
+                    </tr>
+                    <tr style={{ borderBottom: "1px solid rgba(51, 65, 85, 0.4)" }}>
+                      <td style={{ padding: "6px 8px", display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--acento, #f97316)", display: "inline-block" }} />
+                        <b>Arranque (Cuele Cuádruple)</b>
+                      </td>
+                      <td style={{ padding: "6px 8px", textAlign: "center", fontWeight: 700, color: "var(--acento, #f97316)" }}>{desgloseZonas.arranque}</td>
+                      <td style={{ padding: "6px 8px", textAlign: "center" }}>{diametroProdMm} mm</td>
+                      <td style={{ padding: "6px 8px", textAlign: "center" }}>{avanceM} m</td>
+                      <td style={{ padding: "6px 8px" }}>{explosivoActual.nombre}</td>
+                      <td style={{ padding: "6px 8px" }}>Columna Continua Fuerte</td>
+                      <td style={{ padding: "6px 8px", textAlign: "center" }}>0.30 m</td>
+                      <td style={{ padding: "6px 8px", textAlign: "center" }}>0°</td>
+                    </tr>
+                    <tr style={{ borderBottom: "1px solid rgba(51, 65, 85, 0.4)" }}>
+                      <td style={{ padding: "6px 8px", display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#eab308", display: "inline-block" }} />
+                        <b>Ayudas de Destroza</b>
+                      </td>
+                      <td style={{ padding: "6px 8px", textAlign: "center", fontWeight: 700, color: "#eab308" }}>{desgloseZonas.ayudas}</td>
+                      <td style={{ padding: "6px 8px", textAlign: "center" }}>{diametroProdMm} mm</td>
+                      <td style={{ padding: "6px 8px", textAlign: "center" }}>{avanceM} m</td>
+                      <td style={{ padding: "6px 8px" }}>{explosivoActual.nombre}</td>
+                      <td style={{ padding: "6px 8px" }}>Carga Normal</td>
+                      <td style={{ padding: "6px 8px", textAlign: "center" }}>{(avanceM * 0.2).toFixed(2)} m</td>
+                      <td style={{ padding: "6px 8px", textAlign: "center" }}>0°</td>
+                    </tr>
+                    <tr style={{ borderBottom: "1px solid rgba(51, 65, 85, 0.4)" }}>
+                      <td style={{ padding: "6px 8px", display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#a855f7", display: "inline-block" }} />
+                        <b>Cuadradores (Hastiales)</b>
+                      </td>
+                      <td style={{ padding: "6px 8px", textAlign: "center", fontWeight: 700, color: "#a855f7" }}>{desgloseZonas.cuadradores}</td>
+                      <td style={{ padding: "6px 8px", textAlign: "center" }}>{diametroProdMm} mm</td>
+                      <td style={{ padding: "6px 8px", textAlign: "center" }}>{avanceM} m</td>
+                      <td style={{ padding: "6px 8px" }}>{explosivoActual.nombre}</td>
+                      <td style={{ padding: "6px 8px" }}>Carga Periférica</td>
+                      <td style={{ padding: "6px 8px", textAlign: "center" }}>{(avanceM * 0.25).toFixed(2)} m</td>
+                      <td style={{ padding: "6px 8px", textAlign: "center" }}>2° - 3°</td>
+                    </tr>
+                    <tr style={{ borderBottom: "1px solid rgba(51, 65, 85, 0.4)" }}>
+                      <td style={{ padding: "6px 8px", display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#10b981", display: "inline-block" }} />
+                        <b>Corona (Techo / Bóveda)</b>
+                      </td>
+                      <td style={{ padding: "6px 8px", textAlign: "center", fontWeight: 700, color: "#10b981" }}>{desgloseZonas.corona}</td>
+                      <td style={{ padding: "6px 8px", textAlign: "center" }}>{diametroProdMm} mm</td>
+                      <td style={{ padding: "6px 8px", textAlign: "center" }}>{avanceM} m</td>
+                      <td style={{ padding: "6px 8px" }}>Exsacorte / Carga Amortiguada</td>
+                      <td style={{ padding: "6px 8px" }}>Desacoplada (Smooth Blasting)</td>
+                      <td style={{ padding: "6px 8px", textAlign: "center" }}>{(avanceM * 0.3).toFixed(2)} m</td>
+                      <td style={{ padding: "6px 8px", textAlign: "center" }}>3°</td>
+                    </tr>
+                    <tr>
+                      <td style={{ padding: "6px 8px", display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#64748b", display: "inline-block" }} />
+                        <b>Arrastres (Zapateras / Piso)</b>
+                      </td>
+                      <td style={{ padding: "6px 8px", textAlign: "center", fontWeight: 700, color: "#94a3b8" }}>{desgloseZonas.arrastre}</td>
+                      <td style={{ padding: "6px 8px", textAlign: "center" }}>{diametroProdMm} mm</td>
+                      <td style={{ padding: "6px 8px", textAlign: "center" }}>{avanceM} m</td>
+                      <td style={{ padding: "6px 8px" }}>{explosivoActual.nombre} (Alta Densidad)</td>
+                      <td style={{ padding: "6px 8px" }}>Carga de Fondo Fuerte</td>
+                      <td style={{ padding: "6px 8px", textAlign: "center" }}>0.25 m</td>
+                      <td style={{ padding: "6px 8px", textAlign: "center" }}>3° - 4°</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* TARJETA 3: BALANCE DE EXPLOSIVOS & FACTOR DE CARGA (POWDER FACTOR) */}
+              <div
+                style={{
+                  background: "rgba(15, 23, 42, 0.75)",
+                  borderRadius: 12,
+                  padding: 14,
+                  border: factorCargaEstimado.rangoOptimo
+                    ? "1.5px solid #10b981"
+                    : "1.5px solid var(--acento, #f97316)",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 800,
                     color: factorCargaEstimado.rangoOptimo ? "#10b981" : "var(--acento, #f97316)",
+                    letterSpacing: "0.05em",
+                    marginBottom: 8,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
                   }}
                 >
-                  {factorCargaEstimado.rangoOptimo ? "✓ RANGO ÓPTIMO" : "VERIFICAR"}
-                </span>
-              </div>
+                  <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                    <IconoExplosivo size={16} color="#f97316" />
+                    <span>BALANCE DE EXPLOSIVOS Y FACTOR DE CARGA</span>
+                  </span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span
+                      style={{
+                        fontSize: 9,
+                        fontWeight: 700,
+                        padding: "2px 6px",
+                        borderRadius: 4,
+                        background: factorCargaEstimado.rangoOptimo
+                          ? "rgba(16, 185, 129, 0.2)"
+                          : "rgba(249, 115, 22, 0.2)",
+                        color: factorCargaEstimado.rangoOptimo ? "#10b981" : "var(--acento, #f97316)",
+                      }}
+                    >
+                      {factorCargaEstimado.rangoOptimo ? "RANGO ÓPTIMO" : "VERIFICAR"}
+                    </span>
+                    <BotonInfoTeoria
+                      activo={conceptoAbierto === "balance_explosivos"}
+                      onClick={() => setConceptoAbierto(conceptoAbierto === "balance_explosivos" ? null : "balance_explosivos")}
+                      titulo="Ver teoría de balance de masa y rangos óptimos de powder factor (?)"
+                      tamano="sm"
+                    />
+                  </div>
+                </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, fontSize: 11, marginBottom: 8 }}>
-                <div>
-                  Volumen roto teórico: <b>{factorCargaEstimado.volumenM3.toFixed(2)} m³</b>
-                </div>
-                <div>
-                  Toneladas rotas (&rho; 2.7): <b>{factorCargaEstimado.toneladas.toFixed(1)} t</b>
-                </div>
-                <div>
-                  Explosivo: <b style={{ color: "#38bdf8" }}>{explosivoActual.nombre}</b>
-                </div>
-                <div>
-                  Carga lineal q<sub>l</sub>: <b>{factorCargaEstimado.q_l_kg_m.toFixed(3)} kg/m</b>
-                </div>
-                <div>
-                  Peso total explosivo: <b style={{ color: "#f97316" }}>{factorCargaEstimado.pesoTotalKg.toFixed(1)} kg</b>
-                </div>
-                <div>
-                  Factor de carga:{" "}
-                  <b
-                    style={{
-                      fontSize: 13,
-                      color: factorCargaEstimado.rangoOptimo ? "#10b981" : "var(--acento, #f97316)",
-                    }}
-                  >
-                    {factorCargaEstimado.factorCargaKgM3.toFixed(2)} kg/m³
-                  </b>
-                </div>
-              </div>
+                {conceptoAbierto === "balance_explosivos" && (
+                  <TarjetaTeoriaMalla
+                    id="balance_explosivos"
+                    onCerrar={() => setConceptoAbierto(null)}
+                    datosEnVivo={datosEnVivoParaTeoria}
+                  />
+                )}
 
-              <div
-                style={{
-                  fontSize: 10,
-                  padding: "6px 8px",
-                  borderRadius: 6,
-                  background: factorCargaEstimado.rangoOptimo
-                    ? "rgba(16, 185, 129, 0.1)"
-                    : "rgba(249, 115, 22, 0.1)",
-                  color: factorCargaEstimado.rangoOptimo ? "#a7f3d0" : "#fed7aa",
-                }}
-              >
-                {factorCargaEstimado.rangoOptimo
-                  ? "✅ Factor de carga dentro del estándar para túneles subterráneos (2.0 a 4.0 kg/m³). Fragmentación equilibrada garantizada."
-                  : factorCargaEstimado.factorCargaKgM3 < 2.0
-                  ? "⚠️ Carga específica baja (<2.0 kg/m³): verificar que la roca no sea excesivamente tenaz para evitar bolones."
-                  : "⚠️ Carga específica alta (>4.0 kg/m³): verificar taco y desacoplamiento para evitar daño a las cajas/hastiales."}
-              </div>
-            </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, fontSize: 11, marginBottom: 8 }}>
+                  <div>
+                    Volumen roto teórico: <b>{factorCargaEstimado.volumenM3.toFixed(2)} m³</b>
+                  </div>
+                  <div>
+                    Toneladas rotas (&rho; 2.7): <b>{factorCargaEstimado.toneladas.toFixed(1)} t</b>
+                  </div>
+                  <div>
+                    Explosivo: <b style={{ color: "#38bdf8" }}>{explosivoActual.nombre}</b>
+                  </div>
+                  <div>
+                    Carga lineal q<sub>l</sub>: <b>{factorCargaEstimado.q_l_kg_m.toFixed(3)} kg/m</b>
+                  </div>
+                  <div>
+                    Peso total explosivo: <b style={{ color: "#f97316" }}>{factorCargaEstimado.pesoTotalKg.toFixed(1)} kg</b>
+                  </div>
+                  <div>
+                    Factor de carga:{" "}
+                    <b
+                      style={{
+                        fontSize: 13,
+                        color: factorCargaEstimado.rangoOptimo ? "#10b981" : "var(--acento, #f97316)",
+                      }}
+                    >
+                      {factorCargaEstimado.factorCargaKgM3.toFixed(2)} kg/m³
+                    </b>
+                  </div>
+                </div>
 
-            {/* TARJETA 4: PREDICCIÓN DE FRAGMENTACIÓN KUZ-RAM */}
-            <div
-              style={{
-                background: "rgba(15, 23, 42, 0.75)",
-                borderRadius: 12,
-                padding: 14,
-                border: "1px solid #a855f7",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 12,
-                  fontWeight: 800,
-                  color: "#c084fc",
-                  letterSpacing: "0.05em",
-                  marginBottom: 8,
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <span>📊 FRAGMENTACIÓN PREDICTIVA (KUZ-RAM)</span>
-                <span
+                <div
                   style={{
-                    fontSize: 9,
-                    fontWeight: 700,
-                    padding: "2px 6px",
-                    borderRadius: 4,
-                    background:
-                      resultadoKuzRam.calidadFragmentacion === "optima"
-                        ? "rgba(16, 185, 129, 0.2)"
-                        : "rgba(249, 115, 22, 0.2)",
-                    color:
-                      resultadoKuzRam.calidadFragmentacion === "optima" ? "#10b981" : "#f97316",
+                    fontSize: 10,
+                    padding: "6px 8px",
+                    borderRadius: 6,
+                    background: factorCargaEstimado.rangoOptimo
+                      ? "rgba(16, 185, 129, 0.1)"
+                      : "rgba(249, 115, 22, 0.1)",
+                    color: factorCargaEstimado.rangoOptimo ? "#a7f3d0" : "#fed7aa",
                   }}
                 >
-                  {resultadoKuzRam.calidadFragmentacion.toUpperCase()}
-                </span>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, fontSize: 11, marginBottom: 8 }}>
-                <div>
-                  Tamaño medio X<sub>50</sub>:{" "}
-                  <b style={{ color: "#ffffff", fontSize: 12 }}>
-                    {resultadoKuzRam.x50_cm.toFixed(1)} cm ({Math.round(resultadoKuzRam.x50_cm * 10)} mm)
-                  </b>
-                </div>
-                <div>
-                  Índice de uniformidad n: <b>{resultadoKuzRam.indiceUniformidad_n.toFixed(2)}</b>
-                </div>
-                <div>
-                  Finos (&lt; 2.5 cm): <b>{resultadoKuzRam.porcentajeFinos_5cm.toFixed(1)}%</b>
-                </div>
-                <div>
-                  Sobretamaño / Bolones (&gt; 30 cm):{" "}
-                  <b style={{ color: resultadoKuzRam.porcentajeSobretamano_30cm > 15 ? "#ef4444" : "#10b981" }}>
-                    {resultadoKuzRam.porcentajeSobretamano_30cm.toFixed(1)}%
-                  </b>
+                  {factorCargaEstimado.rangoOptimo
+                    ? "Factor de carga dentro del estándar para túneles subterráneos (2.0 a 4.0 kg/m³). Fragmentación equilibrada garantizada."
+                    : factorCargaEstimado.factorCargaKgM3 < 2.0
+                    ? "Carga específica baja (<2.0 kg/m³): verificar que la roca no sea excesivamente tenaz para evitar bolones."
+                    : "Carga específica alta (>4.0 kg/m³): verificar taco y desacoplamiento para evitar daño a las cajas/hastiales."}
                 </div>
               </div>
 
-              <div style={{ fontSize: 10, color: "#94a3b8", lineHeight: 1.4 }}>
-                {resultadoKuzRam.calidadFragmentacion === "optima"
-                  ? "🎯 Granulometría óptima para acarreo con equipos LHD y chancado primario sin sobrecostos de taqueo."
-                  : resultadoKuzRam.calidadFragmentacion === "fina"
-                  ? "⚡ Fragmentación fina generada por alta densidad de energía o macizo fracturado."
-                  : "⚠️ Presencia de bolones estimada: considerar incrementar ligeramente la carga en ayudas o reducir el espaciamiento."}
-              </div>
-            </div>
-
-            {/* TARJETA 5: CONTROL DE DAÑO EN CAMPO CERCANO HOLMBERG-PERSSON */}
-            <div
-              style={{
-                background: "rgba(15, 23, 42, 0.75)",
-                borderRadius: 12,
-                padding: 14,
-                border:
-                  resultadoHolmbergPersson.riesgoSobreExcavacion === "bajo"
-                    ? "1px solid #10b981"
-                    : resultadoHolmbergPersson.riesgoSobreExcavacion === "moderado"
-                    ? "1px solid #eab308"
-                    : "1px solid #ef4444",
-              }}
-            >
+              {/* TARJETA 4: PREDICCIÓN DE FRAGMENTACIÓN KUZ-RAM */}
               <div
                 style={{
-                  fontSize: 12,
-                  fontWeight: 800,
-                  color:
+                  background: "rgba(15, 23, 42, 0.75)",
+                  borderRadius: 12,
+                  padding: 14,
+                  border: "1px solid #a855f7",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 800,
+                    color: "#c084fc",
+                    letterSpacing: "0.05em",
+                    marginBottom: 8,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                    <IconoAnalitica size={16} color="#c084fc" />
+                    <span>FRAGMENTACIÓN PREDICTIVA (KUZ-RAM)</span>
+                  </span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span
+                      style={{
+                        fontSize: 9,
+                        fontWeight: 700,
+                        padding: "2px 6px",
+                        borderRadius: 4,
+                        background:
+                          resultadoKuzRam.calidadFragmentacion === "optima"
+                            ? "rgba(16, 185, 129, 0.2)"
+                            : "rgba(249, 115, 22, 0.2)",
+                        color:
+                          resultadoKuzRam.calidadFragmentacion === "optima" ? "#10b981" : "#f97316",
+                      }}
+                    >
+                      {resultadoKuzRam.calidadFragmentacion.toUpperCase()}
+                    </span>
+                    <BotonInfoTeoria
+                      activo={conceptoAbierto === "kuz_ram"}
+                      onClick={() => setConceptoAbierto(conceptoAbierto === "kuz_ram" ? null : "kuz_ram")}
+                      titulo="Ver modelo Kuz-Ram, ecuaciones de Kuznetsov y Rosin-Rammler (?)"
+                      tamano="sm"
+                    />
+                  </div>
+                </div>
+
+                {conceptoAbierto === "kuz_ram" && (
+                  <TarjetaTeoriaMalla
+                    id="kuz_ram"
+                    onCerrar={() => setConceptoAbierto(null)}
+                    datosEnVivo={datosEnVivoParaTeoria}
+                  />
+                )}
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, fontSize: 11, marginBottom: 8 }}>
+                  <div>
+                    Tamaño medio X<sub>50</sub>:{" "}
+                    <b style={{ color: "#ffffff", fontSize: 12 }}>
+                      {resultadoKuzRam.x50_cm.toFixed(1)} cm ({Math.round(resultadoKuzRam.x50_cm * 10)} mm)
+                    </b>
+                  </div>
+                  <div>
+                    Índice de uniformidad n: <b>{resultadoKuzRam.indiceUniformidad_n.toFixed(2)}</b>
+                  </div>
+                  <div>
+                    Finos (&lt; 2.5 cm): <b>{resultadoKuzRam.porcentajeFinos_5cm.toFixed(1)}%</b>
+                  </div>
+                  <div>
+                    Sobretamaño / Bolones (&gt; 30 cm):{" "}
+                    <b style={{ color: resultadoKuzRam.porcentajeSobretamano_30cm > 15 ? "#ef4444" : "#10b981" }}>
+                      {resultadoKuzRam.porcentajeSobretamano_30cm.toFixed(1)}%
+                    </b>
+                  </div>
+                </div>
+
+                <div style={{ fontSize: 10, color: "#94a3b8", lineHeight: 1.4 }}>
+                  {resultadoKuzRam.calidadFragmentacion === "optima"
+                    ? "Granulometría óptima para acarreo con equipos LHD y chancado primario sin sobrecostos de taqueo."
+                    : resultadoKuzRam.calidadFragmentacion === "fina"
+                    ? "Fragmentación fina generada por alta densidad de energía o macizo fracturado."
+                    : "Presencia de bolones estimada: considerar incrementar ligeramente la carga en ayudas o reducir el espaciamiento."}
+                </div>
+              </div>
+
+              {/* TARJETA 5: CONTROL DE DAÑO EN CAMPO CERCANO HOLMBERG-PERSSON */}
+              <div
+                style={{
+                  background: "rgba(15, 23, 42, 0.75)",
+                  borderRadius: 12,
+                  padding: 14,
+                  border:
                     resultadoHolmbergPersson.riesgoSobreExcavacion === "bajo"
-                      ? "#10b981"
+                      ? "1px solid #10b981"
                       : resultadoHolmbergPersson.riesgoSobreExcavacion === "moderado"
-                      ? "#facc15"
-                      : "#ef4444",
-                  letterSpacing: "0.05em",
-                  marginBottom: 8,
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
+                      ? "1px solid #eab308"
+                      : "1px solid #ef4444",
                 }}
               >
-                <span>🛡️ DAÑO EN CAMPO CERCANO (HOLMBERG-PERSSON)</span>
-                <span
+                <div
                   style={{
-                    fontSize: 9,
-                    fontWeight: 700,
-                    padding: "2px 6px",
-                    borderRadius: 4,
-                    background:
-                      resultadoHolmbergPersson.riesgoSobreExcavacion === "bajo"
-                        ? "rgba(16, 185, 129, 0.2)"
-                        : "rgba(239, 68, 68, 0.2)",
+                    fontSize: 12,
+                    fontWeight: 800,
                     color:
                       resultadoHolmbergPersson.riesgoSobreExcavacion === "bajo"
                         ? "#10b981"
+                        : resultadoHolmbergPersson.riesgoSobreExcavacion === "moderado"
+                        ? "#facc15"
                         : "#ef4444",
+                    letterSpacing: "0.05em",
+                    marginBottom: 8,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
                   }}
                 >
-                  RIESGO {resultadoHolmbergPersson.riesgoSobreExcavacion.toUpperCase()}
-                </span>
-              </div>
+                  <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                    <IconoEscudo size={16} color="#f59e0b" />
+                    <span>DAÑO EN CAMPO CERCANO (HOLMBERG-PERSSON)</span>
+                  </span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span
+                      style={{
+                        fontSize: 9,
+                        fontWeight: 700,
+                        padding: "2px 6px",
+                        borderRadius: 4,
+                        background:
+                          resultadoHolmbergPersson.riesgoSobreExcavacion === "bajo"
+                            ? "rgba(16, 185, 129, 0.2)"
+                            : "rgba(239, 68, 68, 0.2)",
+                        color:
+                          resultadoHolmbergPersson.riesgoSobreExcavacion === "bajo"
+                            ? "#10b981"
+                            : "#ef4444",
+                      }}
+                    >
+                      RIESGO {resultadoHolmbergPersson.riesgoSobreExcavacion.toUpperCase()}
+                    </span>
+                    <BotonInfoTeoria
+                      activo={conceptoAbierto === "holmberg_persson"}
+                      onClick={() => setConceptoAbierto(conceptoAbierto === "holmberg_persson" ? null : "holmberg_persson")}
+                      titulo="Ver modelo de daño Holmberg-Persson y PPV crítico (?)"
+                      tamano="sm"
+                    />
+                  </div>
+                </div>
+
+                {conceptoAbierto === "holmberg_persson" && (
+                  <TarjetaTeoriaMalla
+                    id="holmberg_persson"
+                    onCerrar={() => setConceptoAbierto(null)}
+                    datosEnVivo={datosEnVivoParaTeoria}
+                  />
+                )}
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, fontSize: 11, marginBottom: 8 }}>
                 <div>
