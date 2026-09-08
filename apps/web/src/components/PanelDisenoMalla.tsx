@@ -1,6 +1,14 @@
 import { useRef } from "react";
 import type { EntradaMallaPerforacion, ResultadoMallaPerforacion, TipoRoca } from "@suite/core";
-import { EXPLOSIVOS_PRESET, TIPOS_ROCA } from "../data/presets.js";
+import { TIPOS_ROCA } from "../data/presets.js";
+import { useExplosivoGlobal } from "../hooks/useExplosivoGlobal.js";
+
+function fmtNum(val: number | undefined, dec = 2, suf = " m"): string {
+  if (val === undefined || val === null || !Number.isFinite(val) || isNaN(val)) {
+    return `—${suf}`;
+  }
+  return `${val.toFixed(dec)}${suf}`;
+}
 
 interface Props {
   entrada: EntradaMallaPerforacion;
@@ -34,8 +42,7 @@ export default function PanelDisenoMalla({
   const set = <K extends keyof EntradaMallaPerforacion>(campo: K, valor: EntradaMallaPerforacion[K]) =>
     onCambiarEntrada({ ...entrada, [campo]: valor });
 
-  const explosivoSeleccionado =
-    EXPLOSIVOS_PRESET.find((e) => e.nombre === entrada.explosivo.nombre) ?? EXPLOSIVOS_PRESET[0];
+  const { explosivo, catalogo, seleccionarPorId, actualizarParametros, propiedadesExplosivoCompat } = useExplosivoGlobal();
 
   return (
     <div className="panel-form" data-oculto={oculto}>
@@ -133,43 +140,96 @@ export default function PanelDisenoMalla({
         </div>
       </fieldset>
 
+      {/* Explosivo Sincronizado - Catálogo Perú (EXSA / FAMESA) */}
       <fieldset>
-        <legend>Explosivo</legend>
+        <legend style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span>Explosivo Industrial (Catálogo Perú)</span>
+          <span style={{ fontSize: 10, color: "#f97316", background: "rgba(249,115,22,0.12)", padding: "1px 6px", borderRadius: 4, fontWeight: 700 }}>
+            {explosivo.fabricante}
+          </span>
+        </legend>
         <div className="campo">
-          <label>Tipo</label>
+          <label>Explosivo seleccionado</label>
           <select
-            value={explosivoSeleccionado.nombre}
+            value={explosivo.id}
             onChange={(e) => {
-              const preset = EXPLOSIVOS_PRESET.find((p) => p.nombre === e.target.value)!;
-              set("explosivo", { ...preset });
+              const id = e.target.value;
+              seleccionarPorId(id);
+              const found = catalogo.find((c) => c.id === id);
+              if (found) {
+                set("explosivo", {
+                  nombre: found.nombre,
+                  densidadGcm3: found.densidadGcm3,
+                  fuerzaRelativaANFO: (found.rwsPeso || 100) / 100,
+                });
+              }
             }}
           >
-            {EXPLOSIVOS_PRESET.map((p) => (
-              <option key={p.nombre} value={p.nombre}>
-                {p.nombre}
+            {catalogo.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.nombre} ({p.fabricante}) · VOD {p.vodMs} m/s
               </option>
             ))}
           </select>
         </div>
+
+        {/* Ficha técnica compacta del explosivo */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 6,
+            background: "rgba(7, 12, 22, 0.75)",
+            padding: "8px 10px",
+            borderRadius: 6,
+            border: "1px solid rgba(249, 115, 22, 0.2)",
+            fontSize: 11,
+            marginBottom: 8,
+          }}
+        >
+          <div>
+            VOD: <b style={{ color: "#38bdf8" }}>{explosivo.vodMs} m/s</b>
+          </div>
+          <div>
+            P. Det.: <b style={{ color: "#e2e8f0" }}>{explosivo.presionDetonacionKbar} kbar</b>
+          </div>
+          <div>
+            RWS: <b style={{ color: "#10b981" }}>{explosivo.rwsPeso}% ANFO</b>
+          </div>
+          <div>
+            Fuerza rel. (s): <b style={{ color: "#f97316" }}>{explosivo.fuerzaRelativaANFO.toFixed(2)}</b>
+          </div>
+        </div>
+
         <div className="fila-dos">
           <div className="campo">
             <label>Densidad carga (g/cm³)</label>
             <input
               type="number"
-              step={0.05}
-              value={entrada.explosivo.densidadGcm3}
-              onChange={(e) => set("explosivo", { ...entrada.explosivo, densidadGcm3: Number(e.target.value) })}
+              step={0.02}
+              min={0.5}
+              value={explosivo.densidadGcm3}
+              onChange={(e) => {
+                const val = parseFloat(e.target.value);
+                const dens = !isNaN(val) && val > 0 ? val : explosivo.densidadGcm3;
+                actualizarParametros({ densidadGcm3: dens });
+                set("explosivo", { ...propiedadesExplosivoCompat, densidadGcm3: dens });
+              }}
             />
           </div>
           <div className="campo">
             <label>Fuerza rel. ANFO (s)</label>
             <input
               type="number"
-              step={0.05}
-              value={entrada.explosivo.fuerzaRelativaANFO}
-              onChange={(e) =>
-                set("explosivo", { ...entrada.explosivo, fuerzaRelativaANFO: Number(e.target.value) })
-              }
+              step={0.02}
+              min={0.1}
+              value={explosivo.fuerzaRelativaANFO}
+              onChange={(e) => {
+                const val = parseFloat(e.target.value);
+                const s = !isNaN(val) && val > 0 ? val : explosivo.fuerzaRelativaANFO;
+                actualizarParametros({ fuerzaRelativaANFO: s });
+                set("explosivo", { ...propiedadesExplosivoCompat, fuerzaRelativaANFO: s });
+              }}
             />
           </div>
         </div>
@@ -182,43 +242,43 @@ export default function PanelDisenoMalla({
         <div className="resultados">
           <div className="dato">
             <span>Burden Ash</span>
-            <b>{resultado.burdenAsh_m.toFixed(2)} m</b>
+            <b>{fmtNum(resultado.burdenAsh_m)}</b>
           </div>
           <div className="dato">
             <span>Burden máx. Langefors</span>
-            <b>{resultado.burdenLangeforsMax_m.toFixed(2)} m</b>
+            <b>{fmtNum(resultado.burdenLangeforsMax_m)}</b>
           </div>
           <div className="dato">
             <span>Burden práctico</span>
-            <b>{resultado.burdenLangeforsPractico_m.toFixed(2)} m</b>
+            <b>{fmtNum(resultado.burdenLangeforsPractico_m)}</b>
           </div>
           <div className="dato">
             <span>Burden de diseño</span>
-            <b>{resultado.burdenDiseno_m.toFixed(2)} m</b>
+            <b>{fmtNum(resultado.burdenDiseno_m)}</b>
           </div>
           <div className="dato">
             <span>Espaciamiento</span>
-            <b>{resultado.espaciamiento_m.toFixed(2)} m</b>
+            <b>{fmtNum(resultado.espaciamiento_m)}</b>
           </div>
           <div className="dato">
             <span>Razón rigidez H/B</span>
-            <b>{resultado.razonRigidezHB.toFixed(2)}</b>
+            <b>{fmtNum(resultado.razonRigidezHB, 2, "")}</b>
           </div>
           <div className="dato">
             <span>Sobreperforación</span>
-            <b>{resultado.sobreperforacion_m.toFixed(2)} m</b>
+            <b>{fmtNum(resultado.sobreperforacion_m)}</b>
           </div>
           <div className="dato">
             <span>Prof. de taladro</span>
-            <b>{resultado.profundidadTaladro_m.toFixed(2)} m</b>
+            <b>{fmtNum(resultado.profundidadTaladro_m)}</b>
           </div>
           <div className="dato">
             <span>Taco</span>
-            <b>{resultado.taco_m.toFixed(2)} m</b>
+            <b>{fmtNum(resultado.taco_m)}</b>
           </div>
           <div className="dato">
             <span>Long. de carga</span>
-            <b>{resultado.longitudCarga_m.toFixed(2)} m</b>
+            <b>{fmtNum(resultado.longitudCarga_m)}</b>
           </div>
         </div>
         {resultado.advertencias.length > 0 && (

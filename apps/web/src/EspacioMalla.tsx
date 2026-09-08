@@ -27,6 +27,7 @@ import type { EntradaVoladuraUI } from "./components/PanelVoladura.js";
 import { descargarTexto } from "./utils/descargar.js";
 import { EXPLOSIVOS_PRESET } from "./data/presets.js";
 import { usePersistedState } from "./hooks/usePersistedState.js";
+import { useExplosivoGlobal } from "./hooks/useExplosivoGlobal.js";
 
 type Pestana = "diseno" | "3d" | "tabla" | "voladura";
 type ModoVisor = "3d" | "editarCresta" | "editarTaladros";
@@ -51,7 +52,8 @@ interface EspacioMallaProps {
 export default function EspacioMalla({ proyectoId = "malla-1", onVolverAlPortal }: EspacioMallaProps = {}) {
   const esNuevaMalla = proyectoId !== "malla-1";
   const [vistaActual, setVistaActual] = useState<"cad" | "taller3d">("cad");
-  const [modoDiseno, setModoDiseno] = usePersistedState<ModoDiseno>("malla.modoDiseno", "banco");
+  const [modoDiseno, setModoDiseno] = usePersistedState<ModoDiseno>("malla.modoDiseno", "tunel");
+  const { explosivo: explosivoGlobal, propiedadesExplosivoCompat } = useExplosivoGlobal();
 
   const [geometriaTunel, setGeometriaTunel] = usePersistedState<GeometriaFrenteTunel>("malla.tunel.geometria", {
     tipo: "herradura",
@@ -96,6 +98,21 @@ export default function EspacioMalla({ proyectoId = "malla-1", onVolverAlPortal 
           explosivo: EXPLOSIVOS_PRESET[0],
         }
   );
+
+  // Sincronizar explosivo global de Perú con la entrada de perforación
+  useEffect(() => {
+    setEntrada((prev) => {
+      if (
+        !prev.explosivo ||
+        prev.explosivo.nombre !== explosivoGlobal.nombre ||
+        prev.explosivo.densidadGcm3 !== explosivoGlobal.densidadGcm3 ||
+        prev.explosivo.fuerzaRelativaANFO !== explosivoGlobal.fuerzaRelativaANFO
+      ) {
+        return { ...prev, explosivo: propiedadesExplosivoCompat };
+      }
+      return prev;
+    });
+  }, [explosivoGlobal, propiedadesExplosivoCompat, setEntrada]);
 
   const [entradaVoladura, setEntradaVoladura] = usePersistedState<EntradaVoladuraUI>("malla.entradaVoladura", {
     patronIniciacion: "echelon",
@@ -234,7 +251,10 @@ export default function EspacioMalla({ proyectoId = "malla-1", onVolverAlPortal 
         onCambiarPoligono={(nuevos) => setEntrada({ ...entrada, poligonoCresta: nuevos })}
         taladros={taladrosEfectivos}
         onCambiarTaladros={setTaladrosManuales}
-        onIrARender={() => setVistaActual("taller3d")}
+        onIrARender={() => {
+          setModoDiseno("tunel");
+          setVistaActual("taller3d");
+        }}
         onVolver={() => onVolverAlPortal?.()}
       />
     );
@@ -256,7 +276,6 @@ export default function EspacioMalla({ proyectoId = "malla-1", onVolverAlPortal 
             className="btn-taller-back"
             onClick={() => {
               setVistaActual("cad");
-              setModoDiseno("banco");
             }}
             title="Volver al Editor CAD interactivo"
           >
@@ -279,14 +298,13 @@ export default function EspacioMalla({ proyectoId = "malla-1", onVolverAlPortal 
           )}
         </div>
 
-        {/* Selector de Modo Segmentado Monocromático */}
+        {/* Selector de Modo Segmentado - Prioridad a Galería Subterránea */}
         <div className="taller-segmented-control">
           <button
             type="button"
             className="taller-segment-btn"
             onClick={() => {
               setVistaActual("cad");
-              setModoDiseno("banco");
             }}
             title="Ir al Editor CAD 2D/3D"
           >
@@ -295,27 +313,28 @@ export default function EspacioMalla({ proyectoId = "malla-1", onVolverAlPortal 
               <line x1="3" y1="9" x2="21" y2="9" />
               <line x1="9" y1="21" x2="9" y2="9" />
             </svg>
-            <span>Editor CAD (2D)</span>
-          </button>
-          <button
-            type="button"
-            className={`taller-segment-btn ${modoDiseno === "banco" ? "segment-active" : ""}`}
-            onClick={() => setModoDiseno("banco")}
-          >
-            Banco (cielo abierto)
+            <span>Editor CAD (2D/3D)</span>
           </button>
           <button
             type="button"
             className={`taller-segment-btn ${modoDiseno === "tunel" ? "segment-active" : ""}`}
             onClick={() => setModoDiseno("tunel")}
           >
-            Túnel / galería (subterráneo)
+            Galería / Túnel (subterráneo)
+          </button>
+          <button
+            type="button"
+            className={`taller-segment-btn ${modoDiseno === "banco" ? "segment-active" : ""}`}
+            onClick={() => setModoDiseno("banco")}
+            title="Diseño de banco superficial (opcional)"
+          >
+            Banco (cielo abierto · preliminar)
           </button>
         </div>
 
         <div className="taller-top-right">
-          <span className="taller-mode-tag">
-            {modoDiseno === "tunel" ? "MÓDULO SUBTERRÁNEO" : "MÓDULO SUPERFICIE"}
+          <span className="taller-mode-tag" style={{ color: modoDiseno === "tunel" ? "#f97316" : "#06b6d4" }}>
+            {modoDiseno === "tunel" ? "MÓDULO SUBTERRÁNEO · GALERÍA DE AVANCE" : "MÓDULO SUPERFICIE · BANCO"}
           </span>
         </div>
       </header>
@@ -344,6 +363,8 @@ export default function EspacioMalla({ proyectoId = "malla-1", onVolverAlPortal 
               subPestana={subPestanaDerecha}
               onCambiarSubPestana={setSubPestanaDerecha}
               taladros={taladrosTunel}
+              resultadoGeometria={resultadoGeometriaTunel}
+              entradaArranque={entradaArranqueTunel}
               oculto={pestana !== "tabla" && pestana !== "voladura"}
             />
           </main>

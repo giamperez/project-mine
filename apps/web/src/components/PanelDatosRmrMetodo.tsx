@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { usePersistedState } from "../hooks/usePersistedState.js";
+import { useExplosivoGlobal } from "../hooks/useExplosivoGlobal.js";
 import {
   calcularArranqueHolmberg,
   calcularConstanteRocaRmr,
@@ -863,11 +864,9 @@ export default function PanelDatosRmrMetodo({
   const [diametroAlivioMm, setDiametroAlivioMm] = useState<number>(102);
   const [diametroProdMm, setDiametroProdMm] = useState<number>(45);
   const [avanceM, setAvanceM] = useState<number>(3.6);
-  const [explosivoId, setExplosivoId] = useState<string>("semexsa-65");
-  const explosivoActual = useMemo(
-    () => CATALOGO_EXPLOSIVOS_PERU.find((e) => e.id === explosivoId) ?? CATALOGO_EXPLOSIVOS_PERU[2],
-    [explosivoId]
-  );
+  const { explosivo: explosivoActual, seleccionarPorId } = useExplosivoGlobal();
+  const explosivoId = explosivoActual.id;
+  const setExplosivoId = seleccionarPorId;
 
   // TAB 2: GEOMECÁNICA RMR
   const [rmrScore, setRmrScore] = useState<number>(45);

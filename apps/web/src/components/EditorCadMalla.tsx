@@ -30,6 +30,8 @@ import {
   desfasarPolilinea,
 } from "../utils/cadDesfase.js";
 import PanelDatosRmrMetodo from "./PanelDatosRmrMetodo.js";
+import PanelMallaFinal from "./PanelMallaFinal.js";
+import PanelResultadosMalla from "./PanelResultadosMalla.js";
 
 type HerramientaCad =
   | "SEL"
@@ -720,7 +722,7 @@ export default function EditorCadMalla({
   const [panelEdicionVisible, setPanelEdicionVisible] = usePersistedState<boolean>("cad:panelEdicionVisible", false);
   const [panelEdicionMinimizado, setPanelEdicionMinimizado] = usePersistedState<boolean>("cad:panelEdicionMinimizado", false);
 
-  // Estado del Panel 'MALLA FINAL' (activado por el botón '✓' en el dock derecho)
+  // Estado del Panel 'MALLA FINAL' (activado por el botón '°' en el dock derecho exacto a la captura)
   const [panelMallaFinalVisible, setPanelMallaFinalVisible] = usePersistedState<boolean>("cad:panelMallaFinalVisible", false);
   const [panelMallaFinalMinimizado, setPanelMallaFinalMinimizado] = usePersistedState<boolean>("cad:panelMallaFinalMinimizado", false);
   const [nombreMallaFinal, setNombreMallaFinal] = usePersistedState<string>(`cad:${pid}:mallaFinalNombre`, "Malla final 1");
@@ -734,6 +736,17 @@ export default function EditorCadMalla({
     []
   );
   const [modoSeleccionMallaFinal, setModoSeleccionMallaFinal] = useState<"todo" | "ventana" | "poligono" | "capas">("todo");
+
+  // Estados para selección interactiva por Ventana (2 toques / clics de esquinas)
+  const [ventanaPunto1, setVentanaPunto1] = useState<{ clientX: number; clientY: number; x: number; y: number } | null>(null);
+  const [cursorVentana, setCursorVentana] = useState<{ clientX: number; clientY: number; x: number; y: number } | null>(null);
+
+  // Estados para selección interactiva por Polígono (múltiples puntos con ray-casting)
+  const [puntosSeleccionPoligono, setPuntosSeleccionPoligono] = useState<Punto2D[]>([]);
+  const [cursorGuiaPoligono, setCursorGuiaPoligono] = useState<Punto2D | null>(null);
+
+  // Estado del Panel 'RESULTADOS' (activado por el botón '✓' en el dock derecho exacto a la captura)
+  const [panelResultadosVisible, setPanelResultadosVisible] = usePersistedState<boolean>("cad:panelResultadosVisible", false);
 
   // Estado del Panel 'ESCENA' (activado por el botón 'ES' en el dock derecho exacto a la captura)
   const [panelEscenaVisible, setPanelEscenaVisible] = usePersistedState<boolean>("cad:panelEscenaVisible", false);
@@ -961,6 +974,60 @@ export default function EditorCadMalla({
       elementosCount: taladros.length,
     },
     {
+      id: "capa-taladros-alivio",
+      nombre: "Taladros · Alivio",
+      color: "#06b6d4",
+      visible: true,
+      bloqueada: false,
+      carpetaId: "carp-malla",
+      elementosCount: 0,
+    },
+    {
+      id: "capa-taladros-cuadrante",
+      nombre: "Taladros · Cuadrantes",
+      color: "#a855f7",
+      visible: true,
+      bloqueada: false,
+      carpetaId: "carp-malla",
+      elementosCount: 0,
+    },
+    {
+      id: "capa-taladros-produccion",
+      nombre: "Taladros · Producción",
+      color: "#f97316",
+      visible: true,
+      bloqueada: false,
+      carpetaId: "carp-malla",
+      elementosCount: 0,
+    },
+    {
+      id: "capa-taladros-corona",
+      nombre: "Taladros · Corona",
+      color: "#10b981",
+      visible: true,
+      bloqueada: false,
+      carpetaId: "carp-malla",
+      elementosCount: 0,
+    },
+    {
+      id: "capa-taladros-hastial",
+      nombre: "Taladros · Hastiales",
+      color: "#ec4899",
+      visible: true,
+      bloqueada: false,
+      carpetaId: "carp-malla",
+      elementosCount: 0,
+    },
+    {
+      id: "capa-taladros-arrastre",
+      nombre: "Taladros · Arrastre",
+      color: "#eab308",
+      visible: true,
+      bloqueada: false,
+      carpetaId: "carp-malla",
+      elementosCount: 0,
+    },
+    {
       id: "capa-solidos",
       nombre: "Sólidos 3D",
       color: "#f43f5e",
@@ -970,6 +1037,30 @@ export default function EditorCadMalla({
       elementosCount: 0,
     },
   ]);
+
+  // Sincronizar capas requeridas por tipo de taladro si el usuario ya tenía capas guardadas en localStorage
+  useEffect(() => {
+    setCapas((prev) => {
+      const ids = new Set(prev.map((c) => c.id));
+      const requeridas: CapaCad[] = [
+        { id: "capa-taladros-alivio", nombre: "Taladros · Alivio", color: "#06b6d4", visible: true, bloqueada: false, carpetaId: "carp-malla", elementosCount: 0 },
+        { id: "capa-taladros-cuadrante", nombre: "Taladros · Cuadrantes", color: "#a855f7", visible: true, bloqueada: false, carpetaId: "carp-malla", elementosCount: 0 },
+        { id: "capa-taladros-produccion", nombre: "Taladros · Producción", color: "#f97316", visible: true, bloqueada: false, carpetaId: "carp-malla", elementosCount: 0 },
+        { id: "capa-taladros-corona", nombre: "Taladros · Corona", color: "#10b981", visible: true, bloqueada: false, carpetaId: "carp-malla", elementosCount: 0 },
+        { id: "capa-taladros-hastial", nombre: "Taladros · Hastiales", color: "#ec4899", visible: true, bloqueada: false, carpetaId: "carp-malla", elementosCount: 0 },
+        { id: "capa-taladros-arrastre", nombre: "Taladros · Arrastre", color: "#eab308", visible: true, bloqueada: false, carpetaId: "carp-malla", elementosCount: 0 },
+      ];
+      let add = false;
+      const res = [...prev];
+      for (const r of requeridas) {
+        if (!ids.has(r.id)) {
+          res.push(r);
+          add = true;
+        }
+      }
+      return add ? res : prev;
+    });
+  }, []);
 
   // Historial Deshacer / Rehacer (Polígono, Puntos, Líneas, Polilíneas y Arcos CAD)
   interface EstadoHistorial {
@@ -1819,6 +1910,255 @@ export default function EditorCadMalla({
     mostrarAviso(`✓ CSV descargado: ${filename}`);
   }
 
+  // Obtener identificador de capa técnica CAD según tipo/zona de taladro
+  function obtenerCapaIdTaladro(t: Taladro): string {
+    const zona = String((t as any).zona || (t as any).grupo || "").toLowerCase();
+    if (zona.includes("aliv") || (t as any).esAlivio || (t.diametroMm && t.diametroMm > 65)) {
+      return "capa-taladros-alivio";
+    }
+    if (zona.includes("arranque") || zona.includes("cuad")) {
+      return "capa-taladros-cuadrante";
+    }
+    if (zona.includes("coron") || zona.includes("recorte") || zona.includes("boved")) {
+      return "capa-taladros-corona";
+    }
+    if (zona.includes("hast") || zona.includes("cuadrador") || zona.includes("caja")) {
+      return "capa-taladros-hastial";
+    }
+    if (zona.includes("arrast") || zona.includes("zapat") || zona.includes("piso")) {
+      return "capa-taladros-arrastre";
+    }
+    return "capa-taladros-produccion";
+  }
+
+  // Exportar Snapshot o Selección activa a Formato DXF 3D Estándar con capas específicas por tipo de taladro
+  function handleExportarDXFMalla(snap?: MallaFinalSnapshot) {
+    const taladrosAExportar = snap
+      ? snap.taladros
+      : (taladrosSeleccionados.length > 0
+          ? taladros.filter((t) => taladrosSeleccionados.includes(t.id))
+          : taladros);
+    const lineasAExportar = snap
+      ? snap.lineasCad
+      : (lineasSeleccionadas.length > 0
+          ? lineasCad.filter((l) => lineasSeleccionadas.includes(l.id))
+          : lineasCad);
+    const puntosAExportar = snap
+      ? snap.puntosCad
+      : (puntosSeleccionados.length > 0
+          ? puntosCad.filter((p) => puntosSeleccionados.includes(p.id))
+          : puntosCad);
+    const poligonoAExportar = snap ? snap.poligonoCresta : poligonoCresta;
+    const nombreBase = (snap?.nombre || nombreMallaFinal || "malla-final").toLowerCase().replace(/\s+/g, "-");
+
+    let dxf = "0\nSECTION\n2\nHEADER\n9\n$ACADVER\n1\nAC1009\n0\nENDSEC\n";
+    dxf += "0\nSECTION\n2\nTABLES\n0\nTABLE\n2\nLAYER\n70\n10\n";
+
+    const capasDxf = [
+      { n: "CONTORNO_GALERIA", c: 3 },
+      { n: "TALADROS_ALIVIO", c: 4 },
+      { n: "TALADROS_ARRANQUE", c: 1 },
+      { n: "TALADROS_CUADRANTES", c: 2 },
+      { n: "TALADROS_PRODUCCION", c: 6 },
+      { n: "TALADROS_CORONA", c: 3 },
+      { n: "TALADROS_HASTIAL", c: 5 },
+      { n: "TALADROS_ARRASTRE", c: 2 },
+      { n: "DIBUJO_CAD", c: 7 },
+      { n: "COTAS_ANOTACIONES", c: 8 },
+    ];
+
+    for (const cp of capasDxf) {
+      dxf += `0\nLAYER\n2\n${cp.n}\n70\n0\n62\n${cp.c}\n6\nCONTINUOUS\n`;
+    }
+    dxf += "0\nENDTAB\n0\nENDSEC\n";
+
+    dxf += "0\nSECTION\n2\nENTITIES\n";
+
+    // 1. Contorno de la labor (Polyline cerrada 3D)
+    if (poligonoAExportar && poligonoAExportar.length >= 2) {
+      dxf += "0\nPOLYLINE\n8\nCONTORNO_GALERIA\n66\n1\n70\n1\n";
+      for (const p of poligonoAExportar) {
+        dxf += `0\nVERTEX\n8\nCONTORNO_GALERIA\n10\n${p.x.toFixed(4)}\n20\n${(p.y).toFixed(4)}\n30\n0.0000\n`;
+      }
+      dxf += "0\nSEQEND\n";
+    }
+
+    // 2. Líneas 3D de los taladros (Collar a Fondo en -Z)
+    const mapZonaCapa: Record<string, string> = {
+      alivio: "TALADROS_ALIVIO",
+      arranque: "TALADROS_ARRANQUE",
+      cuadrante: "TALADROS_CUADRANTES",
+      cuadrante1: "TALADROS_ARRANQUE",
+      cuadrante2: "TALADROS_CUADRANTES",
+      cuadrante3: "TALADROS_CUADRANTES",
+      cuadrante4: "TALADROS_CUADRANTES",
+      produccion: "TALADROS_PRODUCCION",
+      cuadradores: "TALADROS_HASTIAL",
+      hastial: "TALADROS_HASTIAL",
+      corona: "TALADROS_CORONA",
+      recorte: "TALADROS_CORONA",
+      arrastre: "TALADROS_ARRASTRE",
+    };
+
+    let totalLinTal = 0;
+    if (taladrosAExportar && taladrosAExportar.length > 0) {
+      taladrosAExportar.forEach((t) => {
+        const zona = String((t as any).zona || (t as any).grupo || "produccion").toLowerCase();
+        const capa = (t as any).esAlivio ? "TALADROS_ALIVIO" : (mapZonaCapa[zona] || "TALADROS_PRODUCCION");
+        const x1 = t.collar.x;
+        const y1 = t.collar.y;
+        const z1 = t.collar.z || 0;
+
+        const prof = Math.max(0.5, t.profundidad_m || 3.6);
+        const x2 = t.fondo ? t.fondo.x : t.collar.x;
+        const y2 = t.fondo ? t.fondo.y : t.collar.y;
+        const z2 = -Math.abs(t.fondo?.z && Math.abs(t.fondo.z) > 0.01 ? t.fondo.z : prof);
+
+        dxf += `0\nLINE\n8\n${capa}\n10\n${x1.toFixed(4)}\n20\n${y1.toFixed(4)}\n30\n${z1.toFixed(4)}\n11\n${x2.toFixed(4)}\n21\n${y2.toFixed(4)}\n31\n${z2.toFixed(4)}\n`;
+        totalLinTal++;
+      });
+    }
+
+    // 3. Líneas CAD adicionales
+    if (lineasAExportar && lineasAExportar.length > 0) {
+      lineasAExportar.forEach((l) => {
+        dxf += `0\nLINE\n8\nDIBUJO_CAD\n10\n${l.p1.x.toFixed(4)}\n20\n${l.p1.y.toFixed(4)}\n30\n${(l.p1.z || 0).toFixed(4)}\n11\n${l.p2.x.toFixed(4)}\n21\n${l.p2.y.toFixed(4)}\n31\n${(l.p2.z || 0).toFixed(4)}\n`;
+      });
+    }
+
+    // 4. Puntos CAD adicionales
+    if (puntosAExportar && puntosAExportar.length > 0) {
+      puntosAExportar.forEach((p) => {
+        dxf += `0\nPOINT\n8\nDIBUJO_CAD\n10\n${p.x.toFixed(4)}\n20\n${p.y.toFixed(4)}\n30\n${(p.z || 0).toFixed(4)}\n`;
+      });
+    }
+
+    dxf += "0\nENDSEC\n0\nEOF\n";
+    const filename = `${nombreBase}-dxf-3d.dxf`;
+    descargarTexto(filename, dxf, "application/dxf");
+    mostrarAviso(`✓ DXF 3D exportado: ${filename} (${totalLinTal} taladros en capas independientes)`);
+  }
+
+  // Algoritmo de selección por ventana rectangular (2 clics / esquinas)
+  function seleccionarPorVentana(
+    p1: { clientX: number; clientY: number; x: number; y: number },
+    p2: { clientX: number; clientY: number; x: number; y: number }
+  ) {
+    const minX = Math.min(p1.x, p2.x);
+    const maxX = Math.max(p1.x, p2.x);
+    const minY = Math.min(p1.y, p2.y);
+    const maxY = Math.max(p1.y, p2.y);
+
+    const talsSel: string[] = [];
+    taladros.forEach((t) => {
+      if (t.collar.x >= minX && t.collar.x <= maxX && t.collar.y >= minY && t.collar.y <= maxY) {
+        talsSel.push(t.id);
+      }
+    });
+
+    const ptosSel: string[] = [];
+    puntosCad.forEach((pt) => {
+      if (pt.x >= minX && pt.x <= maxX && pt.y >= minY && pt.y <= maxY) {
+        ptosSel.push(pt.id);
+      }
+    });
+
+    const linsSel: string[] = [];
+    lineasCad.forEach((l) => {
+      const midX = (l.p1.x + l.p2.x) / 2;
+      const midY = (l.p1.y + l.p2.y) / 2;
+      if (midX >= minX && midX <= maxX && midY >= minY && midY <= maxY) {
+        linsSel.push(l.id);
+      }
+    });
+
+    const plsSel: string[] = [];
+    polilineasCad.forEach((pl) => {
+      const dentro = pl.puntos.some((p) => p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY);
+      if (dentro) plsSel.push(pl.id);
+    });
+
+    const indsSel: number[] = [];
+    poligonoCresta.forEach((p, idx) => {
+      if (p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY) {
+        indsSel.push(idx);
+      }
+    });
+
+    setTaladrosSeleccionados(talsSel);
+    setPuntosSeleccionados(ptosSel);
+    setLineasSeleccionadas(linsSel);
+    setPolilineasSeleccionadas(plsSel);
+    setIndicesSeleccionados(indsSel);
+
+    const total = talsSel.length + ptosSel.length + linsSel.length + plsSel.length + indsSel.length;
+    mostrarAviso(`✓ ${total} entidades seleccionadas dentro de la ventana (${talsSel.length} taladros).`);
+  }
+
+  // Algoritmo de punto en polígono (Ray-Casting) para selección interactiva
+  function puntoEnPoligono2D(p: { x: number; y: number }, poly: { x: number; y: number }[]): boolean {
+    let inside = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const xi = poly[i].x, yi = poly[i].y;
+      const xj = poly[j].x, yj = poly[j].y;
+      const intersect = ((yi > p.y) !== (yj > p.y)) &&
+        (p.x < ((xj - xi) * (p.y - yi)) / (yj - yi) + xi);
+      if (intersect) inside = !inside;
+    }
+    return inside;
+  }
+
+  function seleccionarPorPoligono(poly: Punto2D[]) {
+    if (poly.length < 3) {
+      mostrarAviso("El polígono requiere al menos 3 puntos para cerrar un área.");
+      return;
+    }
+
+    const talsSel: string[] = [];
+    taladros.forEach((t) => {
+      if (puntoEnPoligono2D({ x: t.collar.x, y: t.collar.y }, poly)) {
+        talsSel.push(t.id);
+      }
+    });
+
+    const ptosSel: string[] = [];
+    puntosCad.forEach((pt) => {
+      if (puntoEnPoligono2D({ x: pt.x, y: pt.y }, poly)) {
+        ptosSel.push(pt.id);
+      }
+    });
+
+    const linsSel: string[] = [];
+    lineasCad.forEach((l) => {
+      const mid = { x: (l.p1.x + l.p2.x) / 2, y: (l.p1.y + l.p2.y) / 2 };
+      if (puntoEnPoligono2D(mid, poly)) {
+        linsSel.push(l.id);
+      }
+    });
+
+    const plsSel: string[] = [];
+    polilineasCad.forEach((pl) => {
+      const dentro = pl.puntos.some((p) => puntoEnPoligono2D({ x: p.x, y: p.y }, poly));
+      if (dentro) plsSel.push(pl.id);
+    });
+
+    const indsSel: number[] = [];
+    poligonoCresta.forEach((p, idx) => {
+      if (puntoEnPoligono2D(p, poly)) {
+        indsSel.push(idx);
+      }
+    });
+
+    setTaladrosSeleccionados(talsSel);
+    setPuntosSeleccionados(ptosSel);
+    setLineasSeleccionadas(linsSel);
+    setPolilineasSeleccionadas(plsSel);
+    setIndicesSeleccionados(indsSel);
+
+    const total = talsSel.length + ptosSel.length + linsSel.length + plsSel.length + indsSel.length;
+    mostrarAviso(`✓ ${total} entidades seleccionadas dentro del polígono (${talsSel.length} taladros).`);
+  }
+
   function handleSeleccionarCapasMarcadas() {
     const idsPuntos: string[] = [];
     const idsLineas: string[] = [];
@@ -1834,9 +2174,12 @@ export default function EditorCadMalla({
     polilineasCad.forEach((pl) => {
       if (capasSeleccionadasMallaFinal.includes(pl.capaId)) idsPolilineas.push(pl.id);
     });
-    if (capasSeleccionadasMallaFinal.includes("capa-taladros")) {
-      taladros.forEach((t) => idsTal.push(t.id));
-    }
+    taladros.forEach((t) => {
+      const cId = obtenerCapaIdTaladro(t);
+      if (capasSeleccionadasMallaFinal.includes(cId) || capasSeleccionadasMallaFinal.includes("capa-taladros")) {
+        idsTal.push(t.id);
+      }
+    });
 
     setPuntosSeleccionados(idsPuntos);
     setLineasSeleccionadas(idsLineas);
@@ -1856,6 +2199,14 @@ export default function EditorCadMalla({
         puntosCad.filter((p) => p.capaId === cp.id).forEach((p) => idsPuntos.push(p.id));
         lineasCad.filter((l) => l.capaId === cp.id).forEach((l) => idsLineas.push(l.id));
         polilineasCad.filter((pl) => pl.capaId === cp.id).forEach((pl) => idsPolilineas.push(pl.id));
+      }
+    });
+    taladros.forEach((t) => {
+      const cId = obtenerCapaIdTaladro(t);
+      const cp = capas.find((c) => c.id === cId);
+      const cpGen = capas.find((c) => c.id === "capa-taladros");
+      if ((!cp || cp.visible) && (!cpGen || cpGen.visible)) {
+        idsTal.push(t.id);
       }
     });
     const cpTal = capas.find((c) => c.id === "capa-taladros");
@@ -2724,11 +3075,17 @@ export default function EditorCadMalla({
     }
 
     // 2. Taladros en 3D con Simbología Especializada por Grupo (AutoCAD Minero - Nítido, Técnico, Tamaño Real)
-    if (capaTaladros?.visible && taladros.length > 0) {
+    if (taladros.length > 0) {
       taladros.forEach((t) => {
+        // Verificar visibilidad de capa general y específica por tipo de taladro
+        if (capaTaladros && !capaTaladros.visible) return;
+        const cTipoId = obtenerCapaIdTaladro(t);
+        const capaTipo = capas.find((c) => c.id === cTipoId);
+        if (capaTipo && !capaTipo.visible) return;
+
         const zonaTal = ((t as any).zona || "arranque") as GrupoTaladroCad;
         const infoG = GRUPOS_TALADRO_CONFIG.find((g) => g.id === zonaTal);
-        const colTal = (t as any).color || infoG?.colorDefecto || capaTaladros.color;
+        const colTal = (t as any).color || capaTipo?.color || infoG?.colorDefecto || capaTaladros?.color || "#f97316";
         const esSeleccionado = taladrosSeleccionados.includes(t.id);
         const colorFinal = esSeleccionado ? "#00ffff" : colTal;
         const colorHex = new THREE.Color(colorFinal).getHex();
@@ -2857,6 +3214,19 @@ export default function EditorCadMalla({
         const esSeleccionado = puntosSeleccionados.includes(p.id);
         const ptoGroup = new THREE.Group();
         ptoGroup.position.set(p.x, (p.z || 0) + 0.1, p.y);
+
+        if (p.grupoTaladro) {
+          const zonaStr = String(p.grupoTaladro).toLowerCase();
+          let cTipo = "capa-taladros-produccion";
+          if (zonaStr.includes("aliv")) cTipo = "capa-taladros-alivio";
+          else if (zonaStr.includes("arranque") || zonaStr.includes("cuad")) cTipo = "capa-taladros-cuadrante";
+          else if (zonaStr.includes("coron") || zonaStr.includes("recorte")) cTipo = "capa-taladros-corona";
+          else if (zonaStr.includes("hast") || zonaStr.includes("cuadrador")) cTipo = "capa-taladros-hastial";
+          else if (zonaStr.includes("arrast") || zonaStr.includes("zapat")) cTipo = "capa-taladros-arrastre";
+
+          const capaTipo = capas.find((c) => c.id === cTipo);
+          if (capaTipo && !capaTipo.visible) return;
+        }
 
         const colorPto = esSeleccionado
           ? 0x00ffff
@@ -3058,12 +3428,12 @@ export default function EditorCadMalla({
 
         const esSel = polilineasSeleccionadas.includes(pl.id);
         const color = esSel
-          ? 0xff0055
+          ? 0xf97316
           : pl.rol === "galeria"
           ? 0xf97316
           : pl.rol === "burden_spacing"
           ? 0x06b6d4
-          : new THREE.Color(capaObj?.color || "#e11d48").getHex();
+          : new THREE.Color(capaObj?.color || "#f97316").getHex();
 
         const pts = pl.puntos.map((p) => new THREE.Vector3(p.x, (p.z || 0) + 0.08, p.y));
         if (pl.cerrada && pts.length > 2) {
@@ -3520,7 +3890,7 @@ export default function EditorCadMalla({
       const nPartes = parseInt(divPartes, 10) || 4;
       const ptsDiv = calcularPuntosDivision(divEntidad, nPartes);
 
-      // Resaltar la entidad seleccionada en fucsia neón
+      // Resaltar la entidad seleccionada en naranja neón
       const ctxDiv = {
         lineas: lineasCad,
         polilineas: polilineasCad,
@@ -3532,7 +3902,7 @@ export default function EditorCadMalla({
         const lineGeo = new THREE.BufferGeometry().setFromPoints(
           entData.puntos.map((p) => new THREE.Vector3(p.x, (p.z || 0) + 0.12, p.y))
         );
-        const lineMat = new THREE.LineBasicMaterial({ color: 0xe11d48, linewidth: 3.5 });
+        const lineMat = new THREE.LineBasicMaterial({ color: 0xf97316, linewidth: 3.5 });
         group.add(new THREE.Line(lineGeo, lineMat));
       }
 
@@ -3567,13 +3937,13 @@ export default function EditorCadMalla({
         perfil: poligonoCresta,
       };
 
-      // Resaltar la entidad base original en fucsia neón
+      // Resaltar la entidad base original en naranja neón
       const entData = obtenerPuntosDeEntidad(offEntidad, ctxOff);
       if (entData && entData.puntos.length >= 2) {
         const lineGeo = new THREE.BufferGeometry().setFromPoints(
           entData.puntos.map((p) => new THREE.Vector3(p.x, (p.z || 0) + 0.12, p.y))
         );
-        const lineMat = new THREE.LineBasicMaterial({ color: 0xe11d48, linewidth: 3.5 });
+        const lineMat = new THREE.LineBasicMaterial({ color: 0xf97316, linewidth: 3.5 });
         group.add(new THREE.Line(lineGeo, lineMat));
       }
 
@@ -3625,6 +3995,35 @@ export default function EditorCadMalla({
           group.add(new THREE.Line(plGeo, plMat));
         }
       }
+    }
+
+    // 15. Previsualización de POLÍGONO DE SELECCIÓN INTERACTIVO
+    if (panelMallaFinalVisible && modoSeleccionMallaFinal === "poligono" && puntosSeleccionPoligono.length > 0) {
+      const ptsPoly = puntosSeleccionPoligono.map((p) => new THREE.Vector3(p.x, 0.12, p.y));
+      if (cursorGuiaPoligono) {
+        ptsPoly.push(new THREE.Vector3(cursorGuiaPoligono.x, 0.12, cursorGuiaPoligono.y));
+      }
+      if (puntosSeleccionPoligono.length >= 2) {
+        ptsPoly.push(new THREE.Vector3(puntosSeleccionPoligono[0].x, 0.12, puntosSeleccionPoligono[0].y));
+      }
+      const polyLineGeo = new THREE.BufferGeometry().setFromPoints(ptsPoly);
+      const polyLineMat = new THREE.LineDashedMaterial({
+        color: 0xf97316,
+        linewidth: 2.5,
+        dashSize: 0.35,
+        gapSize: 0.18,
+      });
+      const polyLineObj = new THREE.Line(polyLineGeo, polyLineMat);
+      polyLineObj.computeLineDistances();
+      group.add(polyLineObj);
+
+      puntosSeleccionPoligono.forEach((pt, idx) => {
+        const vGeo = new THREE.SphereGeometry(0.08, 10, 10);
+        const vMat = new THREE.MeshBasicMaterial({ color: idx === 0 ? 0x00ffff : 0xf97316 });
+        const vMesh = new THREE.Mesh(vGeo, vMat);
+        vMesh.position.set(pt.x, 0.14, pt.y);
+        group.add(vMesh);
+      });
     }
 
     // -------------------------------------------------------------------------
@@ -4156,6 +4555,47 @@ export default function EditorCadMalla({
     orbitRef.current.verticeArrastrado = null;
     orbitRef.current.poligonoDragOffsets = null;
 
+    // INTERACCIÓN: SELECCIÓN POR VENTANA (2 toques / esquinas en modo Malla Final)
+    if (e.button === 0 && panelMallaFinalVisible && modoSeleccionMallaFinal === "ventana") {
+      const pMundo = obtenerCoordenadasPlano(e.clientX, e.clientY);
+      if (pMundo) {
+        if (!ventanaPunto1) {
+          setVentanaPunto1({ clientX: e.clientX, clientY: e.clientY, x: pMundo.x, y: pMundo.y });
+          setCursorVentana({ clientX: e.clientX, clientY: e.clientY, x: pMundo.x, y: pMundo.y });
+          mostrarAviso("1ª esquina fijada. Haz clic en la 2ª esquina opuesta para completar la ventana.");
+          orbitRef.current.isDragging = false;
+          return;
+        } else {
+          seleccionarPorVentana(ventanaPunto1, { clientX: e.clientX, clientY: e.clientY, x: pMundo.x, y: pMundo.y });
+          setVentanaPunto1(null);
+          setCursorVentana(null);
+          orbitRef.current.isDragging = false;
+          return;
+        }
+      }
+    }
+
+    // INTERACCIÓN: SELECCIÓN POR POLÍGONO (Punto por punto interactivo)
+    if (e.button === 0 && panelMallaFinalVisible && modoSeleccionMallaFinal === "poligono") {
+      const pMundo = obtenerCoordenadasPlano(e.clientX, e.clientY);
+      if (pMundo) {
+        if (puntosSeleccionPoligono.length >= 3) {
+          const dIni = Math.hypot(pMundo.x - puntosSeleccionPoligono[0].x, pMundo.y - puntosSeleccionPoligono[0].y);
+          if (dIni < 0.45) {
+            seleccionarPorPoligono(puntosSeleccionPoligono);
+            setPuntosSeleccionPoligono([]);
+            setCursorGuiaPoligono(null);
+            orbitRef.current.isDragging = false;
+            return;
+          }
+        }
+        setPuntosSeleccionPoligono((prev) => [...prev, { x: pMundo.x, y: pMundo.y }]);
+        mostrarAviso(`Punto ${puntosSeleccionPoligono.length + 1} de polígono añadido. Pulsa "Finalizar" o continúa tocando.`);
+        orbitRef.current.isDragging = false;
+        return;
+      }
+    }
+
     if (e.button === 0 && herramienta === "SEL") {
       // 1. Si estamos esperando seleccionar el punto base para una línea o polígono
       if (esperandoPuntoBase) {
@@ -4239,6 +4679,22 @@ export default function EditorCadMalla({
           const d = Math.hypot(pMundo.x - cotCentro.x, pMundo.y - cotCentro.y);
           if (d > 0.02) setCotDistanciaB(d.toFixed(2));
         }
+      }
+    }
+
+    // Actualizar guía visual de selección por Ventana
+    if (panelMallaFinalVisible && modoSeleccionMallaFinal === "ventana" && ventanaPunto1) {
+      const pMundo = obtenerCoordenadasPlano(e.clientX, e.clientY);
+      if (pMundo) {
+        setCursorVentana({ clientX: e.clientX, clientY: e.clientY, x: pMundo.x, y: pMundo.y });
+      }
+    }
+
+    // Actualizar guía visual de selección por Polígono
+    if (panelMallaFinalVisible && modoSeleccionMallaFinal === "poligono" && puntosSeleccionPoligono.length > 0) {
+      const pMundo = obtenerCoordenadasPlano(e.clientX, e.clientY);
+      if (pMundo) {
+        setCursorGuiaPoligono(pMundo);
       }
     }
 
@@ -4359,6 +4815,20 @@ export default function EditorCadMalla({
     if (eraArrastrePunto) {
       registrarHistorial();
       return;
+    }
+
+    // Arrastre en modo ventana (si el usuario arrastra y suelta en vez de 2 clics)
+    if (panelMallaFinalVisible && modoSeleccionMallaFinal === "ventana" && ventanaPunto1) {
+      const distArrastre = Math.hypot(e.clientX - ventanaPunto1.clientX, e.clientY - ventanaPunto1.clientY);
+      if (distArrastre > 15) {
+        const pMundo = obtenerCoordenadasPlano(e.clientX, e.clientY);
+        if (pMundo) {
+          seleccionarPorVentana(ventanaPunto1, { clientX: e.clientX, clientY: e.clientY, x: pMundo.x, y: pMundo.y });
+          setVentanaPunto1(null);
+          setCursorVentana(null);
+          return;
+        }
+      }
     }
 
     // Finalizar selección múltiple por caja (Marquee)
@@ -6516,6 +6986,110 @@ export default function EditorCadMalla({
           />
         )}
 
+        {/* Guía visual interactiva de Selección por Ventana (2 toques / esquinas) */}
+        {ventanaPunto1 && cursorVentana && (
+          <div
+            className="cad-selection-window-overlay"
+            style={{
+              position: "absolute",
+              left: Math.min(ventanaPunto1.clientX, cursorVentana.clientX),
+              top: Math.min(ventanaPunto1.clientY, cursorVentana.clientY),
+              width: Math.abs(cursorVentana.clientX - ventanaPunto1.clientX),
+              height: Math.abs(cursorVentana.clientY - ventanaPunto1.clientY),
+              pointerEvents: "none",
+              border: "2px dashed var(--acento, #f97316)",
+              background: "color-mix(in srgb, var(--acento, #f97316) 18%, transparent)",
+              borderRadius: 4,
+              zIndex: 95,
+              boxShadow: "0 0 16px color-mix(in srgb, var(--acento, #f97316) 30%, transparent)",
+            }}
+          >
+            <span
+              style={{
+                position: "absolute",
+                bottom: 4,
+                right: 6,
+                fontSize: 10,
+                fontWeight: 800,
+                color: "var(--acento, #f97316)",
+                background: "rgba(10, 15, 24, 0.85)",
+                padding: "2px 6px",
+                borderRadius: 4,
+              }}
+            >
+              Ventana de selección · Haz clic en la 2ª esquina
+            </span>
+          </div>
+        )}
+
+        {/* Barra flotante de control para Selección por Polígono */}
+        {panelMallaFinalVisible && modoSeleccionMallaFinal === "poligono" && puntosSeleccionPoligono.length > 0 && (
+          <div
+            style={{
+              position: "absolute",
+              bottom: 60,
+              left: "50%",
+              transform: "translateX(-50%)",
+              background: "rgba(13, 19, 31, 0.95)",
+              border: "1.5px solid var(--acento, #f97316)",
+              borderRadius: 30,
+              padding: "6px 14px",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              zIndex: 100,
+              boxShadow: "0 8px 30px rgba(0, 0, 0, 0.8), 0 0 18px color-mix(in srgb, var(--acento, #f97316) 30%, transparent)",
+              backdropFilter: "blur(12px)",
+            }}
+          >
+            <span style={{ fontSize: 11, fontWeight: 700, color: "#f8fafc" }}>
+              Polígono: <strong style={{ color: "var(--acento, #f97316)" }}>{puntosSeleccionPoligono.length} pts</strong>
+            </span>
+            {puntosSeleccionPoligono.length >= 3 && (
+              <button
+                type="button"
+                onClick={() => {
+                  seleccionarPorPoligono(puntosSeleccionPoligono);
+                  setPuntosSeleccionPoligono([]);
+                  setCursorGuiaPoligono(null);
+                }}
+                style={{
+                  background: "var(--acento, #f97316)",
+                  border: "none",
+                  borderRadius: 16,
+                  color: "#0b111c",
+                  fontSize: 11,
+                  fontWeight: 800,
+                  padding: "4px 10px",
+                  cursor: "pointer",
+                }}
+              >
+                ✓ Finalizar selección
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setPuntosSeleccionPoligono([]);
+                setCursorGuiaPoligono(null);
+                mostrarAviso("Selección por polígono cancelada.");
+              }}
+              style={{
+                background: "rgba(255, 255, 255, 0.08)",
+                border: "1px solid #334155",
+                borderRadius: 16,
+                color: "#94a3b8",
+                fontSize: 10.5,
+                fontWeight: 700,
+                padding: "4px 9px",
+                cursor: "pointer",
+              }}
+            >
+              ✕ Cancelar
+            </button>
+          </div>
+        )}
+
         {/* Dock Lateral Izquierdo */}
         <aside
           className="cad-dock-left-exact"
@@ -6574,6 +7148,8 @@ export default function EditorCadMalla({
                     setPanelEdicionVisible(false);
                     setPanelCapasVisible(false);
                     setPanelDatosRmrVisible(false);
+                    setPanelMallaFinalVisible(false);
+                    setPanelResultadosVisible(false);
 
                     // Mostrar siempre la ventana en su modelo completo expandido al seleccionarla
                     if (h === "SEL") setPanelSelMinimizado(false);
@@ -6611,6 +7187,8 @@ export default function EditorCadMalla({
                 // Cerrar otras herramientas y ventanas para evitar redundancia
                 setPanelEdicionVisible(false);
                 setPanelCapasVisible(false);
+                setPanelMallaFinalVisible(false);
+                setPanelResultadosVisible(false);
                 setPanelSelVisible(false);
                 setPanelLinVisible(false);
                 setPanelPtoVisible(false);
@@ -6642,6 +7220,8 @@ export default function EditorCadMalla({
                 // Cerrar otras herramientas y ventanas para evitar redundancia
                 setPanelDatosRmrVisible(false);
                 setPanelCapasVisible(false);
+                setPanelMallaFinalVisible(false);
+                setPanelResultadosVisible(false);
                 setPanelSelVisible(false);
                 setPanelLinVisible(false);
                 setPanelPtoVisible(false);
@@ -6674,6 +7254,8 @@ export default function EditorCadMalla({
                 setPanelDatosRmrVisible(false);
                 setPanelEdicionVisible(false);
                 setPanelCapasVisible(false);
+                setPanelMallaFinalVisible(false);
+                setPanelResultadosVisible(false);
                 setPanelSelVisible(false);
                 setPanelLinVisible(false);
                 setPanelPtoVisible(false);
@@ -6694,22 +7276,70 @@ export default function EditorCadMalla({
             ES
           </button>
 
+          {/* Botón ✓: Abre el panel de RESULTADOS exacto a la captura del usuario */}
           <button
             type="button"
-            className="btn-dock-circle-exact"
-            onClick={onIrARender}
-            title="Confirmar e Ir a Render 3D (✓)"
+            className={`btn-dock-circle-exact ${panelResultadosVisible ? "tool-active-pink" : ""}`}
+            onClick={() => {
+              const nuevo = !panelResultadosVisible;
+              setPanelResultadosVisible(nuevo);
+              if (nuevo) {
+                setPanelMallaFinalVisible(false);
+                setPanelDatosRmrVisible(false);
+                setPanelEdicionVisible(false);
+                setPanelEscenaVisible(false);
+                setPanelCapasVisible(false);
+                setPanelSelVisible(false);
+                setPanelLinVisible(false);
+                setPanelPtoVisible(false);
+                setPanelPlVisible(false);
+                setPanelArcVisible(false);
+                setPanelRecVisible(false);
+                setPanelUniVisible(false);
+                setPanelDivVisible(false);
+                setPanelOffVisible(false);
+                setPanelCotVisible(false);
+                setPanelTalVisible(false);
+                setPanelSolVisible(false);
+                setPanelGriVisible(false);
+              }
+            }}
+            title="Resultados de Malla y CAD (✓)"
           >
             ✓
           </button>
 
+          {/* Botón ⊙: Abre el panel de MALLA FINAL exacto a la captura del usuario */}
           <button
             type="button"
-            className="btn-dock-circle-exact"
-            onClick={handleCentrarDibujoCompleto}
-            title="Centrar Dibujo CAD (Doble toque en pantalla)"
+            className={`btn-dock-circle-exact ${panelMallaFinalVisible ? "tool-active-pink" : ""}`}
+            onClick={() => {
+              const nuevo = !panelMallaFinalVisible;
+              setPanelMallaFinalVisible(nuevo);
+              if (nuevo) {
+                setPanelResultadosVisible(false);
+                setPanelDatosRmrVisible(false);
+                setPanelEdicionVisible(false);
+                setPanelEscenaVisible(false);
+                setPanelCapasVisible(false);
+                setPanelSelVisible(false);
+                setPanelLinVisible(false);
+                setPanelPtoVisible(false);
+                setPanelPlVisible(false);
+                setPanelArcVisible(false);
+                setPanelRecVisible(false);
+                setPanelUniVisible(false);
+                setPanelDivVisible(false);
+                setPanelOffVisible(false);
+                setPanelCotVisible(false);
+                setPanelTalVisible(false);
+                setPanelSolVisible(false);
+                setPanelGriVisible(false);
+              }
+            }}
+            title="Malla Final y Snapshots Inmutables (⊙)"
           >
-            °
+            ⊙
           </button>
         </aside>
 
@@ -10124,6 +10754,67 @@ export default function EditorCadMalla({
             )}
           </div>
         )}
+
+        {/* PANEL MALLA FINAL (Activado por botón '°' en el dock derecho exacto a la captura) */}
+        <PanelMallaFinal
+          visible={panelMallaFinalVisible}
+          onOcultar={() => setPanelMallaFinalVisible(false)}
+          nombreMallaFinal={nombreMallaFinal}
+          onCambiarNombreMallaFinal={setNombreMallaFinal}
+          capas={capas}
+          capasSeleccionadas={capasSeleccionadasMallaFinal}
+          onToggleCapaSeleccionada={(capaId) => {
+            setCapasSeleccionadasMallaFinal((prev) =>
+              prev.includes(capaId) ? prev.filter((id) => id !== capaId) : [...prev, capaId]
+            );
+          }}
+          onSeleccionarCapasMarcadas={handleSeleccionarCapasMarcadas}
+          onSeleccionarTodoVisible={handleSeleccionarTodoVisible}
+          onLimpiarSeleccion={() => {
+            handleLimpiarSeleccionMallaFinal();
+            setVentanaPunto1(null);
+            setCursorVentana(null);
+            setPuntosSeleccionPoligono([]);
+            setCursorGuiaPoligono(null);
+          }}
+          modoSeleccion={modoSeleccionMallaFinal}
+          onCambiarModoSeleccion={(modo) => {
+            setModoSeleccionMallaFinal(modo);
+            setVentanaPunto1(null);
+            setCursorVentana(null);
+            setPuntosSeleccionPoligono([]);
+            setCursorGuiaPoligono(null);
+            if (modo === "ventana") {
+              mostrarAviso("📐 Modo Ventana activo: Toca la 1ª esquina en el lienzo CAD y luego la 2ª.");
+            } else if (modo === "poligono") {
+              mostrarAviso("🔷 Modo Polígono activo: Toca puntos en el lienzo para delimitar el área.");
+            }
+          }}
+          totalEntidadesSeleccionadas={
+            puntosSeleccionados.length +
+            lineasSeleccionadas.length +
+            polilineasSeleccionadas.length +
+            taladrosSeleccionados.length +
+            indicesSeleccionados.length
+          }
+          mallasGuardadas={mallasFinalesGuardadas}
+          onPublicarSnapshot={handlePublicarSnapshotMallaFinal}
+          onRestaurarSnapshot={handleRestaurarSnapshotMallaFinal}
+          onEliminarSnapshot={handleEliminarSnapshotMallaFinal}
+          onExportarCSV={handleExportarCSVTaladrosSnapshot}
+          onExportarDXF={handleExportarDXFMalla}
+        />
+
+        {/* PANEL RESULTADOS (Activado por botón '✓' en el dock derecho exacto a la captura) */}
+        <PanelResultadosMalla
+          visible={panelResultadosVisible}
+          onOcultar={() => setPanelResultadosVisible(false)}
+          poligonoCresta={poligonoCresta}
+          polilineasCad={polilineasCad}
+          taladros={taladros}
+          puntosCad={puntosCad}
+          capas={capas}
+        />
 
         {/* Fin paneles */}
       </div>
