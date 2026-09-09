@@ -13,6 +13,7 @@ const ETIQUETA_TIPO: Record<string, string> = {
   sondajes: "Sondajes",
   bloques: "Bloques",
   texto: "Textos",
+  wireframe: "Wireframes",
 };
 
 /**

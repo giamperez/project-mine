@@ -1,5 +1,11 @@
-export { MODULO_ID, CAPAS } from "./etiquetas.js";
-export { construirEscenaSondajes, construirEscenaBloques, type RangoLey, type ModoColorBloques } from "./escena.js";
+export { MODULO_ID, CAPAS, idCapaWireframe } from "./etiquetas.js";
+export {
+  construirEscenaSondajes,
+  construirEscenaBloques,
+  construirEscenaWireframes,
+  type RangoLey,
+  type ModoColorBloques,
+} from "./escena.js";
 export { importarColaresDesdeCSV, importarEnsayosDesdeCSV, exportarCurvaLeyTonelajeCSV } from "./io.js";
 
 export const METADATA_MODULO = {

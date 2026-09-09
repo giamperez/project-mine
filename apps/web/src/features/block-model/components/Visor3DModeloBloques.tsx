@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { SceneManager, LayerManager, type EstadoCapa } from "@suite/engine";
-import { construirEscenaSondajes, construirEscenaBloques, CAPAS, type ModoColorBloques, type RangoLey } from "@suite/mining-block-model";
+import { SceneManager, LayerManager, type EstadoCapa, type Wireframe3D } from "@suite/engine";
+import {
+  construirEscenaSondajes,
+  construirEscenaBloques,
+  construirEscenaWireframes,
+  CAPAS,
+  type ModoColorBloques,
+  type RangoLey,
+} from "@suite/mining-block-model";
 import type { ColarSondaje, CompositoEnsayo, ModeloBloques } from "@suite/core";
 
 interface Props {
@@ -11,6 +18,8 @@ interface Props {
   rangoLey: RangoLey;
   /** true si el modelo se interpolo por kriging (habilita el modo de color "Varianza"). */
   esKriging: boolean;
+  /** Wireframes importados (Datamine PT/TR), cada uno se dibuja en su propia capa. */
+  wireframes: Wireframe3D[];
   onCapas?: (capas: EstadoCapa[]) => void;
   /** Entrega el LayerManager de esta escena una vez creado, para paneles externos (PanelCapas). */
   onGestorCapas?: (layers: LayerManager | null) => void;
@@ -29,6 +38,7 @@ export default function Visor3DModeloBloques({
   leyCorte,
   rangoLey,
   esKriging,
+  wireframes,
   onCapas,
   onGestorCapas,
 }: Props) {
@@ -78,6 +88,14 @@ export default function Visor3DModeloBloques({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [colares, compositos, modelo, leyCorte, rangoLey, modoColorEfectivo, rangoVarianza]);
+
+  useEffect(() => {
+    const manager = managerRef.current;
+    if (!manager) return;
+    construirEscenaWireframes(manager.layers, wireframes);
+    onCapas?.(manager.layers.listarCapas());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wireframes]);
 
   function aplicarCorteVisual() {
     const manager = managerRef.current;

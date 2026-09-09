@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import type { MetodoInterpolacion, ModeloVariograma, PuntoVariogramaExperimental, TipoModeloVariograma } from "@suite/core";
 import GraficoVariograma from "./GraficoVariograma.js";
 
@@ -26,6 +26,8 @@ interface Props {
   onCambiarVariograma: (v: ModeloVariograma) => void;
   variogramaExperimental: PuntoVariogramaExperimental[];
   onAutoAjustarVariograma: () => void;
+  numeroWireframes: number;
+  onImportarWireframe: (archivoPuntos: File, archivoTriangulos: File) => void;
   oculto?: boolean;
 }
 
@@ -50,10 +52,16 @@ export default function PanelDatosModeloBloques({
   onCambiarVariograma,
   variogramaExperimental,
   onAutoAjustarVariograma,
+  numeroWireframes,
+  onImportarWireframe,
   oculto,
 }: Props) {
   const inputColaresRef = useRef<HTMLInputElement>(null);
   const inputEnsayosRef = useRef<HTMLInputElement>(null);
+  const inputPuntosWireframeRef = useRef<HTMLInputElement>(null);
+  const inputTriangulosWireframeRef = useRef<HTMLInputElement>(null);
+  const [archivoPuntosWireframe, setArchivoPuntosWireframe] = useState<File | null>(null);
+  const [archivoTriangulosWireframe, setArchivoTriangulosWireframe] = useState<File | null>(null);
 
   const set = <K extends keyof ParametrosModeloUI>(campo: K, valor: ParametrosModeloUI[K]) =>
     onCambiarParametros({ ...parametros, [campo]: valor });
@@ -247,6 +255,64 @@ export default function PanelDatosModeloBloques({
           )}
         </fieldset>
       )}
+
+      <fieldset>
+        <legend>Wireframes (Datamine PT/TR)</legend>
+        <p style={{ fontSize: 12, color: "var(--texto-tenue)", margin: "0 0 10px" }}>
+          Sólidos triangulados (cuerpos mineralizados, dominios geológicos) exportados de Datamine como par de
+          archivos CSV: puntos (id,x,y,z) y triángulos (id,p1,p2,p3). Cada wireframe importado aparece como una
+          capa independiente en el visor 3D.
+        </p>
+        <div className="acciones" style={{ marginBottom: 0 }}>
+          <button className="btn btn-archivo" type="button" onClick={() => inputPuntosWireframeRef.current?.click()}>
+            {archivoPuntosWireframe ? `Puntos: ${archivoPuntosWireframe.name}` : "Seleccionar archivo de puntos"}
+            <input
+              ref={inputPuntosWireframeRef}
+              type="file"
+              accept=".csv,.txt,.pt"
+              onChange={(e) => {
+                const a = e.target.files?.[0];
+                if (a) setArchivoPuntosWireframe(a);
+                e.target.value = "";
+              }}
+            />
+          </button>
+          <button className="btn btn-archivo" type="button" onClick={() => inputTriangulosWireframeRef.current?.click()}>
+            {archivoTriangulosWireframe ? `Triángulos: ${archivoTriangulosWireframe.name}` : "Seleccionar archivo de triángulos"}
+            <input
+              ref={inputTriangulosWireframeRef}
+              type="file"
+              accept=".csv,.txt,.tr"
+              onChange={(e) => {
+                const a = e.target.files?.[0];
+                if (a) setArchivoTriangulosWireframe(a);
+                e.target.value = "";
+              }}
+            />
+          </button>
+        </div>
+        <div className="acciones" style={{ marginTop: 8 }}>
+          <button
+            className="btn"
+            type="button"
+            disabled={!archivoPuntosWireframe || !archivoTriangulosWireframe}
+            onClick={() => {
+              if (!archivoPuntosWireframe || !archivoTriangulosWireframe) return;
+              onImportarWireframe(archivoPuntosWireframe, archivoTriangulosWireframe);
+              setArchivoPuntosWireframe(null);
+              setArchivoTriangulosWireframe(null);
+            }}
+          >
+            Importar wireframe
+          </button>
+        </div>
+        <div className="resultados" style={{ marginTop: 12 }}>
+          <div className="dato">
+            <span>Wireframes importados</span>
+            <b>{numeroWireframes}</b>
+          </div>
+        </div>
+      </fieldset>
 
       <fieldset>
         <legend>Recursos</legend>

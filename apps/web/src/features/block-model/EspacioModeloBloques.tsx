@@ -13,7 +13,7 @@ import {
   type ModeloVariograma,
 } from "@suite/core";
 import { exportarCurvaLeyTonelajeCSV, importarColaresDesdeCSV, importarEnsayosDesdeCSV, type RangoLey } from "@suite/mining-block-model";
-import type { LayerManager } from "@suite/engine";
+import { leerWireframeDatamine, type LayerManager, type Wireframe3D } from "@suite/engine";
 import PanelDatosModeloBloques, { type ParametrosModeloUI } from "./components/PanelDatosModeloBloques.js";
 import PanelResultadosModeloBloques from "./components/PanelResultadosModeloBloques.js";
 import Visor3DModeloBloques from "./components/Visor3DModeloBloques.js";
@@ -74,6 +74,7 @@ export default function EspacioModeloBloques() {
     () => generarSondajesDemo().intervalos
   );
   const [metodo, setMetodo] = usePersistedState<MetodoInterpolacion>("modeloBloques.metodo", "idw");
+  const [wireframes, setWireframes] = usePersistedState<Wireframe3D[]>("modeloBloques.wireframes", []);
   const [variograma, setVariograma] = usePersistedState<ModeloVariograma>("modeloBloques.variograma", {
     tipo: "esferico",
     pepita: 0,
@@ -165,6 +166,21 @@ export default function EspacioModeloBloques() {
     setMensaje(`${nuevos.length} intervalos de ensayo importados.`);
   }
 
+  async function handleImportarWireframe(archivoPuntos: File, archivoTriangulos: File) {
+    const [textoPuntos, textoTriangulos] = await Promise.all([
+      leerArchivoTabularComoTexto(archivoPuntos),
+      leerArchivoTabularComoTexto(archivoTriangulos),
+    ]);
+    const nombre = archivoPuntos.name.replace(/\.[^.]+$/, "");
+    const wireframe = leerWireframeDatamine(textoPuntos, textoTriangulos, nombre);
+    if (!wireframe) {
+      setMensaje("No se pudo leer el wireframe: revisa que los archivos tengan las columnas 'id,x,y,z' (puntos) y 'id,p1,p2,p3' (triángulos).");
+      return;
+    }
+    setWireframes((actuales) => [...actuales, wireframe]);
+    setMensaje(`Wireframe "${wireframe.nombre}" importado (${wireframe.vertices.length} vértices, ${wireframe.triangulos.length} triángulos).`);
+  }
+
   function handleExportarCSV() {
     descargarTexto("curva-ley-tonelaje.csv", exportarCurvaLeyTonelajeCSV(curva), "text/csv");
   }
@@ -197,6 +213,8 @@ export default function EspacioModeloBloques() {
           onCambiarVariograma={setVariograma}
           variogramaExperimental={puntosVariogramaExperimental}
           onAutoAjustarVariograma={handleAutoAjustarVariograma}
+          numeroWireframes={wireframes.length}
+          onImportarWireframe={handleImportarWireframe}
           oculto={pestana !== "datos"}
         />
 
@@ -218,6 +236,7 @@ export default function EspacioModeloBloques() {
                 leyCorte={parametros.leyCorteVisor}
                 rangoLey={rangoLey}
                 esKriging={metodo === "kriging"}
+                wireframes={wireframes}
                 onCapas={handleCapas}
                 onGestorCapas={setLayerManager}
               />

@@ -1,8 +1,8 @@
 import * as THREE from "three";
-import { viridis, type LayerManager } from "@suite/engine";
+import { viridis, type LayerManager, type Wireframe3D } from "@suite/engine";
 import type { ColarSondaje, CompositoEnsayo, ModeloBloques } from "@suite/core";
 import { puntoEnSondaje } from "@suite/core";
-import { CAPAS, MODULO_ID } from "./etiquetas.js";
+import { CAPAS, MODULO_ID, idCapaWireframe } from "./etiquetas.js";
 
 export interface RangoLey {
   min: number;
@@ -111,4 +111,37 @@ export function construirEscenaBloques(
   if (instanced.instanceColor) instanced.instanceColor.needsUpdate = true;
 
   capa.grupo.add(instanced);
+}
+
+const COLORES_WIREFRAME = ["#f97316", "#38bdf8", "#a3e635", "#e879f9", "#facc15", "#4ade80"];
+
+/**
+ * Dibuja cada wireframe importado (Datamine PT/TR) en su propia capa, para poder mostrar/ocultar
+ * cada solido de forma independiente en el panel de capas.
+ */
+export function construirEscenaWireframes(layerManager: LayerManager, wireframes: Wireframe3D[]): void {
+  wireframes.forEach((wf, idx) => {
+    const id = idCapaWireframe(wf.id);
+    const color = COLORES_WIREFRAME[idx % COLORES_WIREFRAME.length];
+    const capa = layerManager.crearCapa({ id, nombre: wf.nombre, color, carpeta: "Wireframes", tipo: "wireframe" });
+    layerManager.limpiarCapa(id);
+
+    const posiciones = new Float32Array(wf.vertices.length * 3);
+    wf.vertices.forEach((v, i) => {
+      posiciones[i * 3] = v.x;
+      posiciones[i * 3 + 1] = v.y;
+      posiciones[i * 3 + 2] = v.z;
+    });
+    const geometria = new THREE.BufferGeometry();
+    geometria.setAttribute("position", new THREE.BufferAttribute(posiciones, 3));
+    geometria.setIndex(wf.triangulos.flat());
+    geometria.computeVertexNormals();
+
+    const mesh = new THREE.Mesh(
+      geometria,
+      new THREE.MeshStandardMaterial({ color, side: THREE.DoubleSide, transparent: true, opacity: 0.6 })
+    );
+    mesh.userData = { moduloId: MODULO_ID, tipo: "wireframe", wireframeId: wf.id };
+    capa.grupo.add(mesh);
+  });
 }
