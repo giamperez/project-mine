@@ -1,12 +1,12 @@
 import { useState } from "react";
 import Dashboard, { type ModuloId } from "./Dashboard.js";
-import ModuloPortal from "./components/ModuloPortal.js";
-import EspacioMalla from "./EspacioMalla.js";
-import EspacioTopografia from "./EspacioTopografia.js";
-import EspacioGeomecanica from "./EspacioGeomecanica.js";
-import EspacioEstereografia from "./EspacioEstereografia.js";
-import EspacioAcarreo from "./EspacioAcarreo.js";
-import EspacioModeloBloques from "./EspacioModeloBloques.js";
+import { ModuloPortal } from "./components/shared/index.js";
+import { EspacioMalla } from "./features/blast-pattern/index.js";
+import { EspacioTopografia } from "./features/topography/index.js";
+import { EspacioGeomecanica } from "./features/geomechanics/index.js";
+import { EspacioEstereografia } from "./features/stereonet/index.js";
+import { EspacioAcarreo } from "./features/haulage/index.js";
+import { EspacioModeloBloques } from "./features/block-model/index.js";
 
 type Espacio = "dashboard" | ModuloId;
 

@@ -1,4 +1,4 @@
-import type { LineaCad3D, PolilineaCad3D, ArcoCad3D, PuntoCad3D } from "../components/EditorCadMalla.js";
+import type { LineaCad3D, PolilineaCad3D, ArcoCad3D, PuntoCad3D } from "../features/blast-pattern/components/EditorCadMalla.js";
 
 export interface RefEntidadUni {
   tipo: "linea" | "polilinea" | "arco";

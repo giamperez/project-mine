@@ -1,5 +1,5 @@
 import type { Punto2D } from "@suite/core";
-import type { LineaCad3D, PolilineaCad3D, ArcoCad3D } from "../components/EditorCadMalla.js";
+import type { LineaCad3D, PolilineaCad3D, ArcoCad3D } from "../features/blast-pattern/components/EditorCadMalla.js";
 
 export type TipoEntidadRec = "linea" | "polilinea" | "arco" | "perfil";
 
