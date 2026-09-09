@@ -2,15 +2,20 @@
 
 import type { PropiedadesExplosivo, Taladro } from "./blastPattern.js";
 
-export type PatronIniciacion = "fila_por_fila" | "echelon" | "v_corte";
+export type PatronIniciacion =
+  | "fila_por_fila"
+  | "echelon"
+  | "v_corte"
+  | "tunel_concentrico"
+  | "tunel_secuencial_cuadrantes"
+  | "tunel_espiral";
 
 export interface EntradaVoladura {
   taladros: Taladro[];
   /** Burden y espaciamiento de diseno (m) — se usan para el volumen de roca y para derivar retardos. */
   burden_m: number;
   espaciamiento_m: number;
-  /** Altura de banco (m) — el powder factor se calcula sobre el volumen de banco, no sobre la
-   * profundidad total del taladro (que incluye sobreperforacion). */
+  /** Altura de banco (m) o avance de tanda (m) en labores subterráneas. */
   alturaBanco_m: number;
   explosivo: PropiedadesExplosivo;
 
@@ -19,6 +24,8 @@ export interface EntradaVoladura {
   msPorMetroBurden?: number;
   /** Retardo entre taladros de una misma fila, ms por metro de espaciamiento (default 5; tipico <10 ms/m). */
   msPorMetroEspaciamiento?: number;
+  /** Indicador explícito si la labor es subterránea (túnel / galería). */
+  esTunel?: boolean;
 }
 
 export interface CargaTaladro {
@@ -27,6 +34,12 @@ export interface CargaTaladro {
   tiempoDetonacion_ms: number;
   fila: number;
   columna: number;
+  /** Zona geomecánica / técnica del taladro (alivio, cuadrante 1-4, producción, arrastre, cuadrador, corona, etc.) */
+  zona?: string;
+  /** Serie o número de período de detonador (ej. "MS 1", "MS 2", "LP 1", "LP 5", "0 ms") */
+  serieDetonador?: string;
+  /** Número de orden / período secuencial */
+  periodo?: number;
 }
 
 export interface ResultadoVoladura {
@@ -42,6 +55,8 @@ export interface ResultadoVoladura {
   retardoEntreTaladros_ms: number;
   duracionTotalSecuencia_ms: number;
   advertencias: string[];
+  /** Indica si el cálculo corresponde a una labor subterránea de túnel. */
+  esTunel?: boolean;
 }
 
 export const DEFAULTS_VOLADURA = {

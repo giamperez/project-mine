@@ -67,6 +67,7 @@ export interface Taladro {
   diametroMm: number;
   taco_m: number;
   longitudCarga_m: number;
+  zona?: string;
 }
 
 export interface ResultadoMallaPerforacion {

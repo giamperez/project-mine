@@ -139,3 +139,134 @@ describe("disenarVoladura (orquestador end-to-end sobre una malla real)", () => 
     expect(rExplosivoDebil.advertencias.some((a) => a.includes("Factor de carga global"))).toBe(true);
   });
 });
+
+describe("calcularSecuenciaIniciacionTunel (secuencias mineras subterráneas)", () => {
+  const taladrosTunel: Taladro[] = [
+    {
+      id: "AL-1",
+      fila: 0,
+      columna: 0,
+      collar: { x: 2.25, y: 2.25, z: 0 },
+      fondo: { x: 2.25, y: 2.25, z: 3.2 },
+      profundidad_m: 3.2,
+      diametroMm: 102,
+      taco_m: 0,
+      longitudCarga_m: 0,
+      zona: "alivio",
+    },
+    {
+      id: "C1-1",
+      fila: 1,
+      columna: 0,
+      collar: { x: 2.1, y: 2.1, z: 0 },
+      fondo: { x: 2.1, y: 2.1, z: 3.2 },
+      profundidad_m: 3.2,
+      diametroMm: 45,
+      taco_m: 0.6,
+      longitudCarga_m: 2.6,
+      zona: "cuadrante1",
+    },
+    {
+      id: "C2-1",
+      fila: 2,
+      columna: 0,
+      collar: { x: 1.8, y: 1.8, z: 0 },
+      fondo: { x: 1.8, y: 1.8, z: 3.2 },
+      profundidad_m: 3.2,
+      diametroMm: 45,
+      taco_m: 0.6,
+      longitudCarga_m: 2.6,
+      zona: "cuadrante2",
+    },
+    {
+      id: "PR-1",
+      fila: 3,
+      columna: 0,
+      collar: { x: 1.2, y: 2.0, z: 0 },
+      fondo: { x: 1.2, y: 2.0, z: 3.2 },
+      profundidad_m: 3.2,
+      diametroMm: 45,
+      taco_m: 0.6,
+      longitudCarga_m: 2.6,
+      zona: "produccion",
+    },
+    {
+      id: "AR-1",
+      fila: 4,
+      columna: 0,
+      collar: { x: 2.25, y: 0.2, z: 0 },
+      fondo: { x: 2.25, y: 0.2, z: 3.2 },
+      profundidad_m: 3.2,
+      diametroMm: 45,
+      taco_m: 0.6,
+      longitudCarga_m: 2.6,
+      zona: "arrastre",
+    },
+    {
+      id: "CD-1",
+      fila: 5,
+      columna: 0,
+      collar: { x: 0.2, y: 2.0, z: 0 },
+      fondo: { x: 0.2, y: 2.0, z: 3.2 },
+      profundidad_m: 3.2,
+      diametroMm: 45,
+      taco_m: 0.6,
+      longitudCarga_m: 2.6,
+      zona: "cuadrador",
+    },
+    {
+      id: "CO-1",
+      fila: 6,
+      columna: 0,
+      collar: { x: 2.25, y: 4.3, z: 0 },
+      fondo: { x: 2.25, y: 4.3, z: 3.2 },
+      profundidad_m: 3.2,
+      diametroMm: 45,
+      taco_m: 0.6,
+      longitudCarga_m: 2.6,
+      zona: "corona",
+    },
+  ];
+
+  it("tunel_concentrico: respeta la jerarquía geomecánica de tiempos (Alivio < Cuele < Ayudas < Producción < Arrastre < Cuadradores < Corona)", () => {
+    const r = disenarVoladura({
+      taladros: taladrosTunel,
+      burden_m: 0.8,
+      espaciamiento_m: 0.8,
+      alturaBanco_m: 3.2,
+      explosivo: { nombre: "Semexsa 65", densidadGcm3: 1.12, fuerzaRelativaANFO: 0.92 },
+      patronIniciacion: "tunel_concentrico",
+      esTunel: true,
+    });
+
+    const mapaTiempos = Object.fromEntries(r.cargas.map((c) => [c.taladroId, c.tiempoDetonacion_ms]));
+    expect(mapaTiempos["AL-1"]).toBe(0); // Alivio 0ms
+    expect(mapaTiempos["C1-1"]).toBe(25); // Cuele 25ms (MS 1)
+    expect(mapaTiempos["C2-1"]).toBe(50); // Ayuda 50ms (MS 2)
+    expect(mapaTiempos["PR-1"]).toBeGreaterThanOrEqual(150); // Producción >=150ms
+    expect(mapaTiempos["AR-1"]).toBeGreaterThan(mapaTiempos["PR-1"]); // Arrastre > Producción
+    expect(mapaTiempos["CD-1"]).toBeGreaterThan(mapaTiempos["AR-1"]); // Cuadrador > Arrastre
+    expect(mapaTiempos["CO-1"]).toBeGreaterThan(mapaTiempos["CD-1"]); // Corona detona al final (smooth blasting)
+
+    // Alivio no tiene peso de carga
+    const cargaAlivio = r.cargas.find((c) => c.taladroId === "AL-1");
+    expect(cargaAlivio?.pesoExplosivo_kg).toBe(0);
+  });
+
+  it("tunel_espiral: distribuye retardos radiales crecientes con rotación continua", () => {
+    const r = disenarVoladura({
+      taladros: taladrosTunel,
+      burden_m: 0.8,
+      espaciamiento_m: 0.8,
+      alturaBanco_m: 3.2,
+      explosivo: { nombre: "Semexsa 65", densidadGcm3: 1.12, fuerzaRelativaANFO: 0.92 },
+      patronIniciacion: "tunel_espiral",
+      esTunel: true,
+    });
+
+    expect(r.duracionTotalSecuencia_ms).toBeGreaterThan(900);
+    const cargaCorona = r.cargas.find((c) => c.taladroId === "CO-1");
+    expect(cargaCorona?.tiempoDetonacion_ms).toBeGreaterThanOrEqual(950);
+  });
+});
+

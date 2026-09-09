@@ -115,10 +115,19 @@ export default function EspacioMalla({ proyectoId = "malla-1", onVolverAlPortal 
   }, [explosivoGlobal, propiedadesExplosivoCompat, setEntrada]);
 
   const [entradaVoladura, setEntradaVoladura] = usePersistedState<EntradaVoladuraUI>("malla.entradaVoladura", {
-    patronIniciacion: "echelon",
+    patronIniciacion: modoDiseno === "tunel" ? "tunel_concentrico" : "echelon",
     msPorMetroBurden: DEFAULTS_VOLADURA.msPorMetroBurden,
     msPorMetroEspaciamiento: DEFAULTS_VOLADURA.msPorMetroEspaciamiento,
   });
+
+  // Ajustar automáticamente el patrón por defecto al cambiar entre Túnel y Banco
+  useEffect(() => {
+    if (modoDiseno === "tunel" && !entradaVoladura.patronIniciacion.startsWith("tunel_")) {
+      setEntradaVoladura((prev) => ({ ...prev, patronIniciacion: "tunel_concentrico" }));
+    } else if (modoDiseno === "banco" && entradaVoladura.patronIniciacion.startsWith("tunel_")) {
+      setEntradaVoladura((prev) => ({ ...prev, patronIniciacion: "echelon" }));
+    }
+  }, [modoDiseno, entradaVoladura.patronIniciacion, setEntradaVoladura]);
 
   const [reproduciendo, setReproduciendo] = useState(false);
   const [tiempoActual_ms, setTiempoActual_ms] = useState(0);
@@ -154,20 +163,65 @@ export default function EspacioMalla({ proyectoId = "malla-1", onVolverAlPortal 
     (entrada.poligonoCresta && entrada.poligonoCresta.length >= 3 ? resultado.taladros : []);
   const resultadoEfectivo = useMemo(() => ({ ...resultado, taladros: taladrosEfectivos }), [resultado, taladrosEfectivos]);
 
-  const resultadoVoladura = useMemo(
-    () =>
-      disenarVoladura({
-        taladros: taladrosEfectivos,
-        burden_m: resultado.burdenDiseno_m,
-        espaciamiento_m: resultado.espaciamiento_m,
-        alturaBanco_m: entrada.alturaBanco_m,
+  // Conversión técnica de taladros de túnel para el motor de voladura 3D y secuencia
+  const taladrosTunelConvertidos: Taladro[] = useMemo(() => {
+    if (taladrosTunel.length === 0) return [];
+    return taladrosTunel.map((t, idx) => ({
+      id: t.id,
+      fila: Math.floor(idx / 8),
+      columna: idx % 8,
+      collar: { x: t.x, y: t.y, z: 0 },
+      fondo: { x: t.x, y: t.y, z: entradaArranqueTunel.avance_m },
+      profundidad_m: entradaArranqueTunel.avance_m,
+      diametroMm: t.zona === "alivio" ? entradaArranqueTunel.diametroIndividualAlivio_mm : 45,
+      taco_m: t.zona === "alivio" ? 0 : 0.6,
+      longitudCarga_m: t.zona === "alivio" ? 0 : Math.max(0.5, entradaArranqueTunel.avance_m - 0.6),
+      zona: t.zona,
+    }));
+  }, [taladrosTunel, entradaArranqueTunel]);
+
+  const resultadoVoladura = useMemo(() => {
+    if (modoDiseno === "tunel") {
+      const taladrosUsar = taladrosTunelConvertidos.length > 0 ? taladrosTunelConvertidos : taladrosEfectivos;
+      const patron = entradaVoladura.patronIniciacion.startsWith("tunel_")
+        ? entradaVoladura.patronIniciacion
+        : "tunel_concentrico";
+
+      return disenarVoladura({
+        taladros: taladrosUsar,
+        burden_m: 0.8,
+        espaciamiento_m: 0.8,
+        alturaBanco_m: entradaArranqueTunel.avance_m,
         explosivo: entrada.explosivo,
-        patronIniciacion: entradaVoladura.patronIniciacion,
+        patronIniciacion: patron,
         msPorMetroBurden: entradaVoladura.msPorMetroBurden,
         msPorMetroEspaciamiento: entradaVoladura.msPorMetroEspaciamiento,
-      }),
-    [taladrosEfectivos, resultado.burdenDiseno_m, resultado.espaciamiento_m, entrada.alturaBanco_m, entrada.explosivo, entradaVoladura]
-  );
+        esTunel: true,
+      });
+    }
+
+    return disenarVoladura({
+      taladros: taladrosEfectivos,
+      burden_m: resultado.burdenDiseno_m,
+      espaciamiento_m: resultado.espaciamiento_m,
+      alturaBanco_m: entrada.alturaBanco_m,
+      explosivo: entrada.explosivo,
+      patronIniciacion: entradaVoladura.patronIniciacion,
+      msPorMetroBurden: entradaVoladura.msPorMetroBurden,
+      msPorMetroEspaciamiento: entradaVoladura.msPorMetroEspaciamiento,
+      esTunel: false,
+    });
+  }, [
+    modoDiseno,
+    taladrosTunelConvertidos,
+    taladrosEfectivos,
+    resultado.burdenDiseno_m,
+    resultado.espaciamiento_m,
+    entrada.alturaBanco_m,
+    entrada.explosivo,
+    entradaVoladura,
+    entradaArranqueTunel.avance_m,
+  ]);
 
   const opcionesEscena = useMemo(
     () => ({
@@ -469,6 +523,16 @@ export default function EspacioMalla({ proyectoId = "malla-1", onVolverAlPortal 
               taladros={taladrosTunel}
               resultadoGeometria={resultadoGeometriaTunel}
               entradaArranque={entradaArranqueTunel}
+              resultadoVoladura={resultadoVoladura}
+              entradaVoladura={entradaVoladura}
+              onCambiarEntradaVoladura={setEntradaVoladura}
+              taladrosFormateados={taladrosTunelConvertidos}
+              reproduciendo={reproduciendo}
+              tiempoActual_ms={tiempoActual_ms}
+              onPlay={handlePlay}
+              onPausar={handlePausar}
+              onReiniciar={handleReiniciar}
+              onExportarSecuenciaCSV={handleExportarSecuenciaCSV}
               oculto={pestana !== "tabla" && pestana !== "voladura"}
             />
           </main>

@@ -1,5 +1,6 @@
-import type { TaladroTunel, ResultadoGeometriaFrente, EntradaArranqueHolmberg } from "@suite/core";
+import type { TaladroTunel, ResultadoGeometriaFrente, EntradaArranqueHolmberg, ResultadoVoladura, Taladro } from "@suite/core";
 import type { SubPestanaDerecha } from "./PanelDerecho.js";
+import PanelVoladura, { type EntradaVoladuraUI } from "./PanelVoladura.js";
 import { useExplosivoGlobal } from "../../../hooks/useExplosivoGlobal.js";
 
 interface Props {
@@ -8,16 +9,36 @@ interface Props {
   taladros: TaladroTunel[];
   resultadoGeometria?: ResultadoGeometriaFrente;
   entradaArranque?: EntradaArranqueHolmberg;
+  resultadoVoladura?: ResultadoVoladura;
+  entradaVoladura?: EntradaVoladuraUI;
+  onCambiarEntradaVoladura?: (nueva: EntradaVoladuraUI) => void;
+  taladrosFormateados?: Taladro[];
+  reproduciendo?: boolean;
+  tiempoActual_ms?: number;
+  onPlay?: () => void;
+  onPausar?: () => void;
+  onReiniciar?: () => void;
+  onExportarSecuenciaCSV?: () => void;
   oculto?: boolean;
 }
 
-/** Panel derecho del modo Túnel / Galería subterránea — gestión de taladros y balance de voladura */
+/** Panel derecho del modo Túnel / Galería subterránea — gestión de taladros y simulación técnica de voladura */
 export default function PanelDerechoTunel({
   subPestana,
   onCambiarSubPestana,
   taladros,
   resultadoGeometria,
   entradaArranque,
+  resultadoVoladura,
+  entradaVoladura,
+  onCambiarEntradaVoladura,
+  taladrosFormateados,
+  reproduciendo = false,
+  tiempoActual_ms = 0,
+  onPlay = () => {},
+  onPausar = () => {},
+  onReiniciar = () => {},
+  onExportarSecuenciaCSV = () => {},
   oculto,
 }: Props) {
   const { explosivo } = useExplosivoGlobal();
@@ -42,98 +63,113 @@ export default function PanelDerechoTunel({
 
   const factorCarga_kgm3 = volumenRonda_m3 > 0 ? pesoExplosivoTotal_kg / volumenRonda_m3 : 1.35;
   const factorPotencia_kgt = tonelajeRonda_t > 0 ? pesoExplosivoTotal_kg / tonelajeRonda_t : 0.5;
-  const cartuchosTotales = Math.round(pesoExplosivoTotal_kg / 0.1); // ~100g por cartucho estándar de 7/8" o 1 1/8"
+  const cartuchosTotales = Math.round(pesoExplosivoTotal_kg / 0.1);
 
   return (
     <div className="panel-tabla panel-derecho" data-oculto={oculto}>
       {subPestana === "voladura" ? (
-        <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12 }}>
-          {/* Tarjeta de Explosivo Activo */}
-          <div
-            style={{
-              background: "rgba(249, 115, 22, 0.07)",
-              border: "1px solid rgba(249, 115, 22, 0.35)",
-              borderRadius: 8,
-              padding: "10px 12px",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: "#f97316" }}>
-                {explosivo.nombre}
-              </span>
-              <span style={{ fontSize: 10, color: "#cbd5e1", background: "#1e293b", padding: "2px 6px", borderRadius: 4 }}>
-                {explosivo.fabricante}
-              </span>
-            </div>
-            <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 6 }}>
-              {explosivo.usoPrincipal || "Explosivo industrial para galería subterránea"}
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, fontSize: 11 }}>
-              <div>VOD: <b style={{ color: "#38bdf8" }}>{explosivo.vodMs} m/s</b></div>
-              <div>Densidad: <b style={{ color: "#ffffff" }}>{explosivo.densidadGcm3} g/cm³</b></div>
-              <div>P. Det.: <b style={{ color: "#ffffff" }}>{explosivo.presionDetonacionKbar} kbar</b></div>
-              <div>Potencia RWS: <b style={{ color: "#10b981" }}>{explosivo.rwsPeso}% ANFO</b></div>
-            </div>
-          </div>
-
-          {/* Balance del Disparo de Galería */}
-          <div className="panel-seccion-card" style={{ margin: 0 }}>
-            <div className="panel-seccion-header">
-              <div className="panel-seccion-title">
-                <span className="seccion-icon-pill" style={{ color: "#10b981", background: "rgba(16,185,129,0.15)" }}>
-                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.2">
-                    <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
-                    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
-                  </svg>
+        resultadoVoladura && entradaVoladura && onCambiarEntradaVoladura ? (
+          <PanelVoladura
+            entrada={entradaVoladura}
+            onCambiarEntrada={onCambiarEntradaVoladura}
+            resultado={resultadoVoladura}
+            taladros={taladrosFormateados}
+            reproduciendo={reproduciendo}
+            tiempoActual_ms={tiempoActual_ms}
+            onPlay={onPlay}
+            onPausar={onPausar}
+            onReiniciar={onReiniciar}
+            onExportarCSV={onExportarSecuenciaCSV}
+          />
+        ) : (
+          <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12 }}>
+            {/* Tarjeta de Explosivo Activo */}
+            <div
+              style={{
+                background: "rgba(249, 115, 22, 0.07)",
+                border: "1px solid rgba(249, 115, 22, 0.35)",
+                borderRadius: 8,
+                padding: "10px 12px",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#f97316" }}>
+                  {explosivo.nombre}
                 </span>
-                <span>Balance del Disparo</span>
+                <span style={{ fontSize: 10, color: "#cbd5e1", background: "#1e293b", padding: "2px 6px", borderRadius: 4 }}>
+                  {explosivo.fabricante}
+                </span>
               </div>
-              <span className="panel-seccion-badge" style={{ background: "rgba(56,189,248,0.15)", color: "#38bdf8", border: "1px solid rgba(56,189,248,0.3)" }}>
-                {area_m2.toFixed(1)} m²
-              </span>
+              <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 6 }}>
+                {explosivo.usoPrincipal || "Explosivo industrial para galería subterránea"}
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, fontSize: 11 }}>
+                <div>VOD: <b style={{ color: "#38bdf8" }}>{explosivo.vodMs} m/s</b></div>
+                <div>Densidad: <b style={{ color: "#ffffff" }}>{explosivo.densidadGcm3} g/cm³</b></div>
+                <div>P. Det.: <b style={{ color: "#ffffff" }}>{explosivo.presionDetonacionKbar} kbar</b></div>
+                <div>Potencia RWS: <b style={{ color: "#10b981" }}>{explosivo.rwsPeso}% ANFO</b></div>
+              </div>
             </div>
-            <div className="panel-seccion-body">
-              <div className="resultados">
-                <div className="dato">
-                  <span>Volumen por round</span>
-                  <b>{volumenRonda_m3.toFixed(1)} m³</b>
+
+            {/* Balance del Disparo de Galería */}
+            <div className="panel-seccion-card" style={{ margin: 0 }}>
+              <div className="panel-seccion-header">
+                <div className="panel-seccion-title">
+                  <span className="seccion-icon-pill" style={{ color: "#10b981", background: "rgba(16,185,129,0.15)" }}>
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.2">
+                      <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+                      <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+                    </svg>
+                  </span>
+                  <span>Balance del Disparo</span>
                 </div>
-                <div className="dato">
-                  <span>Tonelaje de roca</span>
-                  <b>{tonelajeRonda_t.toFixed(1)} t</b>
-                </div>
-                <div className="dato">
-                  <span>Taladros cargados</span>
-                  <b>{taladrosCargados} de {totalTaladros}</b>
-                </div>
-                <div className="dato">
-                  <span>Carga por taladro</span>
-                  <b>{pesoPorTaladro_kg.toFixed(2)} kg</b>
-                </div>
-                <div className="dato">
-                  <span>Long. carga / Taco</span>
-                  <b>{longitudCarga_m.toFixed(2)}m / {taco_m.toFixed(2)}m</b>
-                </div>
-                <div className="dato">
-                  <span>Peso total explosivo</span>
-                  <b style={{ color: "#f97316" }}>{pesoExplosivoTotal_kg.toFixed(1)} kg</b>
-                </div>
-                <div className="dato">
-                  <span>Factor de carga (q)</span>
-                  <b style={{ color: "#10b981" }}>{factorCarga_kgm3.toFixed(2)} kg/m³</b>
-                </div>
-                <div className="dato">
-                  <span>Factor de potencia</span>
-                  <b>{factorPotencia_kgt.toFixed(2)} kg/t</b>
-                </div>
-                <div className="dato" style={{ gridColumn: "1 / -1" }}>
-                  <span>Cartuchos aprox. (~100g)</span>
-                  <b>{cartuchosTotales} cartuchos de {explosivo.nombre}</b>
+                <span className="panel-seccion-badge" style={{ background: "rgba(56,189,248,0.15)", color: "#38bdf8", border: "1px solid rgba(56,189,248,0.3)" }}>
+                  {area_m2.toFixed(1)} m²
+                </span>
+              </div>
+              <div className="panel-seccion-body">
+                <div className="resultados">
+                  <div className="dato">
+                    <span>Volumen por round</span>
+                    <b>{volumenRonda_m3.toFixed(1)} m³</b>
+                  </div>
+                  <div className="dato">
+                    <span>Tonelaje de roca</span>
+                    <b>{tonelajeRonda_t.toFixed(1)} t</b>
+                  </div>
+                  <div className="dato">
+                    <span>Taladros cargados</span>
+                    <b>{taladrosCargados} de {totalTaladros}</b>
+                  </div>
+                  <div className="dato">
+                    <span>Carga por taladro</span>
+                    <b>{pesoPorTaladro_kg.toFixed(2)} kg</b>
+                  </div>
+                  <div className="dato">
+                    <span>Long. carga / Taco</span>
+                    <b>{longitudCarga_m.toFixed(2)}m / {taco_m.toFixed(2)}m</b>
+                  </div>
+                  <div className="dato">
+                    <span>Peso total explosivo</span>
+                    <b style={{ color: "#f97316" }}>{pesoExplosivoTotal_kg.toFixed(1)} kg</b>
+                  </div>
+                  <div className="dato">
+                    <span>Factor de carga (q)</span>
+                    <b style={{ color: "#10b981" }}>{factorCarga_kgm3.toFixed(2)} kg/m³</b>
+                  </div>
+                  <div className="dato">
+                    <span>Factor de potencia</span>
+                    <b>{factorPotencia_kgt.toFixed(2)} kg/t</b>
+                  </div>
+                  <div className="dato" style={{ gridColumn: "1 / -1" }}>
+                    <span>Cartuchos aprox. (~100g)</span>
+                    <b>{cartuchosTotales} cartuchos de {explosivo.nombre}</b>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        )
       ) : (
         <div style={{ padding: 14, overflowX: "auto" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
@@ -175,4 +211,3 @@ export default function PanelDerechoTunel({
     </div>
   );
 }
-
