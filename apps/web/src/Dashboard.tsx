@@ -11,7 +11,7 @@ import {
 import { exportarProyectoJSON, limpiarProyectoLocal } from "./utils/proyecto.js";
 import { descargarTexto } from "./utils/descargar.js";
 
-export type ModuloId = "malla" | "topografia" | "geomecanica" | "estereografia" | "acarreo" | "modeloBloques";
+export type ModuloId = "malla" | "topografia" | "geomecanica" | "estereografia" | "acarreo" | "modeloBloques" | "modelo3d";
 
 interface DashboardProps {
   onSeleccionarModulo: (modulo: ModuloId) => void;
@@ -88,6 +88,16 @@ function IconoBloques() {
       <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
       <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
       <line x1="12" y1="8" x2="12" y2="15" strokeDasharray="2 2" />
+    </svg>
+  );
+}
+
+function IconoModelo3D() {
+  return (
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+      <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+      <line x1="12" y1="22.08" x2="12" y2="12" />
     </svg>
   );
 }
@@ -209,6 +219,10 @@ export default function Dashboard({ onSeleccionarModulo }: DashboardProps) {
     const colares = leerValorGuardado<any[]>("modeloBloques.colares", []);
     const bloquesActivo = colares.length > 0 ? `${colares.length} sondajes perforados` : "9 sondajes perforados";
 
+    // Modelo 3D
+    const proyectosModelo3D = leerValorGuardado<any[]>("modelo3d.listaProyectos", []);
+    const modelo3dActivo = `${proyectosModelo3D.length} proyecto${proyectosModelo3D.length === 1 ? "" : "s"}`;
+
     return {
       taladrosNum,
       taladrosSub,
@@ -224,6 +238,7 @@ export default function Dashboard({ onSeleccionarModulo }: DashboardProps) {
       acarreoSub,
       acarreoActivo,
       bloquesActivo,
+      modelo3dActivo,
     };
   }, []);
 
@@ -293,6 +308,17 @@ export default function Dashboard({ onSeleccionarModulo }: DashboardProps) {
       descripcion: "Sondajes de perforación, interpolación espacial 3D por ordinary kriging.",
       metricaClave: metricas.bloquesActivo,
       etiquetas: ["Sondajes DDH", "Kriging / IDW", "Ley de Corte 3D"],
+    },
+    {
+      id: "modelo3d" as ModuloId,
+      nombre: "Modelo 3D",
+      codigo: "ENG.MOD.v2.4",
+      categoria: "recursos",
+      Icono: IconoModelo3D,
+      color: "#38bdf8",
+      descripcion: "Visualización 3D de modelos de bloques, sondajes, curvas de nivel y wireframes en capas.",
+      metricaClave: metricas.modelo3dActivo,
+      etiquetas: ["Capas Independientes", "Wireframes Datamine", "Importar/Compartir"],
     },
   ];
 

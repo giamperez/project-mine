@@ -7,6 +7,7 @@ import { EspacioGeomecanica } from "./features/geomechanics/index.js";
 import { EspacioEstereografia } from "./features/stereonet/index.js";
 import { EspacioAcarreo } from "./features/haulage/index.js";
 import { EspacioModeloBloques } from "./features/block-model/index.js";
+import { PortalModelo3D, EspacioModelo3D } from "./features/model-3d/index.js";
 
 type Espacio = "dashboard" | ModuloId;
 
@@ -15,6 +16,7 @@ export default function App() {
   const [vistaModulo, setVistaModulo] = useState<"portal" | "taller">("portal");
 
   const [mallaActivaId, setMallaActivaId] = useState<string>("malla-1");
+  const [proyectoModelo3DId, setProyectoModelo3DId] = useState<string>("");
 
   function seleccionarModulo(m: ModuloId) {
     setEspacio(m);
@@ -24,6 +26,7 @@ export default function App() {
   function abrirTaller(id?: string) {
     if (id) {
       setMallaActivaId(id);
+      setProyectoModelo3DId(id);
     }
     setVistaModulo("taller");
   }
@@ -32,13 +35,17 @@ export default function App() {
     <div className="app-shell" data-espacio={espacio} data-vista={vistaModulo}>
       {espacio === "dashboard" && <Dashboard onSeleccionarModulo={(m) => seleccionarModulo(m)} />}
 
-      {espacio !== "dashboard" && vistaModulo === "portal" && (
+      {espacio !== "dashboard" && espacio !== "modelo3d" && vistaModulo === "portal" && (
         <ModuloPortal
           key={espacio}
           moduloId={espacio}
           onVolverDashboard={() => setEspacio("dashboard")}
           onAbrirTaller={(id) => abrirTaller(id)}
         />
+      )}
+
+      {espacio === "modelo3d" && vistaModulo === "portal" && (
+        <PortalModelo3D onVolverDashboard={() => setEspacio("dashboard")} onAbrirTaller={(id) => abrirTaller(id)} />
       )}
 
       {espacio !== "dashboard" && vistaModulo === "taller" && (
@@ -55,6 +62,13 @@ export default function App() {
           {espacio === "estereografia" && <EspacioEstereografia />}
           {espacio === "acarreo" && <EspacioAcarreo />}
           {espacio === "modeloBloques" && <EspacioModeloBloques />}
+          {espacio === "modelo3d" && (
+            <EspacioModelo3D
+              key={proyectoModelo3DId}
+              proyectoId={proyectoModelo3DId}
+              onVolverAlPortal={() => setVistaModulo("portal")}
+            />
+          )}
         </>
       )}
     </div>
