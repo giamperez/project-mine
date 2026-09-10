@@ -752,6 +752,17 @@ table.tabla-taladros td:first-child {
   }
 }
 
+/* Usado por varios "animation: fadeIn ..." en el archivo (antes sin definir: el navegador
+   ignoraba la animación en silencio, sin romper nada, pero tampoco se veía el fade). */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 /* Barra superior de telemetría de dispositivo móvil / minero */
 .mine-status-bar {
   display: flex;
@@ -8608,6 +8619,10 @@ table.tabla-taladros td:first-child {
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
 }
 
 .btn-v8-switch-item.activo {
@@ -8627,11 +8642,22 @@ table.tabla-taladros td:first-child {
   border-radius: 8px;
 }
 
+/* Zona de trabajo bajo el header: hijo flex (no absoluto contra toda la pantalla), así ocupa
+   exactamente el alto que sobra debajo del header sea cual sea su alto real (el header puede
+   envolver a 2 líneas en pantallas angostas sin desalinear nada de lo de aquí adentro). Todo lo
+   que antes se posicionaba "absolute" contra toda la página (canvas, docks, panel, status bar,
+   toast) ahora es relativo a esta caja en vez de restar a mano un "top" fijo tipo 54px/72px. */
+.v8-dron-stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
 /* Canvas Wrap */
 .v8-dron-canvas-wrap {
   position: absolute;
   inset: 0;
-  top: 54px;
   z-index: 10;
 }
 
@@ -8639,8 +8665,12 @@ table.tabla-taladros td:first-child {
 .v8-dron-dock-left {
   position: absolute;
   left: 12px;
-  top: 70px;
-  bottom: 65px;
+  top: 14px;
+  /* Alto según su contenido (los botones de capas), no estirado a una franja fija — antes
+     "bottom: 65px" armaba una píldora larga que sobraba muy por debajo del último botón.
+     max-height sigue acotando por si el contenido no entrara en pantallas muy bajas. */
+  bottom: auto;
+  max-height: calc(100% - 79px);
   width: 52px;
   background: rgba(18, 12, 24, 0.92);
   border: 1.5px solid rgba(236, 72, 153, 0.45);
@@ -8661,9 +8691,38 @@ table.tabla-taladros td:first-child {
   display: none;
 }
 
+/* Dock de capas comprimido: se encoge a una píldora chica con solo el botón de expandir,
+   en vez de mantener el alto fijo completo ocupando media pantalla en móvil. */
+.v8-dron-dock-left.colapsado {
+  bottom: auto;
+  height: auto;
+  padding: 6px 4px;
+  gap: 0;
+}
+
+.btn-v8-dock-toggle {
+  width: 42px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  border: 1px solid rgba(236, 72, 153, 0.35);
+  background: rgba(255, 255, 255, 0.05);
+  color: #ec4899;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-v8-dock-toggle:hover {
+  background: rgba(236, 72, 153, 0.18);
+}
+
 .v8-dock-header-icon {
   color: #ec4899;
   margin-bottom: 2px;
+  margin-top: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -8693,7 +8752,9 @@ table.tabla-taladros td:first-child {
 }
 
 .v8-layer-eye {
-  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .v8-layer-label {
@@ -8706,8 +8767,11 @@ table.tabla-taladros td:first-child {
 .v8-dron-dock-right {
   position: absolute;
   right: 12px;
-  top: 70px;
-  bottom: 65px;
+  top: 14px;
+  /* Igual que el dock izquierdo: alto según contenido, no una franja fija que sobrepasa
+     el último botón (RESULT). */
+  bottom: auto;
+  max-height: calc(100% - 79px);
   width: 56px;
   background: rgba(18, 12, 24, 0.92);
   border: 1.5px solid rgba(236, 72, 153, 0.45);
@@ -9199,10 +9263,275 @@ table.tabla-taladros td:first-child {
   color: #ffffff;
 }
 
+/* ── Selector de fotos en etapa EDITAR ── */
+.v8-edit-selector-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: rgba(236, 72, 153, 0.05);
+  border: 1px solid rgba(236, 72, 153, 0.2);
+  border-radius: 14px;
+  padding: 10px 10px 8px;
+  margin-bottom: 4px;
+}
+
+.v8-edit-selector-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.v8-edit-selector-label {
+  font-size: 10px;
+  font-weight: 800;
+  color: #f472b6;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.v8-edit-selector-counter {
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.5);
+  font-variant-numeric: tabular-nums;
+}
+
+.v8-edit-pager-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Tira scrollable de miniaturas */
+.v8-edit-thumb-strip {
+  display: flex;
+  gap: 5px;
+  overflow-x: auto;
+  flex: 1;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(236, 72, 153, 0.4) transparent;
+  padding-bottom: 2px;
+}
+.v8-edit-thumb-strip::-webkit-scrollbar {
+  height: 3px;
+}
+.v8-edit-thumb-strip::-webkit-scrollbar-thumb {
+  background: rgba(236, 72, 153, 0.4);
+  border-radius: 2px;
+}
+
+/* Botón de miniatura individual */
+.v8-edit-thumb-btn {
+  position: relative;
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  border-radius: 8px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  background: rgba(18, 12, 28, 0.9);
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color 0.15s, transform 0.1s;
+  scroll-snap-align: start;
+}
+.v8-edit-thumb-btn:hover {
+  border-color: rgba(236, 72, 153, 0.6);
+  transform: scale(1.06);
+}
+.v8-edit-thumb-btn.activo {
+  border-color: #ec4899;
+  box-shadow: 0 0 0 2px rgba(236, 72, 153, 0.3);
+}
+
+/* Imagen real de la miniatura */
+.v8-edit-thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Placeholder cuando no hay foto real */
+.v8-edit-thumb-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(236, 72, 153, 0.5);
+}
+
+/* Número de la foto sobre la miniatura */
+.v8-edit-thumb-num {
+  position: absolute;
+  bottom: 2px;
+  left: 3px;
+  font-size: 9px;
+  font-weight: 900;
+  color: #ffffff;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+  line-height: 1;
+}
+
+/* Punto verde = tiene ajuste manual aplicado */
+.v8-edit-thumb-dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  border: 1.5px solid rgba(0,0,0,0.6);
+  box-shadow: 0 0 4px rgba(16, 185, 129, 0.7);
+}
+
 .v8-step-label {
   font-size: 11px;
   font-weight: 800;
   color: #ffffff;
+}
+
+.v8-ref-mode-toggle {
+  display: flex;
+  background: rgba(0, 0, 0, 0.45);
+  padding: 3px;
+  border-radius: 10px;
+  border: 1px solid rgba(236, 72, 153, 0.25);
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.v8-ref-mode-btn {
+  flex: 1;
+  padding: 6px 8px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: center;
+}
+
+.v8-ref-mode-btn.active {
+  background: linear-gradient(135deg, #ec4899, #db2777);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(236, 72, 153, 0.4);
+}
+
+.v8-ref-tabs-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.v8-ref-tab-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 7px 9px;
+  border-radius: 9px;
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+}
+
+.v8-ref-tab-btn.tab-base.active {
+  border-color: #06b6d4;
+  background: rgba(6, 182, 212, 0.12);
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.25);
+}
+
+.v8-ref-tab-btn.tab-target.active {
+  border-color: #ec4899;
+  background: rgba(236, 72, 153, 0.12);
+  box-shadow: 0 0 10px rgba(236, 72, 153, 0.25);
+}
+
+.v8-ref-tab-tag {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.tab-base .v8-ref-tab-tag {
+  color: #22d3ee;
+}
+
+.tab-target .v8-ref-tab-tag {
+  color: #f472b6;
+}
+
+.v8-ref-tab-name {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.v8-ref-tab-badge {
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  font-size: 8.5px;
+  font-weight: 900;
+  padding: 1px 5px;
+  border-radius: 8px;
+}
+
+.v8-ref-tab-badge.badge-set-cyan {
+  background: #0891b2;
+  color: #ffffff;
+}
+
+.v8-ref-tab-badge.badge-set-pink {
+  background: #db2777;
+  color: #ffffff;
+}
+
+.v8-ref-tab-badge.badge-pending {
+  background: rgba(255, 255, 255, 0.12);
+  color: #94a3b8;
+}
+
+.v8-ref-neighbor-select-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(6, 182, 212, 0.06);
+  border: 1px solid rgba(6, 182, 212, 0.25);
+  border-radius: 8px;
+  padding: 5px 8px;
+  margin-bottom: 6px;
+  font-size: 10px;
+}
+
+.v8-ref-neighbor-label {
+  color: #22d3ee;
+  font-weight: 700;
+}
+
+.v8-ref-neighbor-select {
+  background: #0f172a;
+  color: #ffffff;
+  border: 1px solid rgba(6, 182, 212, 0.4);
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
 }
 
 .v8-interactive-ref-card {
@@ -9214,6 +9543,11 @@ table.tabla-taladros td:first-child {
   position: relative;
   cursor: crosshair;
   overflow: hidden;
+  user-select: none;
+}
+
+.v8-interactive-ref-card.theme-cyan {
+  border-color: rgba(6, 182, 212, 0.45);
 }
 
 .v8-ref-mock-canvas {
@@ -9234,6 +9568,10 @@ table.tabla-taladros td:first-child {
   position: relative;
 }
 
+.v8-crosshair-reticle.reticle-cyan {
+  border-color: #06b6d4;
+}
+
 .v8-crosshair-reticle::before {
   content: "";
   position: absolute;
@@ -9243,6 +9581,10 @@ table.tabla-taladros td:first-child {
   height: 1.5px;
   background: #ec4899;
   transform: translateY(-50%);
+}
+
+.v8-crosshair-reticle.reticle-cyan::before {
+  background: #06b6d4;
 }
 
 .v8-crosshair-reticle::after {
@@ -9256,11 +9598,183 @@ table.tabla-taladros td:first-child {
   transform: translateX(-50%);
 }
 
+.v8-crosshair-reticle.reticle-cyan::after {
+  background: #06b6d4;
+}
+
 .v8-reticle-hint {
   position: absolute;
   bottom: 8px;
   font-size: 9.5px;
   color: #94a3b8;
+  pointer-events: none;
+}
+
+/* ── Punto de referencia marcado sobre la foto ── */
+.v8-ref-punto {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 20px;
+  pointer-events: none;
+}
+
+.v8-ref-punto-cruz {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.v8-ref-punto-cruz::before,
+.v8-ref-punto-cruz::after {
+  content: "";
+  position: absolute;
+  background: #ff007f;
+  box-shadow: 0 0 6px rgba(255,0,127,0.9);
+}
+.v8-ref-punto-cruz::before {
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  transform: translateX(-50%);
+}
+.v8-ref-punto-cruz::after {
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 2px;
+  transform: translateY(-50%);
+}
+
+.v8-ref-punto.punto-cyan .v8-ref-punto-cruz::before,
+.v8-ref-punto.punto-cyan .v8-ref-punto-cruz::after {
+  background: #06b6d4;
+  box-shadow: 0 0 6px rgba(6, 182, 212, 0.9);
+}
+
+.v8-ref-punto-num {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  font-weight: 900;
+  color: #ff007f;
+  background: rgba(0,0,0,0.85);
+  border: 1px solid #ff007f;
+  border-radius: 3px;
+  padding: 0 4px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.v8-ref-punto.punto-cyan .v8-ref-punto-num {
+  color: #22d3ee;
+  border-color: #06b6d4;
+}
+
+/* ── Caja de corrección XY calculada ── */
+.v8-alinea-result-box {
+  background: rgba(236, 72, 153, 0.08);
+  border: 1px solid rgba(236, 72, 153, 0.4);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.v8-alinea-result-label {
+  font-size: 10px;
+  font-weight: 800;
+  color: #f472b6;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.v8-alinea-result-value {
+  font-size: 12px;
+  font-weight: 800;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+}
+
+.v8-alinea-result-details {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  font-size: 9.5px;
+  color: #cbd5e1;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 4px 6px;
+  border-radius: 6px;
+}
+
+.v8-alinea-result-hint {
+  font-size: 9.5px;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.4;
+}
+
+/* ── Fila de botones Limpiar / Deshacer ── */
+.v8-alinea-btns-row {
+  display: flex;
+  gap: 6px;
+}
+
+.btn-v8-secondary-sm {
+  flex: 1;
+  padding: 8px 6px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(236, 72, 153, 0.45);
+  background: transparent;
+  color: #f472b6;
+  font-size: 9.5px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  letter-spacing: 0.03em;
+  text-align: center;
+}
+.btn-v8-secondary-sm:hover {
+  background: rgba(236, 72, 153, 0.12);
+  border-color: #ec4899;
+}
+
+.btn-v8-secondary-sm.btn-danger-subtle {
+  border-color: rgba(244, 63, 94, 0.4);
+  color: #fb7185;
+}
+.btn-v8-secondary-sm.btn-danger-subtle:hover {
+  background: rgba(244, 63, 94, 0.15);
+  border-color: #f43f5e;
+}
+
+/* ── Sección de orientación fotogramétrica ── */
+.v8-alinea-orient-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.v8-alinea-orient-title {
+  font-size: 11px;
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: 0.05em;
+}
+
+.v8-alinea-orient-desc {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 1.45;
+  margin: 0;
 }
 
 /* Status Bar Pill */
@@ -9291,8 +9805,10 @@ table.tabla-taladros td:first-child {
 
 .v8-toast-pill {
   position: absolute;
-  top: 64px;
+  top: 14px;
   left: 50%;
+  max-width: calc(100% - 24px);
+  text-align: center;
   transform: translateX(-50%);
   background: #db2777;
   color: #ffffff;
@@ -9303,6 +9819,99 @@ table.tabla-taladros td:first-child {
   box-shadow: 0 4px 16px rgba(219, 39, 119, 0.5);
   z-index: 50;
   animation: fadeIn 0.2s ease;
+}
+
+/* Overlay de progreso (carga de fotos / telemetría) — deja explícito que la app está
+   trabajando y cuánto falta, para que una carga de varios segundos no se lea como que se
+   colgó. Cubre el stage (canvas + docks + panel) pero no el header. */
+.v8-carga-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(12, 7, 18, 0.6);
+  backdrop-filter: blur(3px);
+  animation: fadeIn 0.15s ease;
+}
+
+.v8-carga-card {
+  width: min(300px, 84%);
+  background: rgba(18, 12, 24, 0.97);
+  border: 1.5px solid rgba(236, 72, 153, 0.5);
+  border-radius: 18px;
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.7), 0 0 20px rgba(236, 72, 153, 0.25);
+}
+
+.v8-carga-spinner {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 3px solid rgba(236, 72, 153, 0.22);
+  border-top-color: #ec4899;
+  animation: v8SpinLoader 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes v8SpinLoader {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.v8-carga-texto {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-align: center;
+}
+
+.v8-carga-mensaje {
+  font-size: 13px;
+  font-weight: 800;
+  color: #f8fafc;
+}
+
+.v8-carga-contador {
+  font-size: 11px;
+  font-weight: 700;
+  color: #ec4899;
+  font-variant-numeric: tabular-nums;
+}
+
+.v8-carga-barra-track {
+  width: 100%;
+  height: 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.v8-carga-barra-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #ec4899, #db2777);
+  transition: width 0.2s ease;
+}
+
+/* Modo indeterminado: se activa cuando la barra está al 0% (cómputo síncrónico sin pasos) */
+.v8-carga-barra-fill[data-indeterminado="true"] {
+  width: 45% !important;
+  animation: v8BarraShimmer 1.2s ease-in-out infinite;
+  background: linear-gradient(90deg, transparent, #ec4899, #f472b6, #ec4899, transparent);
+  background-size: 200% 100%;
+}
+
+@keyframes v8BarraShimmer {
+  0%   { transform: translateX(-80%); }
+  100% { transform: translateX(250%); }
 }
 
 /* Tarjeta de advertencia / aviso ámbar */
@@ -9609,16 +10218,21 @@ table.tabla-taladros td:first-child {
   margin: 6px 0;
 }
 
-/* Responsividad móvil del taller de Dron/Fotogrametría (V8) — antes no tenía ninguna media query:
-   docks, header y barra de estado usaban anchos/paddings fijos que se desbordaban en pantallas
-   angostas (texto cortado como "PLA..." o "CRS local..."). */
+/* Responsividad móvil del taller de Dron/Fotogrametría (V8). El header y los docks/canvas viven
+   en cajas separadas (.v8-dron-header en flujo normal, .v8-dron-stage como hijo flex que ocupa
+   el resto) — así el canvas/docks ya no necesitan un "top" calculado a mano que se desincroniza
+   apenas el header envuelve a 2 líneas en pantallas angostas. */
 @media (max-width: 600px) {
   .v8-dron-header {
     height: auto;
     min-height: 46px;
     flex-wrap: wrap;
     padding: 6px 8px;
-    gap: 6px;
+    gap: 4px;
+  }
+
+  .v8-dron-header-left {
+    width: 100%;
   }
 
   .v8-dron-title {
@@ -9629,11 +10243,25 @@ table.tabla-taladros td:first-child {
     font-size: 8px;
   }
 
+  /* Los presets (VUELO/TERRENO 3D/HÍBRIDO/PLANTA/3D) ya no envuelven de forma impredecible:
+     quedan en una sola fila que se desliza horizontalmente si no entran todos. */
   .v8-dron-header-right {
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 6px;
     width: 100%;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    gap: 6px;
+    scrollbar-width: none;
+    padding-bottom: 1px;
+  }
+
+  .v8-dron-header-right::-webkit-scrollbar {
+    display: none;
+  }
+
+  .v8-dron-view-switch,
+  .btn-v8-header-icon {
+    flex-shrink: 0;
   }
 
   .v8-dron-view-switch {
@@ -9647,14 +10275,16 @@ table.tabla-taladros td:first-child {
     border-radius: 10px;
   }
 
-  .v8-dron-canvas-wrap {
-    top: 72px;
+  .btn-v8-switch-item svg {
+    width: 11px;
+    height: 11px;
   }
 
   .v8-dron-dock-left,
   .v8-dron-dock-right {
-    top: 6px;
-    bottom: 52px;
+    top: 8px;
+    bottom: auto;
+    max-height: calc(100% - 60px);
     width: 38px;
     padding: 5px 3px;
     gap: 4px;
@@ -9669,6 +10299,12 @@ table.tabla-taladros td:first-child {
     right: 5px;
   }
 
+  .btn-v8-dock-toggle {
+    width: 30px;
+    height: 22px;
+    border-radius: 8px;
+  }
+
   .btn-v8-layer-toggle {
     width: 30px;
     height: 32px;
@@ -9681,13 +10317,25 @@ table.tabla-taladros td:first-child {
     border-radius: 10px;
   }
 
-  .v8-layer-eye {
-    font-size: 9.5px;
+  .v8-layer-eye svg {
+    width: 11px;
+    height: 11px;
   }
 
   .v8-layer-label,
   .btn-v8-stage-item span {
     font-size: 6.2px;
+  }
+
+  /* El panel flotante de la etapa activa (FOTOS/EDITAR/...) es lo que más espacio ocupaba en
+     móvil; se acota su alto y se angosta el margen lateral acorde a los docks ya más finos. */
+  .v8-stage-floating-panel {
+    width: calc(100% - 16px);
+    max-width: none;
+    max-height: 42vh;
+    bottom: 44px;
+    border-radius: 18px;
+    padding: 12px 14px;
   }
 
   .v8-dron-statusbar {

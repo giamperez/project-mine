@@ -4,6 +4,12 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { generarCurvasNivel, triangularSuperficie, type PuntoTopografico } from "@suite/core";
 import { extraerMetadataFoto, proyectarFotosDron } from "./exifDron.js";
 
+// Sin esto, three.js vuelve a descargar y decodificar cada foto cada vez que se reconstruye
+// la escena (p. ej. al alternar una capa o cambiar de vista con VUELO/HÍBRIDO) aunque la
+// textura ya se haya cargado antes — es la causa principal de que "habilitar una vista" se
+// sienta lento. Con la cache activada, un mismo vuelo reutiliza las texturas ya decodificadas.
+THREE.Cache.enabled = true;
+
 // Relieve topográfico bare-earth (pendiente natural y depresiones) usado tanto para la superficie
 // MDT como para las curvas de nivel — deben leer la MISMA función de altura para que las curvas
 // coincidan con el relieve realmente dibujado (antes, las curvas eran un patrón senoidal aparte
@@ -15,6 +21,60 @@ function alturaTerrenoBareEarth(vx: number, vy: number): number {
 // Ancho (en unidades de escena) del frustum de la cámara ortográfica en zoom 1x.
 // El encuadre automático ajusta camara.zoom sobre esta base para cubrir el bloque de vuelo real.
 const ORTHO_FRUSTUM = 18;
+
+// Set de iconos de línea (mismo estilo que el resto de la suite) para reemplazar los emojis
+// de los presets de vista y los toggles de capa — se ven consistentes en cualquier SO/navegador.
+function IconDron() {
+  return (
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="5" cy="5" r="2" />
+      <circle cx="19" cy="5" r="2" />
+      <circle cx="5" cy="19" r="2" />
+      <circle cx="19" cy="19" r="2" />
+      <path d="M6.4 6.4 10 10M17.6 6.4 14 10M6.4 17.6 10 14M17.6 17.6 14 14" />
+      <rect x="9.5" y="9.5" width="5" height="5" rx="1" />
+    </svg>
+  );
+}
+
+function IconTerreno() {
+  return (
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 19 9 7l4 6 2-3 6 9H3z" />
+    </svg>
+  );
+}
+
+function IconHibrido() {
+  return (
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="9.5" cy="12" r="6" />
+      <circle cx="14.5" cy="12" r="6" />
+    </svg>
+  );
+}
+
+function IconRayo() {
+  return (
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+      <path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z" />
+    </svg>
+  );
+}
+
+function IconOjo({ visible }: { visible: boolean }) {
+  return visible ? (
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  ) : (
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a18.5 18.5 0 0 1 4.22-5.94M9.9 4.24A10.4 10.4 0 0 1 12 4c7 0 11 8 11 8a18.4 18.4 0 0 1-2.16 3.19M14.12 14.12a3 3 0 1 1-4.24-4.24" />
+      <line x1="1" y1="1" x2="23" y2="23" />
+    </svg>
+  );
+}
 
 interface Props {
   proyectoId: string;
@@ -55,8 +115,15 @@ export default function EspacioDronFotogrametria({
 
   // Etapa activa del dock derecho
   const [etapaActiva, setEtapaActiva] = useState<EtapaDron>("FOTOS");
-  const [panelMinimizado, setPanelMinimizado] = useState(false);
+  // En pantallas angostas el panel flotante arranca minimizado: abierto por defecto dejaba
+  // ver solo una franja mínima del visor 3D detrás suyo. El usuario lo expande con el "+".
+  const [panelMinimizado, setPanelMinimizado] = useState(
+    () => typeof window !== "undefined" && window.innerWidth <= 600
+  );
   const [panelOculto, setPanelOculto] = useState(false);
+  // Dock izquierdo (capas) comprimible: en pantallas angostas ocupa mucho alto fijo;
+  // se puede colapsar a una píldora chica y expandir de nuevo.
+  const [dockCapasColapsado, setDockCapasColapsado] = useState(false);
 
   // Capas de visibilidad del dock izquierdo
   const [capas, setCapas] = useState({
@@ -168,8 +235,25 @@ export default function EspacioDronFotogrametria({
   const [fotoIndex, setFotoIndex] = useState(0);
   const fotoActual = fotos[fotoIndex] || fotos[0];
 
-  // Puntos de referencia para alineación
-  const [referencias, setReferencias] = useState<{ x: number; y: number; fotoId: string }[]>([]);
+  // Puntos y soluciones de referencia para alineación fotogramétrica (Etapa 3)
+  const [referenciasGuardadas, setReferenciasGuardadas] = useState<{
+    id: string;
+    fotoBaseId: string;
+    fotoBaseNombre: string;
+    fotoTargetId: string;
+    fotoTargetNombre: string;
+    dx: number;
+    dy: number;
+    dist: number;
+    puntoBase?: { x: number; y: number };
+    puntoTarget?: { x: number; y: number };
+  }[]>([]);
+  const [refModo, setRefModo] = useState<"DOS_FOTOS" | "UNA_FOTO">("DOS_FOTOS");
+  const [refFotoBaseIdx, setRefFotoBaseIdx] = useState<number>(0);
+  const [refPasoActivo, setRefPasoActivo] = useState<"BASE" | "TARGET">("BASE");
+  const [puntoBase, setPuntoBase] = useState<{ x: number; y: number } | null>(null);
+  const [puntoTarget, setPuntoTarget] = useState<{ x: number; y: number } | null>(null);
+  const [puntosUnaFoto, setPuntosUnaFoto] = useState<{ x: number; y: number }[]>([]);
 
   // Referencias a Three.js
   const contenedorRef = useRef<HTMLDivElement>(null);
@@ -181,14 +265,49 @@ export default function EspacioDronFotogrametria({
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const controlesRef = useRef<OrbitControls | null>(null);
   const grupoEscenaRef = useRef<THREE.Group | null>(null);
+  // Refs a materiales de huella y cámara por índice de foto:
+  // se usan para actualizar SOLO el color activo al cambiar fotoIndex,
+  // sin reconstruir ningún objeto de la escena.
+  const huellaMatRefsRef = useRef<Map<number, THREE.LineBasicMaterial>>(new Map());
+  const camMatRefsRef = useRef<Map<number, THREE.MeshStandardMaterial>>(new Map());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
+
+  // Mensaje de confirmación al activar/desactivar cada capa. Se guardan las dos frases ya
+  // conjugadas (no un nombre + sufijo genérico) porque el género/número varía por capa:
+  // "Cámaras activadas" pero "Plano del terreno activado".
+  const CAPA_MENSAJE: Record<keyof typeof capas, { on: string; off: string }> = {
+    foto: { on: "Fotos activadas", off: "Fotos desactivadas" },
+    huella: { on: "Huellas activadas", off: "Huellas desactivadas" },
+    vuelo: { on: "Trayectoria de vuelo activada", off: "Trayectoria de vuelo desactivada" },
+    cam: { on: "Cámaras activadas", off: "Cámaras desactivadas" },
+    sfm: { on: "Puntos SfM activados", off: "Puntos SfM desactivados" },
+    nube: { on: "Nube densa activada", off: "Nube densa desactivada" },
+    sup: { on: "Plano del terreno activado", off: "Plano del terreno desactivado" },
+    curva: { on: "Curvas de nivel activadas", off: "Curvas de nivel desactivadas" },
+  };
+
+  // Capas que requieren recálculo 3D pesado (triangulación, Delaunay, nube de puntos).
+  // Al activarlas se muestra el overlay de carga antes de que el efecto bloquee el hilo.
+  const CAPAS_PESADAS: Array<keyof typeof capas> = ["sfm", "nube", "sup", "curva"];
+
+  const CAPA_CARGANDO: Partial<Record<keyof typeof capas, string>> = {
+    sfm: "Generando nube dispersa SfM",
+    nube: "Construyendo nube densa de puntos",
+    sup: "Calculando superficie MDT",
+    curva: "Calculando curvas de nivel",
+  };
 
   // Toggle de capas
   const toggleCapa = (key: keyof typeof capas) => {
     setCapas((prev) => {
       const next = { ...prev, [key]: !prev[key] };
-      showToast(`${key.toUpperCase()}: ${next[key] ? "Visible" : "Oculto"}`);
+      showToast(next[key] ? CAPA_MENSAJE[key].on : CAPA_MENSAJE[key].off);
+      // Mostrar overlay inmediato al ACTIVAR capas que hacen cómputo pesado en el hilo principal
+      if (next[key] && CAPAS_PESADAS.includes(key)) {
+        const mensajeCarga = CAPA_CARGANDO[key] ?? "Procesando capa";
+        setCargaEstado({ mensaje: mensajeCarga, actual: 0, total: 0 });
+      }
       return next;
     });
   };
@@ -379,6 +498,10 @@ export default function EspacioDronFotogrametria({
   }, []);
 
   const [cargandoMuestra, setCargandoMuestra] = useState(false);
+  // Estado de carga con progreso visible (barra + contador) para operaciones largas —
+  // leer EXIF/XMP de decenas de fotos puede tardar varios segundos y sin una señal clara
+  // de avance parece que la app se colgó. null = sin carga en curso.
+  const [cargaEstado, setCargaEstado] = useState<{ mensaje: string; actual: number; total: number } | null>(null);
   const textureLoader = useMemo(() => new THREE.TextureLoader(), []);
 
   // Encuadra la cámara activa (persp o ortho) sobre el bloque de vuelo real y aplica
@@ -445,8 +568,42 @@ export default function EspacioDronFotogrametria({
       grupo.remove(child);
       if ((child as THREE.Mesh).geometry) (child as THREE.Mesh).geometry.dispose();
     }
+    // Resetear refs de materiales — se repoblan durante el loop de fotos a continuación
+    huellaMatRefsRef.current.clear();
+    camMatRefsRef.current.clear();
 
     const vueloPuntos: THREE.Vector3[] = [];
+
+    // Progreso de textura al (re)activar la capa FOTO: cada vez que se alterna una vista con
+    // fotos reales (p. ej. VUELO/HÍBRIDO), three.js vuelve a decodificar hasta ~48 imágenes y
+    // eso puede tardar unos segundos — sin señal visible se ve trabado. El contador es propio
+    // de esta pasada del efecto (no un LoadingManager global) para que dos activaciones
+    // seguidas no se pisen los contadores entre sí.
+    let efectoVigente = true;
+    const totalTexturas = capas.foto ? fotos.filter((f) => f.url).length : 0;
+    let texturasListas = 0;
+    if (totalTexturas > 0) {
+      setCargaEstado({ mensaje: "Cargando texturas de fotos", actual: 0, total: totalTexturas });
+    }
+    const marcarTexturaLista = () => {
+      if (!efectoVigente) return;
+      texturasListas += 1;
+      setCargaEstado((prev) => {
+        if (!prev || prev.mensaje !== "Cargando texturas de fotos") return prev;
+        return texturasListas >= totalTexturas ? null : { ...prev, actual: texturasListas };
+      });
+    };
+
+    // Las capas pesadas (sfm, nube, sup, curva) ejecutan cómputo costoso en el hilo principal;
+    // el toggleCapa ya activa el overlay antes de que llegue aquí, pero por si el efecto
+    // corre sin pasar por toggleCapa (cambio de fotos, intervalo, etc.) lo garantizamos aquí.
+    // Se apaga en el cleanup o al terminar el cómputo pesado.
+    const hayCapaPesadaActiva = capas.sfm || capas.nube || capas.sup || capas.curva;
+    let timeoutCapaPesada: ReturnType<typeof setTimeout> | null = null;
+    if (hayCapaPesadaActiva && totalTexturas === 0) {
+      // El overlay ya puede estar puesto por toggleCapa; si no, lo ponemos ahora.
+      setCargaEstado((prev) => prev ?? { mensaje: "Procesando escena 3D", actual: 0, total: 0 });
+    }
 
     fotos.forEach((foto, i) => {
       const posX = foto.centroX + foto.offsetX;
@@ -464,7 +621,7 @@ export default function EspacioDronFotogrametria({
         const geom = new THREE.PlaneGeometry(anchoPlano, altoPlano);
         let mat: THREE.MeshBasicMaterial;
         if (foto.url) {
-          const tex = textureLoader.load(foto.url);
+          const tex = textureLoader.load(foto.url, marcarTexturaLista, undefined, marcarTexturaLista);
           tex.minFilter = THREE.LinearFilter;
           tex.magFilter = THREE.LinearFilter;
           mat = new THREE.MeshBasicMaterial({
@@ -497,10 +654,12 @@ export default function EspacioDronFotogrametria({
           new THREE.Vector3(-anchoPlano / 2, -altoPlano / 2, 0),
         ];
         const lineGeom = new THREE.BufferGeometry().setFromPoints(pts);
+        // Color inicial neutro — el efecto de fotoIndex lo pondrá activo enseguida
         const lineMat = new THREE.LineBasicMaterial({
-          color: i === fotoIndex ? 0xff007f : 0xf472b6,
-          linewidth: i === fotoIndex ? 2.5 : 1.5,
+          color: 0xf472b6,
+          linewidth: 1.5,
         });
+        huellaMatRefsRef.current.set(i, lineMat);
         const box = new THREE.Line(lineGeom, lineMat);
         box.position.set(posX, posY, posZ + 0.04 * i);
         box.rotation.z = -rotRad;
@@ -536,17 +695,16 @@ export default function EspacioDronFotogrametria({
       if (capas.cam) {
         const coneRadius = Math.max(0.4, anchoPlano * 0.035);
         const coneHeight = coneRadius * 2.2;
-        // La escena usa Z como "arriba" (persp.up = (0,0,1)), pero ConeGeometry nace con su eje
-        // en Y: rotar solo Math.PI lo deja apuntando en -Y (de costado). Rotar -PI/2 lleva el
-        // ápice a -Z, es decir, apuntando al nadir (recto hacia el suelo bajo la cámara).
         const camGeom = new THREE.ConeGeometry(coneRadius, coneHeight, 12);
         camGeom.rotateX(-Math.PI / 2);
+        // Color inicial neutro — el efecto de fotoIndex lo activará enseguida
         const camMat = new THREE.MeshStandardMaterial({
-          color: i === fotoIndex ? 0xff007f : 0xf59e0b,
-          emissive: i === fotoIndex ? 0xff007f : 0xd97706,
+          color: 0xf59e0b,
+          emissive: 0xd97706,
           emissiveIntensity: 0.5,
           roughness: 0.3,
         });
+        camMatRefsRef.current.set(i, camMat);
         const camMesh = new THREE.Mesh(camGeom, camMat);
         camMesh.position.copy(camPos);
         grupo.add(camMesh);
@@ -734,14 +892,51 @@ export default function EspacioDronFotogrametria({
         grupo.add(curveMat);
       }
     }
-  }, [fotos, capas, fotoIndex, intervaloCurvas, textureLoader]);
+
+    // Apagar el overlay de capas pesadas ahora que el cómputo síncrónico terminó.
+    // Se usa un timeout mínimo para que React tenga tiempo de pintar el overlay antes de
+    // que lo quitemos (de lo contrario el usuario nunca lo vería porque el hilo estaba ocupado).
+    if (hayCapaPesadaActiva && totalTexturas === 0) {
+      timeoutCapaPesada = setTimeout(() => {
+        if (efectoVigente) setCargaEstado(null);
+      }, 120);
+    }
+
+    return () => {
+      // Si el efecto vuelve a correr (o el componente se desmonta) antes de que terminen de
+      // cargar las texturas de esta pasada, sus callbacks tardíos ya no deben tocar el estado
+      // de la pasada siguiente.
+      efectoVigente = false;
+      if (timeoutCapaPesada !== null) clearTimeout(timeoutCapaPesada);
+    };
+  }, [fotos, capas, intervaloCurvas, textureLoader]);
+
+  // Efecto LIGERO: solo actualiza colores de los materiales de huella y cámara
+  // cuando cambia la foto seleccionada. NO reconstruye ningún objeto de la escena.
+  useEffect(() => {
+    const COLOR_ACTIVO_HUE = new THREE.Color(0xff007f);
+    const COLOR_NEUTRO_HUE = new THREE.Color(0xf472b6);
+    const COLOR_ACTIVO_CAM = new THREE.Color(0xff007f);
+    const COLOR_NEUTRO_CAM = new THREE.Color(0xf59e0b);
+    const COLOR_EMISSIVE_ACTIVO = new THREE.Color(0xff007f);
+    const COLOR_EMISSIVE_NEUTRO = new THREE.Color(0xd97706);
+
+    huellaMatRefsRef.current.forEach((mat, idx) => {
+      mat.color.copy(idx === fotoIndex ? COLOR_ACTIVO_HUE : COLOR_NEUTRO_HUE);
+      mat.needsUpdate = true;
+    });
+    camMatRefsRef.current.forEach((mat, idx) => {
+      mat.color.copy(idx === fotoIndex ? COLOR_ACTIVO_CAM : COLOR_NEUTRO_CAM);
+      mat.emissive.copy(idx === fotoIndex ? COLOR_EMISSIVE_ACTIVO : COLOR_EMISSIVE_NEUTRO);
+      mat.needsUpdate = true;
+    });
+  }, [fotoIndex]);
 
   // Carga de fotos reales del usuario desde explorador
   const handleCargarFotos = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    showToast(`Leyendo metadatos EXIF/XMP de ${files.length} fotos...`);
     const listaFiles = Array.from(files)
       .filter((f) => /\.(jpe?g|png|webp|tif?f)$/i.test(f.name))
       // El FileList del navegador no garantiza orden de vuelo; se ordena por nombre
@@ -752,9 +947,13 @@ export default function EspacioDronFotogrametria({
       return;
     }
 
+    setCargaEstado({ mensaje: "Leyendo metadatos EXIF/XMP", actual: 0, total: listaFiles.length });
+    let leidas = 0;
     const promesas = listaFiles.map(async (file) => {
       const meta = await extraerMetadataFoto(file);
       const url = URL.createObjectURL(file);
+      leidas += 1;
+      setCargaEstado((prev) => (prev ? { ...prev, actual: leidas } : prev));
       return { file, meta, url };
     });
 
@@ -792,6 +991,7 @@ export default function EspacioDronFotogrametria({
 
     setFotos(nuevasFotos);
     setFotoIndex(0);
+    setCargaEstado(null);
     showToast(`✓ ${nuevasFotos.length} fotos procesadas con telemetría de dron`);
   };
 
@@ -799,7 +999,7 @@ export default function EspacioDronFotogrametria({
   const handleCargarMuestra4thAve = async () => {
     try {
       setCargandoMuestra(true);
-      showToast("Escaneando carpeta C:\\Users\\gpere\\Downloads\\4thAve...");
+      setCargaEstado({ mensaje: "Escaneando carpeta 4thAve", actual: 0, total: 1 });
       const res = await fetch("/api/dji-samples");
       if (!res.ok) {
         throw new Error("No se pudo conectar al endpoint local de muestras");
@@ -810,7 +1010,8 @@ export default function EspacioDronFotogrametria({
         throw new Error("No se encontraron fotos JPG en 4thAve");
       }
 
-      showToast(`Leyendo telemetría de las ${files.length} fotos DJI...`);
+      setCargaEstado({ mensaje: "Leyendo telemetría DJI (GPS/EXIF)", actual: 0, total: files.length });
+      let leidas = 0;
 
       const promesas = files.map(async (fileName) => {
         const photoUrl = `/api/dji-photo?file=${encodeURIComponent(fileName)}`;
@@ -818,8 +1019,12 @@ export default function EspacioDronFotogrametria({
           const fileRes = await fetch(photoUrl);
           const blob = await fileRes.blob();
           const meta = await extraerMetadataFoto(blob);
+          leidas += 1;
+          setCargaEstado((prev) => (prev ? { ...prev, actual: leidas } : prev));
           return { fileName, photoUrl, meta };
         } catch {
+          leidas += 1;
+          setCargaEstado((prev) => (prev ? { ...prev, actual: leidas } : prev));
           return {
             fileName,
             photoUrl,
@@ -877,11 +1082,18 @@ export default function EspacioDronFotogrametria({
       showToast(`Aviso: ${err.message}. Puedes usar el botón 'CARPETA' o 'FOTOS' para seleccionarlas.`);
     } finally {
       setCargandoMuestra(false);
+      setCargaEstado(null);
     }
   };
 
-  // Carga automática inicial de las 48 fotos de muestra de 4thAve para visualización inmediata del ejemplo
+  // Carga automática inicial de las 48 fotos de muestra de 4thAve para visualización inmediata del ejemplo.
+  // Guard contra el doble-invocado de efectos de React.StrictMode en desarrollo: sin él, esta carga
+  // (y sus ~48 descargas de fotos reales) arrancaba DOS veces en paralelo, cruzando los contadores
+  // de progreso entre ambos ciclos y haciendo que la barra de carga pareciera trabada o parpadeara.
+  const cargaInicialHechaRef = useRef(false);
   useEffect(() => {
+    if (cargaInicialHechaRef.current) return;
+    cargaInicialHechaRef.current = true;
     handleCargarMuestra4thAve();
   }, []);
 
@@ -931,7 +1143,7 @@ export default function EspacioDronFotogrametria({
               }}
               title="Ver estaciones de toma, cámaras y fotos del dron"
             >
-              🛰️ VUELO
+              <IconDron /> VUELO
             </button>
             <button
               type="button"
@@ -952,7 +1164,7 @@ export default function EspacioDronFotogrametria({
               }}
               title="Ver solo el plano 3D del terreno (Bare-Earth DTM sin casas)"
             >
-              ⛰️ TERRENO 3D
+              <IconTerreno /> TERRENO 3D
             </button>
             <button
               type="button"
@@ -973,7 +1185,7 @@ export default function EspacioDronFotogrametria({
               }}
               title="Ver fotos proyectadas sobre el terreno 3D"
             >
-              🔀 HÍBRIDO
+              <IconHibrido /> HÍBRIDO
             </button>
           </div>
 
@@ -1011,18 +1223,65 @@ export default function EspacioDronFotogrametria({
         </div>
       </header>
 
-      {/* 2. CONTENEDOR 3D CANVAS */}
-      <div className="v8-dron-canvas-wrap" ref={contenedorRef} />
+      {/* Zona de trabajo bajo el header: al ser un hijo flex (no absoluto respecto a toda la
+          pantalla), el canvas y los docks siempre ocupan exactamente el espacio que sobra
+          debajo del header, sea cual sea su alto real — en vez de restar a mano un "top" fijo
+          que se desincroniza apenas el header crece (p. ej. al envolver en 2 líneas en móvil). */}
+      <div className="v8-dron-stage">
+        {/* 2. CONTENEDOR 3D CANVAS */}
+        <div className="v8-dron-canvas-wrap" ref={contenedorRef} />
 
-      {/* 3. DOCK VERTICAL IZQUIERDO: CAPAS DE VISIBILIDAD */}
-      <nav className="v8-dron-dock-left">
-        <div className="v8-dock-header-icon" title="Capas de visibilidad">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
-            <polygon points="12 2 2 7 12 12 22 7 12 2" />
-            <polyline points="2 17 12 22 22 17" />
-            <polyline points="2 12 12 17 22 12" />
-          </svg>
-        </div>
+        {/* Overlay de progreso: sin esto, leer EXIF/XMP de decenas de fotos (o traerlas de
+            4thAve por red) se ve exactamente igual que la app trabada — nada en pantalla
+            cambia salvo un toast que desaparece solo. Bloquea la interacción a propósito
+            mientras dura, para evitar clics que pisen la carga en curso. */}
+        {cargaEstado && (
+          <div className="v8-carga-overlay" role="status" aria-live="polite">
+            <div className="v8-carga-card">
+              <div className="v8-carga-spinner" />
+              <div className="v8-carga-texto">
+                <span className="v8-carga-mensaje">{cargaEstado.mensaje}…</span>
+                {cargaEstado.total > 1 && (
+                  <span className="v8-carga-contador">
+                    {cargaEstado.actual} / {cargaEstado.total}
+                  </span>
+                )}
+              </div>
+              <div className="v8-carga-barra-track">
+                <div
+                  className="v8-carga-barra-fill"
+                  data-indeterminado={cargaEstado.total === 0 ? "true" : undefined}
+                  style={{
+                    width: `${cargaEstado.total > 0 ? Math.min(100, (cargaEstado.actual / cargaEstado.total) * 100) : 0}%`,
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 3. DOCK VERTICAL IZQUIERDO: CAPAS DE VISIBILIDAD */}
+        <nav className={`v8-dron-dock-left ${dockCapasColapsado ? "colapsado" : ""}`}>
+          <button
+            type="button"
+            className="btn-v8-dock-toggle"
+            onClick={() => setDockCapasColapsado((v) => !v)}
+            title={dockCapasColapsado ? "Expandir capas" : "Comprimir capas"}
+          >
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+              {dockCapasColapsado ? <polyline points="9 6 15 12 9 18" /> : <polyline points="15 6 9 12 15 18" />}
+            </svg>
+          </button>
+
+          {!dockCapasColapsado && (
+            <>
+          <div className="v8-dock-header-icon" title="Capas de visibilidad">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+              <polygon points="12 2 2 7 12 12 22 7 12 2" />
+              <polyline points="2 17 12 22 22 17" />
+              <polyline points="2 12 12 17 22 12" />
+            </svg>
+          </div>
 
         <button
           type="button"
@@ -1030,7 +1289,7 @@ export default function EspacioDronFotogrametria({
           onClick={() => toggleCapa("foto")}
           title="Alternar fotos"
         >
-          <span className="v8-layer-eye">👁</span>
+          <span className="v8-layer-eye"><IconOjo visible={capas.foto} /></span>
           <span className="v8-layer-label">FOTO</span>
         </button>
 
@@ -1040,7 +1299,7 @@ export default function EspacioDronFotogrametria({
           onClick={() => toggleCapa("huella")}
           title="Alternar huella/footprint"
         >
-          <span className="v8-layer-eye">👁</span>
+          <span className="v8-layer-eye"><IconOjo visible={capas.huella} /></span>
           <span className="v8-layer-label">HUELLA</span>
         </button>
 
@@ -1050,7 +1309,7 @@ export default function EspacioDronFotogrametria({
           onClick={() => toggleCapa("vuelo")}
           title="Alternar trayectoria de vuelo"
         >
-          <span className="v8-layer-eye">👁</span>
+          <span className="v8-layer-eye"><IconOjo visible={capas.vuelo} /></span>
           <span className="v8-layer-label">VUELO</span>
         </button>
 
@@ -1060,7 +1319,7 @@ export default function EspacioDronFotogrametria({
           onClick={() => toggleCapa("cam")}
           title="Alternar cámaras y nadir"
         >
-          <span className="v8-layer-eye">👁</span>
+          <span className="v8-layer-eye"><IconOjo visible={capas.cam} /></span>
           <span className="v8-layer-label">CAM</span>
         </button>
 
@@ -1070,7 +1329,7 @@ export default function EspacioDronFotogrametria({
           onClick={() => toggleCapa("sfm")}
           title="Alternar puntos SfM"
         >
-          <span className="v8-layer-eye">👁</span>
+          <span className="v8-layer-eye"><IconOjo visible={capas.sfm} /></span>
           <span className="v8-layer-label">SFM</span>
         </button>
 
@@ -1080,7 +1339,7 @@ export default function EspacioDronFotogrametria({
           onClick={() => toggleCapa("nube")}
           title="Alternar nube densa"
         >
-          <span className="v8-layer-eye">👁</span>
+          <span className="v8-layer-eye"><IconOjo visible={capas.nube} /></span>
           <span className="v8-layer-label">NUBE</span>
         </button>
 
@@ -1090,7 +1349,7 @@ export default function EspacioDronFotogrametria({
           onClick={() => toggleCapa("sup")}
           title="Alternar superficie"
         >
-          <span className="v8-layer-eye">👁</span>
+          <span className="v8-layer-eye"><IconOjo visible={capas.sup} /></span>
           <span className="v8-layer-label">SUP</span>
         </button>
 
@@ -1100,13 +1359,15 @@ export default function EspacioDronFotogrametria({
           onClick={() => toggleCapa("curva")}
           title="Alternar curvas de nivel"
         >
-          <span className="v8-layer-eye">👁</span>
+          <span className="v8-layer-eye"><IconOjo visible={capas.curva} /></span>
           <span className="v8-layer-label">CURVA</span>
         </button>
-      </nav>
+            </>
+          )}
+        </nav>
 
-      {/* 4. DOCK VERTICAL DERECHO: HERRAMIENTAS Y ETAPAS */}
-      <nav className="v8-dron-dock-right">
+        {/* 4. DOCK VERTICAL DERECHO: HERRAMIENTAS Y ETAPAS */}
+        <nav className="v8-dron-dock-right">
         <button
           type="button"
           className={`btn-v8-stage-item ${etapaActiva === "FOTOS" ? "activo" : ""}`}
@@ -1349,7 +1610,13 @@ export default function EspacioDronFotogrametria({
                       disabled={cargandoMuestra}
                       title="Cargar carpeta de prueba C:\Users\gpere\Downloads\4thAve"
                     >
-                      {cargandoMuestra ? "CARGANDO..." : "⚡ 4thAve (48 DJI)"}
+                      {cargandoMuestra ? (
+                        "CARGANDO..."
+                      ) : (
+                        <>
+                          <IconRayo /> 4thAve (48 DJI)
+                        </>
+                      )}
                     </button>
                   </div>
 
@@ -1416,6 +1683,73 @@ export default function EspacioDronFotogrametria({
                   <p className="v8-stage-p">
                     Corrige únicamente la posición inicial del footprint. Cualquier cambio invalida la orientación anterior para no mezclar geometrías.
                   </p>
+
+                  {/* Selector de foto a editar */}
+                  <div className="v8-edit-selector-wrap">
+                    <div className="v8-edit-selector-header">
+                      <span className="v8-edit-selector-label">
+                        Selecciona la foto a editar
+                      </span>
+                      <span className="v8-edit-selector-counter">
+                        {fotoIndex + 1} / {fotos.length}
+                      </span>
+                    </div>
+
+                    {/* Paginador ◀ ▶ */}
+                    <div className="v8-edit-pager-row">
+                      <button
+                        type="button"
+                        className="btn-v8-pager"
+                        onClick={() => setFotoIndex((i) => (i > 0 ? i - 1 : fotos.length - 1))}
+                        title="Foto anterior"
+                      >
+                        ◀
+                      </button>
+
+                      {/* Tira de miniaturas scrollable */}
+                      <div className="v8-edit-thumb-strip">
+                        {fotos.map((f, i) => {
+                          const tieneAjuste = f.offsetX !== 0 || f.offsetY !== 0 || f.offsetZ !== 0 || f.rotDeg !== 0;
+                          return (
+                            <button
+                              key={f.id}
+                              type="button"
+                              className={`v8-edit-thumb-btn ${i === fotoIndex ? "activo" : ""}`}
+                              onClick={() => setFotoIndex(i)}
+                              title={f.nombre}
+                            >
+                              {f.url ? (
+                                <img
+                                  src={f.url}
+                                  alt={f.nombre}
+                                  className="v8-edit-thumb-img"
+                                />
+                              ) : (
+                                <div className="v8-edit-thumb-placeholder">
+                                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8">
+                                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                                    <polyline points="21 15 16 10 5 21" />
+                                    <circle cx="8.5" cy="8.5" r="1.5" />
+                                  </svg>
+                                </div>
+                              )}
+                              <span className="v8-edit-thumb-num">{i + 1}</span>
+                              {tieneAjuste && <span className="v8-edit-thumb-dot" title="Con ajuste manual" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <button
+                        type="button"
+                        className="btn-v8-pager"
+                        onClick={() => setFotoIndex((i) => (i < fotos.length - 1 ? i + 1 : 0))}
+                        title="Foto siguiente"
+                      >
+                        ▶
+                      </button>
+                    </div>
+                  </div>
 
                   <div className="v8-preview-card">
                     <div className="v8-preview-img-box">
@@ -1538,81 +1872,527 @@ export default function EspacioDronFotogrametria({
               )}
 
               {/* ETAPA 3: ALINEAR */}
-              {etapaActiva === "ALINEA" && (
-                <>
-                  <h2 className="v8-stage-title">3 · ALINEAR POR REFERENCIA</h2>
-                  <p className="v8-stage-p">
-                    Marca el mismo objeto en dos fotos con solape. NAMICAD corrige únicamente X/Y de la foto objetivo; no gira ni deforma la toma. Después puedes ejecutar la orientación fotogramétrica automática.
-                  </p>
+              {etapaActiva === "ALINEA" && (() => {
+                const fotoBaseIdxEfectivo =
+                  refFotoBaseIdx === fotoIndex
+                    ? fotoIndex > 0
+                      ? fotoIndex - 1
+                      : fotos.length > 1
+                      ? 1
+                      : 0
+                    : refFotoBaseIdx;
+                const fotoBase = fotos[fotoBaseIdxEfectivo] || fotos[0];
+                const fotoTarget = fotoActual;
 
-                  <div className="v8-subcard">
-                    <span className="v8-subcard-title">ASISTENTE DE REFERENCIAS</span>
-                    <p className="v8-subcard-desc">Sugerencia: revisión por solape con foto vecina.</p>
-                    <span className="v8-quality-subinfo">
-                      Referencias guardadas: {referencias.length}
-                    </span>
-                  </div>
+                const anchoPlanoBase =
+                  fotoBase.relativeAlt && fotoBase.relativeAlt > 0
+                    ? Math.min(fotoBase.relativeAlt * 0.95, 52)
+                    : 22;
+                const altoPlanoBase =
+                  fotoBase.relativeAlt && fotoBase.relativeAlt > 0
+                    ? Math.min(fotoBase.relativeAlt * 0.72, 39)
+                    : 16;
+                const anchoPlanoTarget =
+                  fotoTarget.relativeAlt && fotoTarget.relativeAlt > 0
+                    ? Math.min(fotoTarget.relativeAlt * 0.95, 52)
+                    : 22;
+                const altoPlanoTarget =
+                  fotoTarget.relativeAlt && fotoTarget.relativeAlt > 0
+                    ? Math.min(fotoTarget.relativeAlt * 0.72, 39)
+                    : 16;
 
-                  {/* Paginador de fotos */}
-                  <div className="v8-pager-row">
-                    <button
-                      type="button"
-                      className="btn-v8-pager"
-                      onClick={() => setFotoIndex((i) => (i > 0 ? i - 1 : fotos.length - 1))}
-                    >
-                      ◀
-                    </button>
-                    <div className="v8-pager-info">
-                      <span className="v8-pager-tag">
-                        FOTO A CORREGIR · {fotoIndex + 1}/{fotos.length}
+                let dxCalculado = 0;
+                let dyCalculado = 0;
+                let distCalculada = 0;
+                let alineacionLista = false;
+
+                if (refModo === "DOS_FOTOS") {
+                  if (puntoBase && puntoTarget) {
+                    const gxBase =
+                      fotoBase.centroX +
+                      fotoBase.offsetX +
+                      ((puntoBase.x - 50) / 100) * anchoPlanoBase;
+                    const gyBase =
+                      fotoBase.centroY +
+                      fotoBase.offsetY -
+                      ((puntoBase.y - 50) / 100) * altoPlanoBase;
+
+                    const gxTarget =
+                      fotoTarget.centroX +
+                      fotoTarget.offsetX +
+                      ((puntoTarget.x - 50) / 100) * anchoPlanoTarget;
+                    const gyTarget =
+                      fotoTarget.centroY +
+                      fotoTarget.offsetY -
+                      ((puntoTarget.y - 50) / 100) * altoPlanoTarget;
+
+                    dxCalculado = Number((gxBase - gxTarget).toFixed(2));
+                    dyCalculado = Number((gyBase - gyTarget).toFixed(2));
+                    distCalculada = Number(
+                      Math.sqrt(dxCalculado ** 2 + dyCalculado ** 2).toFixed(2)
+                    );
+                    alineacionLista = true;
+                  }
+                } else {
+                  if (puntosUnaFoto.length >= 2) {
+                    const p1 = puntosUnaFoto[0];
+                    const p2 = puntosUnaFoto[puntosUnaFoto.length - 1];
+                    dxCalculado = Number(
+                      (((p2.x - p1.x) / 100) * anchoPlanoTarget).toFixed(2)
+                    );
+                    dyCalculado = Number(
+                      (-((p2.y - p1.y) / 100) * altoPlanoTarget).toFixed(2)
+                    );
+                    distCalculada = Number(
+                      Math.sqrt(dxCalculado ** 2 + dyCalculado ** 2).toFixed(2)
+                    );
+                    alineacionLista = true;
+                  }
+                }
+
+                const esPasoBase = refModo === "DOS_FOTOS" && refPasoActivo === "BASE";
+                const fotoCanvas = esPasoBase ? fotoBase : fotoTarget;
+                const puntoCanvas = esPasoBase ? puntoBase : puntoTarget;
+                const refGuardadaActual = referenciasGuardadas.find(
+                  (r) => r.fotoTargetId === fotoTarget.id
+                );
+
+                return (
+                  <>
+                    <h2 className="v8-stage-title">3 · ALINEAR POR REFERENCIA</h2>
+                    <p className="v8-stage-p">
+                      Marca el mismo objeto en dos fotos con solape. NAMICAD corrige únicamente X/Y de la foto objetivo; no gira ni deforma la toma.
+                    </p>
+
+                    <div className="v8-subcard">
+                      <span className="v8-subcard-title">ASISTENTE DE REFERENCIAS</span>
+                      <p className="v8-subcard-desc">
+                        {refModo === "DOS_FOTOS"
+                          ? "Solape activo entre foto base y foto a corregir."
+                          : "Calibración por vector de desplazamiento en foto actual."}
+                      </p>
+                      <span className="v8-quality-subinfo">
+                        Referencias guardadas: {referenciasGuardadas.length}
+                        {fotoTarget.offsetX !== 0 || fotoTarget.offsetY !== 0
+                          ? ` · Foto actual: dX ${fotoTarget.offsetX > 0 ? "+" : ""}${fotoTarget.offsetX}m, dY ${fotoTarget.offsetY > 0 ? "+" : ""}${fotoTarget.offsetY}m`
+                          : ""}
                       </span>
-                      <span className="v8-pager-name">{fotoActual.nombre}</span>
                     </div>
+
+                    {/* Selector de modo: 2 Fotos o 1 Foto */}
+                    <div className="v8-ref-mode-toggle">
+                      <button
+                        type="button"
+                        className={`v8-ref-mode-btn ${refModo === "DOS_FOTOS" ? "active" : ""}`}
+                        onClick={() => setRefModo("DOS_FOTOS")}
+                      >
+                        2 Fotos (Solape Vecino)
+                      </button>
+                      <button
+                        type="button"
+                        className={`v8-ref-mode-btn ${refModo === "UNA_FOTO" ? "active" : ""}`}
+                        onClick={() => setRefModo("UNA_FOTO")}
+                      >
+                        1 Foto (Vector Rápido)
+                      </button>
+                    </div>
+
+                    {/* Paginador de foto objetivo a corregir */}
+                    <div className="v8-pager-row">
+                      <button
+                        type="button"
+                        className="btn-v8-pager"
+                        onClick={() => {
+                          const nuevoIdx = fotoIndex > 0 ? fotoIndex - 1 : fotos.length - 1;
+                          setFotoIndex(nuevoIdx);
+                          if (refFotoBaseIdx === nuevoIdx) {
+                            setRefFotoBaseIdx(nuevoIdx > 0 ? nuevoIdx - 1 : 1);
+                          }
+                          setPuntoTarget(null);
+                          setPuntosUnaFoto([]);
+                        }}
+                      >
+                        ◀
+                      </button>
+                      <div className="v8-pager-info">
+                        <span className="v8-pager-tag">
+                          FOTO A CORREGIR · {fotoIndex + 1}/{fotos.length}
+                        </span>
+                        <span className="v8-pager-name">{fotoTarget.nombre}</span>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn-v8-pager"
+                        onClick={() => {
+                          const nuevoIdx = fotoIndex < fotos.length - 1 ? fotoIndex + 1 : 0;
+                          setFotoIndex(nuevoIdx);
+                          if (refFotoBaseIdx === nuevoIdx) {
+                            setRefFotoBaseIdx(nuevoIdx > 0 ? nuevoIdx - 1 : 1);
+                          }
+                          setPuntoTarget(null);
+                          setPuntosUnaFoto([]);
+                        }}
+                      >
+                        ▶
+                      </button>
+                    </div>
+
+                    {/* En modo 2 FOTOS: Tabs interactivas para alternar entre Foto Base y Foto Objetivo */}
+                    {refModo === "DOS_FOTOS" && (
+                      <>
+                        <div className="v8-ref-neighbor-select-row">
+                          <span className="v8-ref-neighbor-label">Foto Base (Referencia):</span>
+                          <select
+                            className="v8-ref-neighbor-select"
+                            value={fotoBaseIdxEfectivo}
+                            onChange={(e) => {
+                              setRefFotoBaseIdx(Number(e.target.value));
+                              setPuntoBase(null);
+                            }}
+                          >
+                            {fotos.map((f, i) => {
+                              if (i === fotoIndex) return null;
+                              return (
+                                <option key={f.id} value={i}>
+                                  #{i + 1} {f.nombre}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </div>
+
+                        <div className="v8-ref-tabs-row">
+                          <button
+                            type="button"
+                            className={`v8-ref-tab-btn tab-base ${refPasoActivo === "BASE" ? "active" : ""}`}
+                            onClick={() => setRefPasoActivo("BASE")}
+                          >
+                            <span className="v8-ref-tab-tag">1 · Foto Base (Ref)</span>
+                            <span className="v8-ref-tab-name">#{fotoBaseIdxEfectivo + 1} {fotoBase.nombre}</span>
+                            <span
+                              className={`v8-ref-tab-badge ${
+                                puntoBase ? "badge-set-cyan" : "badge-pending"
+                              }`}
+                            >
+                              {puntoBase ? "✓ Marcado" : "Pendiente"}
+                            </span>
+                          </button>
+
+                          <button
+                            type="button"
+                            className={`v8-ref-tab-btn tab-target ${refPasoActivo === "TARGET" ? "active" : ""}`}
+                            onClick={() => setRefPasoActivo("TARGET")}
+                          >
+                            <span className="v8-ref-tab-tag">2 · Foto a Corregir</span>
+                            <span className="v8-ref-tab-name">#{fotoIndex + 1} {fotoTarget.nombre}</span>
+                            <span
+                              className={`v8-ref-tab-badge ${
+                                puntoTarget ? "badge-set-pink" : "badge-pending"
+                              }`}
+                            >
+                              {puntoTarget ? "✓ Marcado" : "Pendiente"}
+                            </span>
+                          </button>
+                        </div>
+                      </>
+                    )}
+
+                    <span className="v8-step-label">
+                      {refModo === "DOS_FOTOS"
+                        ? esPasoBase
+                          ? "1 · Toca el objeto de referencia en la FOTO BASE"
+                          : "2 · Toca el MISMO objeto en la FOTO A CORREGIR"
+                        : "Toca 2 puntos: 1° Ubicación actual → 2° Posición correcta"}
+                    </span>
+                    <p className="v8-hint-text">
+                      Ej.: árbol aislado, esquina, poste, roca, pintura o estructura fija.
+                    </p>
+
+                    {/* Lienzo interactivo de marcación */}
+                    <div
+                      className={`v8-interactive-ref-card ${esPasoBase ? "theme-cyan" : ""}`}
+                      style={
+                        fotoCanvas.url
+                          ? {
+                              backgroundImage: `url("${fotoCanvas.url}")`,
+                              backgroundSize: "cover",
+                              backgroundPosition: "center",
+                            }
+                          : undefined
+                      }
+                      onClick={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const clickX = Number(
+                          (((e.clientX - rect.left) / rect.width) * 100).toFixed(1)
+                        );
+                        const clickY = Number(
+                          (((e.clientY - rect.top) / rect.height) * 100).toFixed(1)
+                        );
+
+                        if (refModo === "DOS_FOTOS") {
+                          if (refPasoActivo === "BASE") {
+                            setPuntoBase({ x: clickX, y: clickY });
+                            showToast(`✓ Punto base marcado en (${clickX}%, ${clickY}%) — pasando a Foto Objetivo`);
+                            setRefPasoActivo("TARGET");
+                          } else {
+                            setPuntoTarget({ x: clickX, y: clickY });
+                            showToast(`✓ Punto objetivo marcado en (${clickX}%, ${clickY}%)`);
+                          }
+                        } else {
+                          setPuntosUnaFoto((prev) =>
+                            prev.length >= 2
+                              ? [{ x: clickX, y: clickY }]
+                              : [...prev, { x: clickX, y: clickY }]
+                          );
+                          showToast(
+                            `✓ Punto ${puntosUnaFoto.length >= 2 ? 1 : puntosUnaFoto.length + 1} marcado en (${clickX}%, ${clickY}%)`
+                          );
+                        }
+                      }}
+                    >
+                      {/* Overlay con retícula si no hay imagen real */}
+                      {!fotoCanvas.url && (
+                        <div className="v8-ref-mock-canvas" style={{ pointerEvents: "none" }}>
+                          <div
+                            className={`v8-crosshair-reticle ${esPasoBase ? "reticle-cyan" : ""}`}
+                            style={{ pointerEvents: "none" }}
+                          />
+                          <span className="v8-reticle-hint" style={{ pointerEvents: "none" }}>
+                            {esPasoBase
+                              ? "Toca para marcar objeto en Foto Base (Cyan)"
+                              : "Toca para marcar el mismo objeto en Foto Objetivo (Rosa)"}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Renderizado de punto activo en el lienzo actual */}
+                      {refModo === "DOS_FOTOS" && puntoCanvas && (
+                        <div
+                          className={`v8-ref-punto ${esPasoBase ? "punto-cyan" : ""}`}
+                          style={{
+                            left: `${puntoCanvas.x}%`,
+                            top: `${puntoCanvas.y}%`,
+                            pointerEvents: "none",
+                          }}
+                        >
+                          <div className="v8-ref-punto-cruz" />
+                          <span className="v8-ref-punto-num">
+                            {esPasoBase ? "BASE" : "OBJ"}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Puntos para modo 1 foto */}
+                      {refModo === "UNA_FOTO" &&
+                        puntosUnaFoto.map((p, idx) => (
+                          <div
+                            key={idx}
+                            className={`v8-ref-punto ${idx === 0 ? "punto-cyan" : ""}`}
+                            style={{
+                              left: `${p.x}%`,
+                              top: `${p.y}%`,
+                              pointerEvents: "none",
+                            }}
+                          >
+                            <div className="v8-ref-punto-cruz" />
+                            <span className="v8-ref-punto-num">P{idx + 1}</span>
+                          </div>
+                        ))}
+
+                      {/* Hint flotante de ayuda */}
+                      {fotoCanvas.url &&
+                        ((refModo === "DOS_FOTOS" && !puntoCanvas) ||
+                          (refModo === "UNA_FOTO" && puntosUnaFoto.length === 0)) && (
+                          <span
+                            className="v8-reticle-hint"
+                            style={{
+                              pointerEvents: "none",
+                              bottom: 8,
+                              left: "50%",
+                              transform: "translateX(-50%)",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            Toca la foto para marcar el punto
+                          </span>
+                        )}
+                    </div>
+
+                    {/* Resumen de corrección calculada cuando hay puntos listos */}
+                    {alineacionLista ? (
+                      <div className="v8-alinea-result-box">
+                        <span className="v8-alinea-result-label">
+                          <span>Corrección XY Calculada</span>
+                          <span style={{ color: "#10b981", fontSize: 9.5 }}>LISTO</span>
+                        </span>
+                        <span className="v8-alinea-result-value">
+                          ΔX {dxCalculado >= 0 ? "+" : ""}{dxCalculado} m · ΔY {dyCalculado >= 0 ? "+" : ""}{dyCalculado} m · Desplazamiento {distCalculada} m
+                        </span>
+                        <div className="v8-alinea-result-details">
+                          {refModo === "DOS_FOTOS" ? (
+                            <>
+                              <span>Base: ({puntoBase?.x}%, {puntoBase?.y}%)</span>
+                              <span>Objetivo: ({puntoTarget?.x}%, {puntoTarget?.y}%)</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>P1 Origen: ({puntosUnaFoto[0]?.x}%, {puntosUnaFoto[0]?.y}%)</span>
+                              <span>P2 Destino: ({puntosUnaFoto[1]?.x}%, {puntosUnaFoto[1]?.y}%)</span>
+                            </>
+                          )}
+                        </div>
+                        <span className="v8-alinea-result-hint">
+                          La orientación, focal, yaw y Z no cambian. Solo se traslada suavemente la foto objetivo para hacer coincidir la referencia.
+                        </span>
+                      </div>
+                    ) : (
+                      refGuardadaActual && (
+                        <div className="v8-alinea-result-box" style={{ borderColor: "rgba(16, 185, 129, 0.4)", background: "rgba(16, 185, 129, 0.08)" }}>
+                          <span className="v8-alinea-result-label" style={{ color: "#34d399" }}>
+                            Alineación Activa Guardada
+                          </span>
+                          <span className="v8-alinea-result-value" style={{ color: "#a7f3d0" }}>
+                            ΔX {refGuardadaActual.dx >= 0 ? "+" : ""}{refGuardadaActual.dx} m · ΔY {refGuardadaActual.dy >= 0 ? "+" : ""}{refGuardadaActual.dy} m
+                          </span>
+                          <span className="v8-alinea-result-hint">
+                            Alineada contra {refGuardadaActual.fotoBaseNombre} (vector: {refGuardadaActual.dist}m).
+                          </span>
+                        </div>
+                      )
+                    )}
+
+                    {/* Botón principal de confirmar alineación */}
                     <button
                       type="button"
-                      className="btn-v8-pager"
-                      onClick={() => setFotoIndex((i) => (i < fotos.length - 1 ? i + 1 : 0))}
+                      className={alineacionLista ? "btn-v8-action-primary" : "btn-v8-action-disabled"}
+                      onClick={() => {
+                        if (!alineacionLista) return;
+
+                        setFotos((prev) =>
+                          prev.map((f) => {
+                            if (f.id !== fotoTarget.id) return f;
+                            return {
+                              ...f,
+                              offsetX: Number((f.offsetX + dxCalculado).toFixed(2)),
+                              offsetY: Number((f.offsetY + dyCalculado).toFixed(2)),
+                            };
+                          })
+                        );
+
+                        const nuevaRef = {
+                          id: Date.now().toString(),
+                          fotoBaseId: fotoBase.id,
+                          fotoBaseNombre: fotoBase.nombre,
+                          fotoTargetId: fotoTarget.id,
+                          fotoTargetNombre: fotoTarget.nombre,
+                          dx: dxCalculado,
+                          dy: dyCalculado,
+                          dist: distCalculada,
+                          puntoBase: puntoBase ?? undefined,
+                          puntoTarget: puntoTarget ?? undefined,
+                        };
+
+                        setReferenciasGuardadas((prev) => [
+                          ...prev.filter((r) => r.fotoTargetId !== fotoTarget.id),
+                          nuevaRef,
+                        ]);
+
+                        setPuntoBase(null);
+                        setPuntoTarget(null);
+                        setPuntosUnaFoto([]);
+
+                        showToast(
+                          `✓ Foto ${fotoTarget.nombre} corregida (ΔX: ${dxCalculado >= 0 ? "+" : ""}${dxCalculado}m, ΔY: ${dyCalculado >= 0 ? "+" : ""}${dyCalculado}m)`
+                        );
+                      }}
                     >
-                      ▶
+                      CONFIRMAR ALINEACIÓN XY
                     </button>
-                  </div>
 
-                  <span className="v8-step-label">1 · Marca una referencia clara en esta foto</span>
-                  <p className="v8-hint-text">
-                    Ej.: árbol aislado, esquina, poste, roca, pintura o estructura fija.
-                  </p>
-
-                  <div
-                    className="v8-interactive-ref-card"
-                    style={
-                      fotoActual.url
-                        ? {
-                            backgroundImage: `url("${fotoActual.url}")`,
-                            backgroundSize: "cover",
-                            backgroundPosition: "center",
-                            position: "relative",
-                            minHeight: 190,
-                            borderRadius: 8,
-                            overflow: "hidden",
-                            cursor: "crosshair",
+                    {/* Botones secundarios */}
+                    <div className="v8-alinea-btns-row">
+                      <button
+                        type="button"
+                        className="btn-v8-secondary-sm"
+                        onClick={() => {
+                          setPuntoBase(null);
+                          setPuntoTarget(null);
+                          setPuntosUnaFoto([]);
+                          showToast("Puntos temporales limpiados");
+                        }}
+                      >
+                        LIMPIAR PUNTOS
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-v8-secondary-sm"
+                        onClick={() => {
+                          if (refModo === "DOS_FOTOS") {
+                            if (refPasoActivo === "TARGET" && puntoTarget) {
+                              setPuntoTarget(null);
+                              showToast("Punto objetivo deshecho");
+                            } else if (puntoBase) {
+                              setPuntoBase(null);
+                              setRefPasoActivo("BASE");
+                              showToast("Punto base deshecho");
+                            }
+                          } else {
+                            setPuntosUnaFoto((p) => p.slice(0, -1));
+                            showToast("Último punto eliminado");
                           }
-                        : undefined
-                    }
-                    onClick={(e) => {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      const clickX = Number((((e.clientX - rect.left) / rect.width) * 100).toFixed(1));
-                      const clickY = Number((((e.clientY - rect.top) / rect.height) * 100).toFixed(1));
-                      setReferencias((r) => [...r, { x: clickX, y: clickY, fotoId: fotoActual.id }]);
-                      showToast(`Punto homólogo guardado en (${clickX}%, ${clickY}%) sobre ${fotoActual.nombre}`);
-                    }}
-                  >
-                    <div className="v8-ref-mock-canvas" style={fotoActual.url ? { background: "rgba(12,7,18,0.22)" } : undefined}>
-                      <div className="v8-crosshair-reticle" />
-                      <span className="v8-reticle-hint">Toca para marcar punto en foto aérea</span>
+                        }}
+                      >
+                        DESHACER ÚLTIMA
+                      </button>
+                      {(fotoTarget.offsetX !== 0 || fotoTarget.offsetY !== 0) && (
+                        <button
+                          type="button"
+                          className="btn-v8-secondary-sm btn-danger-subtle"
+                          title="Restaurar posición original de esta foto"
+                          onClick={() => {
+                            setFotos((prev) =>
+                              prev.map((f) =>
+                                f.id === fotoTarget.id
+                                  ? { ...f, offsetX: 0, offsetY: 0 }
+                                  : f
+                              )
+                            );
+                            setReferenciasGuardadas((prev) =>
+                              prev.filter((r) => r.fotoTargetId !== fotoTarget.id)
+                            );
+                            showToast(`Ajuste XY reseteado a 0m para ${fotoTarget.nombre}`);
+                          }}
+                        >
+                          RESET XY
+                        </button>
+                      )}
                     </div>
-                  </div>
-                </>
-              )}
+
+                    {/* Sección orientación fotogramétrica */}
+                    <div className="v8-alinea-orient-section">
+                      <span className="v8-alinea-orient-title">ORIENTACIÓN FOTOGRAMÉTRICA</span>
+                      <p className="v8-alinea-orient-desc">
+                        Cuando termines las referencias manuales, ejecuta el motor automático. Las correcciones XY se usan como posición inicial; ORB, geometría epipolar, tracks y ajuste global calculan la orientación final.
+                      </p>
+                      <button
+                        type="button"
+                        className="btn-v8-action-primary"
+                        onClick={() => {
+                          setSolucionCongelada(true);
+                          setEtapaActiva("SOLUCI");
+                          showToast("Orientación fotogramétrica iniciada — pasando a SOLUCIÓN");
+                        }}
+                      >
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2">
+                          <circle cx="12" cy="12" r="10" />
+                          <path d="M8 12h8M12 8l4 4-4 4" />
+                        </svg>
+                        ORIENTAR FOTOGRAMÉTRICAMENTE
+                      </button>
+                    </div>
+                  </>
+                );
+              })()}
 
               {/* ETAPA 4: SOLUCI (SOLUCIÓN DE CÁMARAS) */}
               {etapaActiva === "SOLUCI" && (
@@ -1878,13 +2658,15 @@ export default function EspacioDronFotogrametria({
 
                     <div className="v8-checklist-row">
                       <div className="v8-checklist-left">
-                        <span style={{ color: referencias.length > 0 ? "#ec4899" : "#64748b" }}>
-                          {referencias.length > 0 ? "✓" : "○"}
+                        <span style={{ color: referenciasGuardadas.length > 0 ? "#ec4899" : "#64748b" }}>
+                          {referenciasGuardadas.length > 0 ? "✓" : "○"}
                         </span>
                         <span>Alineación</span>
                       </div>
                       <span className="v8-checklist-right">
-                        {referencias.length > 0 ? "OK" : "pendiente"}
+                        {referenciasGuardadas.length > 0
+                          ? `OK (${referenciasGuardadas.length})`
+                          : "pendiente"}
                       </span>
                     </div>
 
@@ -2113,7 +2895,7 @@ export default function EspacioDronFotogrametria({
         <span className="v8-status-dot">•</span>
         <span className="v8-status-item">SFM {capas.sfm ? 1420 : 0}</span>
         <span className="v8-status-dot">•</span>
-        <span className="v8-status-item">SOL {referencias.length}</span>
+        <span className="v8-status-item">SOL {referenciasGuardadas.length}</span>
         <span className="v8-status-dot">•</span>
         <span className="v8-status-item">FUSIÓN {calidad}</span>
         <span className="v8-status-dot">•</span>
@@ -2122,8 +2904,9 @@ export default function EspacioDronFotogrametria({
         <span className="v8-status-item">CRS local...</span>
       </footer>
 
-      {/* 7. TOAST DE NOTIFICACIÓN */}
-      {toastMsg && <div className="v8-toast-pill">{toastMsg}</div>}
+        {/* 7. TOAST DE NOTIFICACIÓN */}
+        {toastMsg && <div className="v8-toast-pill">{toastMsg}</div>}
+      </div>
     </div>
   );
 }
