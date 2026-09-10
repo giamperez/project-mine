@@ -16,9 +16,14 @@ import {
   type PropiedadesExplosivoMina,
 } from "@suite/core";
 import type { Punto2D, Taladro } from "@suite/core";
-import type { LineaCad3D, PolilineaCad3D, CotaCad3D, PuntoCad3D } from "../../blast-pattern/components/EditorCadMalla.js";
-import EsquemaArranqueCotas, { type TipoArranqueSubterraneo } from "../../blast-pattern/components/EsquemaArranqueCotas.js";
-import { BotonInfoTeoria, TarjetaTeoriaMalla, type DatosEnVivoMalla } from "../../blast-pattern/components/TarjetaTeoriaMalla.js";
+import type { LineaCad3D, PolilineaCad3D, CotaCad3D, PuntoCad3D } from "../../../types/cad.js";
+import {
+  EsquemaArranqueCotas,
+  type TipoArranqueSubterraneo,
+  BotonInfoTeoria,
+  TarjetaTeoriaMalla,
+  type DatosEnVivoMalla,
+} from "../../blast-pattern/index.js";
 
 export type TabPanel = "datos" | "rmr" | "arranque" | "resultado";
 export type TipoSeccionPlantilla = "rectangular" | "herradura" | "tipo_d" | "arco_personalizado";

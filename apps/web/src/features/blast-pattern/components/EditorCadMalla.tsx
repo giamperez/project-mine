@@ -29,9 +29,51 @@ import {
   desfasarArco,
   desfasarPolilinea,
 } from "../../../utils/cadDesfase.js";
-import PanelDatosRmrMetodo from "../../geomechanics/components/PanelDatosRmrMetodo.js";
+import { PanelDatosRmrMetodo } from "../../geomechanics/index.js";
 import PanelMallaFinal from "./PanelMallaFinal.js";
 import PanelResultadosMalla from "./PanelResultadosMalla.js";
+
+export type {
+  SistemaCoordenadas,
+  TipoLinea,
+  RolIngenieria,
+  TipoPuntoCad,
+  PuntoCad3D,
+  LineaCad3D,
+  PolilineaCad3D,
+  MetodoArco,
+  ArcoCad3D,
+  TipoCotaCad,
+  CotaCad3D,
+  AristaSolidoCad,
+  SolidoCad3D,
+  MallaFinalSnapshot,
+  GrupoTaladroCad,
+  InfoGrupoTaladro,
+  CapaCad,
+  CarpetaCad,
+} from "../../../types/cad.js";
+
+import type {
+  SistemaCoordenadas,
+  TipoLinea,
+  RolIngenieria,
+  TipoPuntoCad,
+  PuntoCad3D,
+  LineaCad3D,
+  PolilineaCad3D,
+  MetodoArco,
+  ArcoCad3D,
+  TipoCotaCad,
+  CotaCad3D,
+  AristaSolidoCad,
+  SolidoCad3D,
+  MallaFinalSnapshot,
+  GrupoTaladroCad,
+  InfoGrupoTaladro,
+  CapaCad,
+  CarpetaCad,
+} from "../../../types/cad.js";
 
 type HerramientaCad =
   | "SEL"
@@ -47,144 +89,6 @@ type HerramientaCad =
   | "TAL"
   | "SOL"
   | "GRI";
-
-type SistemaCoordenadas = "local" | "utm_18s" | "utm_19s" | "psad56";
-type TipoLinea = "continua" | "discontinua" | "puntos" | "centro";
-type RolIngenieria = "geometria" | "galeria" | "burden_spacing";
-
-export type TipoPuntoCad = "cruz_x" | "cruz_mas" | "circulo_x" | "punto";
-
-export interface PuntoCad3D {
-  id: string;
-  x: number;
-  y: number;
-  z: number;
-  capaId: string;
-  tipo?: TipoPuntoCad;
-  etiqueta?: string;
-  color?: string;
-  /** Si viene de un taladro (vía "Convertir malla calculada a CAD editable"), su zona original —
-   * para seguir dibujando el símbolo técnico de esa zona (rombo, flecha, etc.) en vez de un
-   * círculo genérico, y que la malla se vea igual antes y después de convertirla. */
-  grupoTaladro?: GrupoTaladroCad;
-  anguloLookoutRad?: number;
-}
-
-export interface LineaCad3D {
-  id: string;
-  p1: { x: number; y: number; z: number };
-  p2: { x: number; y: number; z: number };
-  capaId: string;
-  tipo: TipoLinea;
-  rol: RolIngenieria;
-  longitud: number;
-  azimut: number;
-}
-
-export interface PolilineaCad3D {
-  id: string;
-  puntos: { x: number; y: number; z: number }[];
-  cerrada: boolean;
-  capaId: string;
-  tipo: TipoLinea;
-  rol: RolIngenieria;
-  longitud: number;
-}
-
-export type MetodoArco = "inicio_fin_r" | "centro_r" | "tres_puntos";
-
-export interface ArcoCad3D {
-  id: string;
-  metodo: MetodoArco;
-  centro: { x: number; y: number; z: number };
-  radio: number;
-  anguloInicio: number;
-  anguloFin: number;
-  puntos: { x: number; y: number; z: number }[];
-  capaId: string;
-  tipo: TipoLinea;
-  rol: RolIngenieria;
-  longitud: number;
-}
-
-export type TipoCotaCad = "distancia" | "b1" | "b2" | "b3" | "b4" | "b5" | "4g";
-
-export interface CotaCad3D {
-  id: string;
-  p1: { x: number; y: number; z: number };
-  p2: { x: number; y: number; z: number };
-  desplazamiento: number;
-  texto: string;
-  tipo: TipoCotaCad;
-  capaId: string;
-}
-
-export interface AristaSolidoCad {
-  id: string;
-  solidoId: string;
-  tipo: "superior" | "inferior" | "vertical";
-  p1: { x: number; y: number; z: number };
-  p2: { x: number; y: number; z: number };
-  longitud: number;
-}
-
-export interface SolidoCad3D {
-  id: string;
-  nombre: string;
-  perfil: { x: number; y: number }[];
-  modoExtrusion?: "profundidad" | "levantamiento" | "ambos";
-  profundidad: number;
-  levantamiento?: number;
-  area_m2: number;
-  volumen_m3: number;
-  centroide: { x: number; y: number; z: number };
-  color: string;
-  capaId: string;
-  aristas?: AristaSolidoCad[];
-}
-
-export interface MallaFinalSnapshot {
-  id: string;
-  nombre: string;
-  fechaIso: string;
-  taladros: Taladro[];
-  puntosCad: PuntoCad3D[];
-  polilineasCad: PolilineaCad3D[];
-  lineasCad: LineaCad3D[];
-  cotasCad: CotaCad3D[];
-  poligonoCresta: Punto2D[];
-  totalTaladros: number;
-  metrosPerforacion: number;
-  totalEntidades: number;
-}
-
-export type GrupoTaladroCad =
-  | "arranque"
-  | "alivio"
-  | "cuadrante"
-  | "cuadrante1"
-  | "cuadrante2"
-  | "cuadrante3"
-  | "cuadrante4"
-  | "produccion"
-  | "cuadradores"
-  | "corona"
-  | "recorte"
-  | "contorno"
-  | "hastial"
-  | "arrastre";
-
-export interface InfoGrupoTaladro {
-  id: GrupoTaladroCad;
-  label: string;
-  abrev: string;
-  colorDefecto: string;
-  radioMmDefecto: string;
-  longitudMDefecto: string;
-  lookOutDefecto: string;
-  gradienteDefecto: string;
-  cargadoDefecto: boolean;
-}
 
 export const GRUPOS_TALADRO_CONFIG: InfoGrupoTaladro[] = [
   {
@@ -563,22 +467,7 @@ function dibujarIconoTaladro(
   }
 }
 
-export interface CapaCad {
-  id: string;
-  nombre: string;
-  color: string;
-  visible: boolean;
-  bloqueada: boolean;
-  carpetaId: string;
-  elementosCount: number;
-}
 
-export interface CarpetaCad {
-  id: string;
-  nombre: string;
-  abierta: boolean;
-  visible: boolean;
-}
 
 interface EditorCadMallaProps {
   poligonoCresta: Punto2D[];

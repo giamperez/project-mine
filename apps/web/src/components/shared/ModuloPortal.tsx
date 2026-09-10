@@ -1,6 +1,7 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import type { ModuloId } from "../../Dashboard.js";
 import AnimacionModulo3D from "./AnimacionModulo3D.js";
+import ModalImportarExportar3D from "./ModalImportarExportar3D.js";
 import { usePersistedState, PREFIJO_ALMACENAMIENTO } from "../../hooks/usePersistedState.js";
 import { exportarProyectoJSON } from "../../utils/proyecto.js";
 import { descargarTexto } from "../../utils/descargar.js";
@@ -103,6 +104,29 @@ function generarProyectosIniciales(modId: ModuloId): ItemProyectoPortal[] {
       },
     ];
   }
+  if (modId === "modelo3d") {
+    const guardadosM3D = leerValorGuardado<any[]>("modelo3d.listaProyectos", []);
+    if (guardadosM3D && guardadosM3D.length > 0) {
+      return guardadosM3D.map((g) => ({
+        id: g.id,
+        nombre: g.nombre || "Modelo 3D",
+        fecha: g.modificadoISO
+          ? `${new Date(g.modificadoISO).toLocaleDateString("es-ES")} ${new Date(g.modificadoISO).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+          : fechaCompleta,
+        detalles: `Capas: ${g.capas ?? 4} capas activas (Datamine PT/TR, Bloques, DXF)`,
+        estado: "borrador",
+      }));
+    }
+    return [
+      {
+        id: "modelo3d-1",
+        nombre: "Visualización Mina Principal",
+        fecha: fechaCompleta,
+        detalles: "Capas: 4 capas activas (Bloques, Sondajes, TIN, Wireframes)",
+        estado: "borrador",
+      },
+    ];
+  }
   return [
     {
       id: `${modId}-1`,
@@ -124,6 +148,8 @@ interface ModuloMeta {
   kpi3: { valor: string | number; label: string };
   proyectoNombreDefecto: string;
   resumenDiseno: string;
+  singular: string;
+  plural: string;
 }
 
 export default function ModuloPortal({
@@ -147,6 +173,11 @@ export default function ModuloPortal({
   const [nombreEnEdicion, setNombreEnEdicion] = useState("");
   const [notificacion, setNotificacion] = useState<string | null>(null);
   const [horaLocal, setHoraLocal] = useState("09:41");
+
+  // Estado para Modal de Importación / Exportación 3D
+  const [modal3DAbierto, setModal3DAbierto] = useState(false);
+  const [modoModal3D, setModoModal3D] = useState<"importar" | "exportar">("exportar");
+  const [proyectoSeleccionadoModal, setProyectoSeleccionadoModal] = useState<ItemProyectoPortal | null>(null);
 
   useEffect(() => {
     const now = new Date();
@@ -174,11 +205,13 @@ export default function ModuloPortal({
           subtitulo: "Sistema inteligente de perforación y voladura",
           color: "#f97316",
           botonPrincipal: "+ Diseñar Nueva Malla",
-          kpi1: { valor: proyectos.length, label: "PROYECTOS" },
+          kpi1: { valor: proyectos.length, label: "MALLAS" },
           kpi2: { valor: ultimaFecha, label: "ÚLTIMA MALLA" },
           kpi3: { valor: totalTaladros, label: "TALADROS TOT." },
           proyectoNombreDefecto: "Malla 1",
           resumenDiseno: `Diseño: ${totalTaladros} taladros`,
+          singular: "Malla",
+          plural: "Mallas",
         };
       }
       case "topografia": {
@@ -187,12 +220,14 @@ export default function ModuloPortal({
           titulo: "Topografía y Superficie",
           subtitulo: "Mallas de elevación triangulada (TIN) y curvas de nivel",
           color: "#06b6d4",
-          botonPrincipal: "+ Nuevo Levantamiento 3D",
-          kpi1: { valor: proyectos.length, label: "PROYECTOS" },
-          kpi2: { valor: ultimaFecha, label: "LEVANTAMIENTO" },
+          botonPrincipal: "+ Nuevo Levantamiento",
+          kpi1: { valor: proyectos.length, label: "LEVANTAMIENTOS" },
+          kpi2: { valor: ultimaFecha, label: "ÚLTIMO" },
           kpi3: { valor: puntos.length > 0 ? puntos.length : 117, label: "PUNTOS 3D" },
           proyectoNombreDefecto: "Superficie Tajo Fase 1",
           resumenDiseno: `Nube: ${puntos.length > 0 ? puntos.length : 117} vértices procesados`,
+          singular: "Levantamiento",
+          plural: "Levantamientos",
         };
       }
       case "geomecanica": {
@@ -209,6 +244,8 @@ export default function ModuloPortal({
           kpi3: { valor: `${rqd}%`, label: "RQD NATIVO" },
           proyectoNombreDefecto: "Frente Avance Galería Norte",
           resumenDiseno: `Clasificación: RMR 65 - Roca Buena`,
+          singular: "Evaluación",
+          plural: "Evaluaciones",
         };
       }
       case "estereografia": {
@@ -223,6 +260,8 @@ export default function ModuloPortal({
           kpi3: { valor: disc.length > 0 ? disc.length : 4, label: "FAMILIAS" },
           proyectoNombreDefecto: "Talud Sur Banco 4200",
           resumenDiseno: `Estructura: ${disc.length > 0 ? disc.length : 4} familias activas`,
+          singular: "Estudio",
+          plural: "Estudios",
         };
       }
       case "acarreo": {
@@ -239,6 +278,8 @@ export default function ModuloPortal({
           kpi3: { valor: `${cap}t`, label: "CAPACIDAD" },
           proyectoNombreDefecto: "Ruta Botadero Primario",
           resumenDiseno: `Flota: ${camiones} unidades de ${cap}t`,
+          singular: "Escenario",
+          plural: "Escenarios",
         };
       }
       case "modeloBloques": {
@@ -247,12 +288,30 @@ export default function ModuloPortal({
           titulo: "Modelo de Bloques",
           subtitulo: "Sondajes diamantina e interpolación espacial 3D Kriging",
           color: "#a855f7",
-          botonPrincipal: "+ Generar Nuevo Bloque 3D",
+          botonPrincipal: "+ Generar Nuevo Bloque",
           kpi1: { valor: proyectos.length, label: "MODELOS" },
           kpi2: { valor: "KRIGING", label: "ESTIMACIÓN" },
           kpi3: { valor: colares.length > 0 ? colares.length : 9, label: "SONDAJES" },
           proyectoNombreDefecto: "Veta Esperanza Banco 3800",
           resumenDiseno: `Geología: ${colares.length > 0 ? colares.length : 9} DDH interpolados`,
+          singular: "Modelo de Bloques",
+          plural: "Modelos de Bloques",
+        };
+      }
+      case "modelo3d": {
+        const capas = leerValorGuardado<any[]>("modelo3d.capas", []);
+        return {
+          titulo: "Visualización Minera 3D",
+          subtitulo: "Modelos de bloques, sondajes, curvas TIN y wireframes Datamine",
+          color: "#ec4899",
+          botonPrincipal: "+ Nuevo Modelo 3D",
+          kpi1: { valor: proyectos.length, label: "MODELOS 3D" },
+          kpi2: { valor: ultimaFecha, label: "ÚLTIMO MODELO" },
+          kpi3: { valor: capas.length > 0 ? `${capas.length} CAPAS` : "4 CAPAS", label: "ESCENA 3D" },
+          proyectoNombreDefecto: "Proyecto 3D",
+          resumenDiseno: `Capas: ${capas.length > 0 ? capas.length : 4} capas activas`,
+          singular: "Modelo 3D",
+          plural: "Modelos 3D",
         };
       }
       default: {
@@ -266,6 +325,8 @@ export default function ModuloPortal({
           kpi3: { valor: 0, label: "DATOS" },
           proyectoNombreDefecto: "Proyecto Minero",
           resumenDiseno: "Configuración estándar",
+          singular: "Proyecto",
+          plural: "Proyectos",
         };
       }
     }
@@ -328,6 +389,14 @@ export default function ModuloPortal({
       } catch {}
     }
 
+    if (moduloId === "modelo3d") {
+      const nuevoProyM3D = { id: nuevoId, nombre: nuevoNombre, capas: 4, modificadoISO: new Date().toISOString() };
+      try {
+        const listaM3D = [nuevoProyM3D, ...leerValorGuardado<any[]>("modelo3d.listaProyectos", [])];
+        localStorage.setItem(PREFIJO_ALMACENAMIENTO + "modelo3d.listaProyectos", JSON.stringify(listaM3D));
+      } catch {}
+    }
+
     const listaActualizada = [nuevoItem, ...proyectos];
     setProyectos(listaActualizada);
     setProyectoActivoId(nuevoId);
@@ -338,18 +407,18 @@ export default function ModuloPortal({
     } catch {}
 
     if (abrirDirecto) {
-      notificar(`✓ Malla "${nuevoNombre}" creada. Abriendo taller...`);
+      notificar(`✓ "${nuevoNombre}" creada. Abriendo taller...`);
       onAbrirTaller(nuevoId);
     } else {
       setEditandoId(nuevoId);
       setNombreEnEdicion(nuevoNombre);
-      notificar(`✓ Malla "${nuevoNombre}" agregada a la lista.`);
+      notificar(`✓ "${nuevoNombre}" agregada a la lista.`);
     }
   }
 
   function handleEliminarMalla(proyecto: ItemProyectoPortal, e: React.MouseEvent) {
     e.stopPropagation();
-    const conf = window.confirm(`¿Estás seguro de eliminar la malla "${proyecto.nombre}"? Esta acción no se puede deshacer.`);
+    const conf = window.confirm(`¿Estás seguro de eliminar "${proyecto.nombre}"? Esta acción no se puede deshacer.`);
     if (!conf) return;
 
     const filtrados = proyectos.filter((item) => item.id !== proyecto.id);
@@ -418,11 +487,105 @@ export default function ModuloPortal({
     notificar(`✓ Copia de "${proyecto.nombre}" creada.`);
   }
 
+  const inputImportarRef = useRef<HTMLInputElement>(null);
+
+  function handleImportarArchivo(archivo: File) {
+    const lector = new FileReader();
+    lector.onload = () => {
+      try {
+        const raw = String(lector.result);
+        const data = JSON.parse(raw);
+        const nombreBase = data?.proyecto?.nombre ?? data?.nombre ?? archivo.name.replace(/\.[^.]+$/, "");
+        const nuevoId = `${moduloId}-${Date.now()}`;
+        const fechaCompleta = `${new Date().toLocaleDateString("es-ES")} ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+
+        let detalles = meta.resumenDiseno;
+        if (moduloId === "modelo3d") {
+          const capas = typeof data?.proyecto?.capas === "number" ? data.proyecto.capas : 4;
+          detalles = `Capas: ${capas} capas (Importado)`;
+        }
+
+        const nuevoItem: ItemProyectoPortal = {
+          id: nuevoId,
+          nombre: nombreBase,
+          fecha: fechaCompleta,
+          detalles,
+          estado: "borrador",
+        };
+
+        const listaActualizada = [nuevoItem, ...proyectos];
+        setProyectos(listaActualizada);
+        setProyectoActivoId(nuevoId);
+
+        try {
+          localStorage.setItem(PREFIJO_ALMACENAMIENTO + `${moduloId}.listaProyectos`, JSON.stringify(listaActualizada));
+          localStorage.setItem(PREFIJO_ALMACENAMIENTO + `${moduloId}.proyectoActivoId`, JSON.stringify(nuevoId));
+          if (moduloId === "modelo3d") {
+            const listaM3D = [{ id: nuevoId, nombre: nombreBase, capas: 4, modificadoISO: new Date().toISOString() }, ...leerValorGuardado<any[]>("modelo3d.listaProyectos", [])];
+            localStorage.setItem(PREFIJO_ALMACENAMIENTO + "modelo3d.listaProyectos", JSON.stringify(listaM3D));
+          }
+        } catch {}
+
+        notificar(`✓ Proyecto "${nombreBase}" importado correctamente.`);
+      } catch {
+        notificar("No se pudo leer el archivo (formato inválido).");
+      }
+    };
+    lector.readAsText(archivo);
+  }
+
   function handleExportarMalla(proyecto: ItemProyectoPortal, e: React.MouseEvent) {
     e.stopPropagation();
+    if (moduloId === "modelo3d") {
+      const contenido = JSON.stringify(
+        { formato: "namicad3d", version: 1, proyecto: { id: proyecto.id, nombre: proyecto.nombre, capas: 4, modificadoISO: new Date().toISOString() } },
+        null,
+        2
+      );
+      descargarTexto(`${proyecto.nombre.toLowerCase().replace(/\s+/g, "_")}.namicad3d`, contenido, "application/json");
+      notificar(`✓ "${proyecto.nombre}" exportado como .namicad3d`);
+      return;
+    }
     const data = exportarProyectoJSON();
     descargarTexto(`${proyecto.nombre.toLowerCase().replace(/\s+/g, "_")}.json`, data, "application/json");
     notificar(`✓ Datos de "${proyecto.nombre}" exportados.`);
+  }
+
+  function handleProyectoImportado(nombre: string, nuevoId: string, detalles: string) {
+    const fechaCompleta = `${new Date().toLocaleDateString("es-ES")} ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+    const nuevoItem: ItemProyectoPortal = {
+      id: nuevoId,
+      nombre,
+      fecha: fechaCompleta,
+      detalles,
+      estado: "borrador",
+    };
+
+    const lista = [nuevoItem, ...proyectos];
+    setProyectos(lista);
+    setProyectoActivoId(nuevoId);
+
+    try {
+      localStorage.setItem(PREFIJO_ALMACENAMIENTO + `${moduloId}.listaProyectos`, JSON.stringify(lista));
+      localStorage.setItem(PREFIJO_ALMACENAMIENTO + `${moduloId}.proyectoActivoId`, JSON.stringify(nuevoId));
+      if (moduloId === "modelo3d") {
+        const listaM3D = [{ id: nuevoId, nombre, capas: 4, modificadoISO: new Date().toISOString() }, ...leerValorGuardado<any[]>("modelo3d.listaProyectos", [])];
+        localStorage.setItem(PREFIJO_ALMACENAMIENTO + "modelo3d.listaProyectos", JSON.stringify(listaM3D));
+      }
+    } catch {}
+    notificar(`✓ Proyecto "${nombre}" importado y listo para visualizar.`);
+  }
+
+  function abrirModalImportar() {
+    setModoModal3D("importar");
+    setProyectoSeleccionadoModal(null);
+    setModal3DAbierto(true);
+  }
+
+  function abrirModalExportar(p: ItemProyectoPortal) {
+    setModoModal3D("exportar");
+    setProyectoSeleccionadoModal(p);
+    setModal3DAbierto(true);
   }
 
   function handleGuardarNombre(id: string) {
@@ -534,18 +697,92 @@ export default function ModuloPortal({
           </div>
         </div>
 
-        {/* Botón de Acción Principal: Diseñar Nueva Malla */}
-        <button
-          type="button"
-          className="btn-portal-primary"
-          style={{
-            background: `linear-gradient(135deg, ${meta.color}, ${meta.color}cc)`,
-            boxShadow: `0 8px 24px ${meta.color}40`,
-          }}
-          onClick={() => handleCrearNuevaMalla(true)}
-        >
-          {meta.botonPrincipal}
-        </button>
+        {/* Fila de Acciones Principales */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px", margin: "14px 0 18px 0" }}>
+          <button
+            type="button"
+            className="btn-portal-primary"
+            style={{
+              margin: 0,
+              background: `linear-gradient(135deg, ${meta.color}, ${meta.color}cc)`,
+              boxShadow: `0 8px 24px ${meta.color}40`,
+            }}
+            onClick={() => handleCrearNuevaMalla(true)}
+          >
+            {meta.botonPrincipal}
+          </button>
+
+          {moduloId === "modelo3d" ? (
+            <button
+              type="button"
+              className="btn-portal-importar"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
+                padding: "11px 16px",
+                borderRadius: "14px",
+                border: `1px solid ${meta.color}44`,
+                background: `${meta.color}14`,
+                color: "#f8fafc",
+                fontSize: "12px",
+                fontWeight: 700,
+                letterSpacing: "0.5px",
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+              }}
+              onClick={abrirModalImportar}
+            >
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+              IMPORTAR / EXPORTAR FORMATOS 3D (.MINE3D, .OBJ, .DXF, .STL, .CSV)
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn-portal-importar"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
+                padding: "11px 16px",
+                borderRadius: "14px",
+                border: `1px solid ${meta.color}44`,
+                background: `${meta.color}14`,
+                color: "#f8fafc",
+                fontSize: "12px",
+                fontWeight: 700,
+                letterSpacing: "0.5px",
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+              }}
+              onClick={() => inputImportarRef.current?.click()}
+            >
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+              {moduloId === "malla" ? "IMPORTAR DISEÑO DE MALLA (.JSON)" : `IMPORTAR ${meta.singular.toUpperCase()} (.JSON)`}
+              <input
+                ref={inputImportarRef}
+                type="file"
+                accept=".json,.csv"
+                style={{ display: "none" }}
+                onChange={(e) => {
+                  const a = e.target.files?.[0];
+                  if (a) handleImportarArchivo(a);
+                  e.target.value = "";
+                }}
+              />
+            </button>
+          )}
+        </div>
 
         {/* Sección: Proyectos Recientes */}
         <section className="portal-recientes-section">
@@ -650,7 +887,7 @@ export default function ModuloPortal({
                     <button
                       type="button"
                       className="btn-op-icon"
-                      title="Duplicar malla"
+                      title={`Duplicar ${meta.singular.toLowerCase()}`}
                       onClick={(e) => handleDuplicarMalla(proyecto, e)}
                     >
                       <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2">
@@ -662,8 +899,15 @@ export default function ModuloPortal({
                     <button
                       type="button"
                       className="btn-op-icon"
-                      title="Compartir o exportar datos"
-                      onClick={(e) => handleExportarMalla(proyecto, e)}
+                      title={moduloId === "modelo3d" ? "Exportar en formatos 3D (.mine3d, .obj, .dxf, .stl, .csv)" : `Exportar datos de ${meta.singular.toLowerCase()} (.json)`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (moduloId === "modelo3d") {
+                          abrirModalExportar(proyecto);
+                        } else {
+                          handleExportarMalla(proyecto, e);
+                        }
+                      }}
                     >
                       <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2">
                         <circle cx="18" cy="5" r="3" />
@@ -677,7 +921,7 @@ export default function ModuloPortal({
                     <button
                       type="button"
                       className="btn-op-icon btn-op-danger"
-                      title="Eliminar malla"
+                      title={`Eliminar ${meta.singular.toLowerCase()}`}
                       onClick={(e) => handleEliminarMalla(proyecto, e)}
                     >
                       <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2">
@@ -694,10 +938,10 @@ export default function ModuloPortal({
           {proyectos.length === 0 && (
             <div className="portal-empty-card">
               <p style={{ margin: "0 0 6px 0", color: "#94a3b8", fontSize: "13px", fontWeight: 600 }}>
-                No tienes mallas en este momento.
+                No tienes {meta.plural.toLowerCase()} en este momento.
               </p>
               <span style={{ color: "#64748b", fontSize: "11px" }}>
-                Presiona el botón de abajo o "+ Diseñar Nueva Malla" para comenzar.
+                Presiona el botón de arriba o "{meta.botonPrincipal}" para comenzar.
               </span>
             </div>
           )}
@@ -706,7 +950,7 @@ export default function ModuloPortal({
           <div
             className="portal-placeholder-card"
             onClick={() => handleCrearNuevaMalla(false)}
-            title="Toque para crear una nueva malla en la lista"
+            title={`Toque para crear un nuevo ${meta.singular.toLowerCase()} en la lista`}
           >
             <div className="placeholder-icon-circle">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -714,8 +958,8 @@ export default function ModuloPortal({
                 <line x1="5" y1="12" x2="19" y2="12" />
               </svg>
             </div>
-            <p>Tus próximos diseños aparecerán aquí</p>
-            <span className="placeholder-hint">+ Toque para agregar una malla</span>
+            <p>Tus próximos {meta.plural.toLowerCase()} aparecerán aquí</p>
+            <span className="placeholder-hint">+ Toque para agregar {moduloId === "malla" ? "una malla" : `un ${meta.singular.toLowerCase()}`}</span>
           </div>
         </section>
 
@@ -790,6 +1034,20 @@ export default function ModuloPortal({
           </button>
         </nav>
       </div>
+
+      {/* MODAL MULTI-FORMATO 3D (OBJ, DXF, STL, CSV, NAMICAD3D) */}
+      {modal3DAbierto && (
+        <ModalImportarExportar3D
+          abierto={modal3DAbierto}
+          modoInicial={modoModal3D}
+          proyectoId={proyectoSeleccionadoModal ? proyectoSeleccionadoModal.id : (proyectoActivoId || `${moduloId}-1`)}
+          proyectoNombre={proyectoSeleccionadoModal ? proyectoSeleccionadoModal.nombre : (meta.proyectoNombreDefecto || "Proyecto_3D")}
+          moduloId={moduloId}
+          colorTema={meta.color}
+          onCerrar={() => setModal3DAbierto(false)}
+          onProyectoImportado={handleProyectoImportado}
+        />
+      )}
     </div>
   );
 }

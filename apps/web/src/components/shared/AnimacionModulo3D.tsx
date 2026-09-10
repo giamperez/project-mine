@@ -200,6 +200,44 @@ export default function AnimacionModulo3D({ moduloId, color, size = 84 }: Props)
 
       rootGroup.add(truckGroup);
       meshesParaLimpiar.push(truckGroup);
+    } else if (moduloId === "modelo3d") {
+      // FORMA 3D EXACTA PARA VISUALIZACIÓN MINERA 3D: Escena isométrica de mina con bounding box, terreno, sondaje y bloques voxel
+      const m3dGroup = new THREE.Group();
+
+      // Bounding box alámbrico de mina
+      const bbox = new THREE.Mesh(new THREE.BoxGeometry(3.0, 2.2, 3.0), matWire);
+      m3dGroup.add(bbox);
+
+      // Superficie topográfica TIN ondulada
+      const terrainGeo = new THREE.PlaneGeometry(2.8, 2.8, 4, 4);
+      const pos = terrainGeo.attributes.position;
+      for (let i = 0; i < pos.count; i++) {
+        const u = pos.getX(i);
+        const v = pos.getY(i);
+        pos.setZ(i, Math.sin(u * 1.6) * Math.cos(v * 1.6) * 0.4);
+      }
+      terrainGeo.computeVertexNormals();
+      const terrainMesh = new THREE.Mesh(terrainGeo, matTrans);
+      terrainMesh.rotation.x = -Math.PI / 2;
+      terrainMesh.position.y = 0.35;
+      m3dGroup.add(terrainMesh);
+
+      // Sondaje diamantina inclinado
+      const drillGeo = new THREE.CylinderGeometry(0.06, 0.06, 2.8, 8);
+      const drill = new THREE.Mesh(drillGeo, matGlow);
+      drill.rotation.set(0.3, 0.2, 0.4);
+      drill.position.set(0.1, -0.2, -0.1);
+      m3dGroup.add(drill);
+
+      // Bloques de recursos voxel
+      const v1 = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.65, 0.65), matTrans);
+      v1.position.set(-0.5, -0.4, 0.4);
+      const v2 = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.65, 0.65), matGlow);
+      v2.position.set(0.4, -0.45, -0.3);
+      m3dGroup.add(v1, v2);
+
+      rootGroup.add(m3dGroup);
+      meshesParaLimpiar.push(m3dGroup);
     } else {
       // FORMA 3D EXACTA AL ICONO DE BLOQUES: Cubo mineral de recursos / voxel grid
       const blockGroup = new THREE.Group();
