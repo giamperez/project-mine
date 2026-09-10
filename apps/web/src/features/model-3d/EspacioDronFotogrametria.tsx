@@ -1,7 +1,16 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { generarCurvasNivel, triangularSuperficie, type PuntoTopografico } from "@suite/core";
 import { extraerMetadataFoto, proyectarFotosDron } from "./exifDron.js";
+
+// Relieve topográfico bare-earth (pendiente natural y depresiones) usado tanto para la superficie
+// MDT como para las curvas de nivel — deben leer la MISMA función de altura para que las curvas
+// coincidan con el relieve realmente dibujado (antes, las curvas eran un patrón senoidal aparte
+// que no tenía relación con la superficie).
+function alturaTerrenoBareEarth(vx: number, vy: number): number {
+  return Math.sin(vx * 0.028) * 2.6 + Math.cos(vy * 0.032) * 2.1 + Math.sin((vx + vy) * 0.015) * 1.8 - 0.8;
+}
 
 // Ancho (en unidades de escena) del frustum de la cámara ortográfica en zoom 1x.
 // El encuadre automático ajusta camara.zoom sobre esta base para cubrir el bloque de vuelo real.
@@ -618,12 +627,7 @@ export default function EspacioDronFotogrametria({
       for (let idx = 0; idx < posAttr.count; idx++) {
         const vx = posAttr.getX(idx) + (minX + maxX) / 2;
         const vy = posAttr.getY(idx) + (minY + maxY) / 2;
-        // Relieve topográfico bare-earth con pendiente natural y depresiones
-        const vz =
-          Math.sin(vx * 0.028) * 2.6 +
-          Math.cos(vy * 0.032) * 2.1 +
-          Math.sin((vx + vy) * 0.015) * 1.8 -
-          0.8;
+        const vz = alturaTerrenoBareEarth(vx, vy);
         posAttr.setZ(idx, vz);
         vertexZ.push(vz);
         if (vz < minZ) minZ = vz;
@@ -686,7 +690,9 @@ export default function EspacioDronFotogrametria({
       grupo.add(wireMesh);
     }
 
-    // 7. Curvas de nivel topográficas 3D (capas.curva)
+    // 7. Curvas de nivel topográficas 3D (capas.curva) — intersección real de la superficie con
+    // planos horizontales (mismo algoritmo que el módulo de Topografía: triangularSuperficie +
+    // generarCurvasNivel de @suite/core), muestreando la MISMA función de altura que la superficie MDT.
     if (capas.curva && fotos.length > 0) {
       const step = Math.max(0.5, Number(intervaloCurvas) || 1.0);
       const xs = fotos.map((f) => f.centroX);
@@ -695,28 +701,34 @@ export default function EspacioDronFotogrametria({
       const maxX = Math.max(...xs) + 20;
       const minY = Math.min(...ys) - 20;
       const maxY = Math.max(...ys) + 20;
-      const curvePts: THREE.Vector3[] = [];
 
-      for (let z = -3; z <= 5; z += step) {
-        for (let x = minX; x <= maxX; x += 4) {
-          const factorX = (x - minX) / (maxX - minX);
-          const yBase = minY + (maxY - minY) * 0.5;
-          const y1 = yBase + Math.sin(factorX * Math.PI * 2.5 + z * 0.8) * ((maxY - minY) * 0.35);
-          const y2 = yBase + Math.sin((factorX + 0.03) * Math.PI * 2.5 + z * 0.8) * ((maxY - minY) * 0.35);
-          curvePts.push(new THREE.Vector3(x, y1, z + 0.05));
-          curvePts.push(new THREE.Vector3(x + 4, y2, z + 0.05));
+      const resolucion = 24; // celdas por eje: suficiente detalle sin recalcular Delaunay de más
+      const puntos: PuntoTopografico[] = [];
+      for (let j = 0; j <= resolucion; j++) {
+        const vy = minY + ((maxY - minY) * j) / resolucion;
+        for (let i = 0; i <= resolucion; i++) {
+          const vx = minX + ((maxX - minX) * i) / resolucion;
+          puntos.push({ x: vx, y: vy, z: alturaTerrenoBareEarth(vx, vy) });
         }
       }
 
-      if (curvePts.length > 0) {
+      const superficie = triangularSuperficie(puntos);
+      const segmentos = generarCurvasNivel({ superficie, intervalo_m: step });
+
+      if (segmentos.length > 0) {
+        const curvePts: THREE.Vector3[] = [];
+        for (const s of segmentos) {
+          curvePts.push(new THREE.Vector3(s.a.x, s.a.y, s.cota + 0.05));
+          curvePts.push(new THREE.Vector3(s.b.x, s.b.y, s.cota + 0.05));
+        }
         const curveGeom = new THREE.BufferGeometry().setFromPoints(curvePts);
         const curveMat = new THREE.LineSegments(
           curveGeom,
           new THREE.LineBasicMaterial({
-            color: 0x059669,
+            color: 0xfbbf24,
             linewidth: 2,
             transparent: true,
-            opacity: 0.85,
+            opacity: 0.95,
           })
         );
         grupo.add(curveMat);

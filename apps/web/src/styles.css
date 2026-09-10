@@ -9609,7 +9609,98 @@ table.tabla-taladros td:first-child {
   margin: 6px 0;
 }
 
+/* Responsividad móvil del taller de Dron/Fotogrametría (V8) — antes no tenía ninguna media query:
+   docks, header y barra de estado usaban anchos/paddings fijos que se desbordaban en pantallas
+   angostas (texto cortado como "PLA..." o "CRS local..."). */
+@media (max-width: 600px) {
+  .v8-dron-header {
+    height: auto;
+    min-height: 46px;
+    flex-wrap: wrap;
+    padding: 6px 8px;
+    gap: 6px;
+  }
 
+  .v8-dron-title {
+    font-size: 12.5px;
+  }
+
+  .v8-dron-subtitle {
+    font-size: 8px;
+  }
+
+  .v8-dron-header-right {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+    width: 100%;
+  }
+
+  .v8-dron-view-switch {
+    padding: 2px 3px;
+    gap: 2px;
+  }
+
+  .btn-v8-switch-item {
+    font-size: 9px;
+    padding: 3px 6px;
+    border-radius: 10px;
+  }
+
+  .v8-dron-canvas-wrap {
+    top: 72px;
+  }
+
+  .v8-dron-dock-left,
+  .v8-dron-dock-right {
+    top: 6px;
+    bottom: 52px;
+    width: 38px;
+    padding: 5px 3px;
+    gap: 4px;
+    border-radius: 19px;
+  }
+
+  .v8-dron-dock-left {
+    left: 5px;
+  }
+
+  .v8-dron-dock-right {
+    right: 5px;
+  }
+
+  .btn-v8-layer-toggle {
+    width: 30px;
+    height: 32px;
+    border-radius: 10px;
+  }
+
+  .btn-v8-stage-item {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+  }
+
+  .v8-layer-eye {
+    font-size: 9.5px;
+  }
+
+  .v8-layer-label,
+  .btn-v8-stage-item span {
+    font-size: 6.2px;
+  }
+
+  .v8-dron-statusbar {
+    left: 50%;
+    max-width: calc(100vw - 16px);
+    padding: 4px 8px;
+    gap: 4px 6px;
+    font-size: 8px;
+    white-space: normal;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
 
 
 
