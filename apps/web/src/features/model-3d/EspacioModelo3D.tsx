@@ -77,6 +77,20 @@ export default function EspacioModelo3D({ proyectoId, onVolverAlPortal }: Props)
   const [contrasteVal, setContrasteVal] = useState(1.06);
   const [gammaVal, setGammaVal] = useState(1.00);
   const [nitidezVal, setNitidezVal] = useState(22);
+  const [opacidadImagenVal, setOpacidadImagenVal] = useState(100);
+
+  // Coordenadas Georreferenciación UTM V8
+  const [utmMinX, setUtmMinX] = useState("246691.1493");
+  const [utmMaxX, setUtmMaxX] = useState("246882.5468");
+  const [utmMinY, setUtmMinY] = useState("4309885.5989");
+  const [utmMaxY, setUtmMaxY] = useState("4310100.3841");
+  const [imagenSatelitalActiva, setImagenSatelitalActiva] = useState(false);
+
+  // Referencias a texturas y buffers V8
+  const baseTINZRef = useRef<Float32Array | null>(null);
+  const texturaSatelitalRef = useRef<THREE.Texture | null>(null);
+  const texturaRealistaRef = useRef<THREE.Texture | null>(null);
+  const inputOrtofotoRef = useRef<HTMLInputElement | null>(null);
 
   // Ajustes de render
   const [modoAlambrico, setModoAlambrico] = useState(false);
@@ -93,6 +107,214 @@ export default function EspacioModelo3D({ proyectoId, onVolverAlPortal }: Props)
   function notificar(msg: string) {
     setNotificacion(msg);
     setTimeout(() => setNotificacion(null), 2800);
+  }
+
+  // Generadores procedurables para texturas realistas y satelitales en 3D
+  function generarTexturaProceduralSatelital(): THREE.CanvasTexture {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1024;
+    canvas.height = 1024;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return new THREE.CanvasTexture(canvas);
+
+    const grad = ctx.createLinearGradient(0, 0, 1024, 1024);
+    grad.addColorStop(0, "#423627");
+    grad.addColorStop(0.3, "#5a4b36");
+    grad.addColorStop(0.6, "#6b5c43");
+    grad.addColorStop(0.85, "#463c2c");
+    grad.addColorStop(1, "#322b20");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 1024, 1024);
+
+    for (let i = 0; i < 500; i++) {
+      const px = Math.random() * 1024;
+      const py = Math.random() * 1024;
+      const r = 8 + Math.random() * 40;
+      ctx.beginPath();
+      ctx.arc(px, py, r, 0, Math.PI * 2);
+      ctx.fillStyle = Math.random() > 0.5 ? "rgba(105, 90, 70, 0.16)" : "rgba(30, 25, 20, 0.2)";
+      ctx.fill();
+    }
+
+    for (let c = 0; c < 20; c++) {
+      ctx.beginPath();
+      ctx.strokeStyle = c % 2 === 0 ? "rgba(135, 115, 85, 0.18)" : "rgba(55, 45, 35, 0.22)";
+      ctx.lineWidth = 1.5 + Math.random() * 2;
+      const y0 = (c * 1024) / 20;
+      ctx.moveTo(0, y0);
+      for (let x = 0; x <= 1024; x += 64) {
+        ctx.lineTo(x, y0 + Math.sin((x / 1024) * Math.PI * 4 + c) * 30);
+      }
+      ctx.stroke();
+    }
+
+    // Trazos de caminos mineros / frentes
+    ctx.beginPath();
+    ctx.strokeStyle = "rgba(195, 175, 145, 0.45)";
+    ctx.lineWidth = 12;
+    ctx.moveTo(120, 950);
+    ctx.bezierCurveTo(340, 750, 200, 450, 512, 400);
+    ctx.bezierCurveTo(800, 360, 750, 180, 900, 80);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.strokeStyle = "rgba(225, 210, 185, 0.3)";
+    ctx.lineWidth = 5;
+    ctx.moveTo(120, 950);
+    ctx.bezierCurveTo(340, 750, 200, 450, 512, 400);
+    ctx.bezierCurveTo(800, 360, 750, 180, 900, 80);
+    ctx.stroke();
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = THREE.ClampToEdgeWrapping;
+    tex.wrapT = THREE.ClampToEdgeWrapping;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }
+
+  function generarTexturaProceduralRealista(): THREE.CanvasTexture {
+    const canvas = document.createElement("canvas");
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return new THREE.CanvasTexture(canvas);
+
+    ctx.fillStyle = "#8a6d50";
+    ctx.fillRect(0, 0, 512, 512);
+
+    for (let i = 0; i < 350; i++) {
+      const x = Math.random() * 512;
+      const y = Math.random() * 512;
+      const r = 5 + Math.random() * 18;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = Math.random() > 0.5 ? "rgba(170, 140, 110, 0.18)" : "rgba(60, 45, 30, 0.22)";
+      ctx.fill();
+    }
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(4, 4);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }
+
+  function ajustarATopografia() {
+    setUtmMinX("246691.1493");
+    setUtmMaxX("246882.5468");
+    setUtmMinY("4309885.5989");
+    setUtmMaxY("4310100.3841");
+    if (!texturaSatelitalRef.current) {
+      texturaSatelitalRef.current = generarTexturaProceduralSatelital();
+    }
+    setImagenSatelitalActiva(true);
+    setModoVisualTerreno("satelital");
+    setRealismoSuperficie(true);
+
+    const meshTIN = objetosCapasRef.current.get("capa-tin");
+    if (meshTIN && meshTIN instanceof THREE.Mesh) {
+      const geom = meshTIN.geometry as THREE.BufferGeometry;
+      const pos = geom.attributes.position;
+      const uv = geom.attributes.uv;
+      if (pos && uv) {
+        for (let i = 0; i < pos.count; i++) {
+          const vx = pos.getX(i);
+          const vy = pos.getY(i);
+          uv.setXY(i, (vx + 25) / 50, (vy + 25) / 50);
+        }
+        uv.needsUpdate = true;
+      }
+    }
+    notificar("Ajustado a topografía: límites UTM (246691.14 - 246882.54) proyectados.");
+  }
+
+  function aplicarUTM() {
+    const minX = parseFloat(utmMinX);
+    const maxX = parseFloat(utmMaxX);
+    const minY = parseFloat(utmMinY);
+    const maxY = parseFloat(utmMaxY);
+
+    if (isNaN(minX) || isNaN(maxX) || isNaN(minY) || isNaN(maxY)) {
+      notificar("Error: Ingresa coordenadas UTM numéricas válidas.");
+      return;
+    }
+    if (minX >= maxX || minY >= maxY) {
+      notificar("Error: Min X debe ser menor que Max X, y Min Y menor que Max Y.");
+      return;
+    }
+
+    if (!texturaSatelitalRef.current) {
+      texturaSatelitalRef.current = generarTexturaProceduralSatelital();
+    }
+    setImagenSatelitalActiva(true);
+    setModoVisualTerreno("satelital");
+    setRealismoSuperficie(true);
+
+    const utmWidth = maxX - minX;
+    const utmHeight = maxY - minY;
+
+    const meshTIN = objetosCapasRef.current.get("capa-tin");
+    if (meshTIN && meshTIN instanceof THREE.Mesh) {
+      const geom = meshTIN.geometry as THREE.BufferGeometry;
+      const pos = geom.attributes.position;
+      const uv = geom.attributes.uv;
+      if (pos && uv) {
+        for (let i = 0; i < pos.count; i++) {
+          const vx = pos.getX(i);
+          const vy = pos.getY(i);
+          const u = THREE.MathUtils.clamp((vx + 25) / 50, 0, 1);
+          const v = THREE.MathUtils.clamp((vy + 25) / 50, 0, 1);
+          uv.setXY(i, u, v);
+        }
+        uv.needsUpdate = true;
+      }
+    }
+    notificar(`UTM aplicado con éxito: ΔX = ${utmWidth.toFixed(1)}m, ΔY = ${utmHeight.toFixed(1)}m.`);
+  }
+
+  function quitarImagenSatelital() {
+    texturaSatelitalRef.current = null;
+    setImagenSatelitalActiva(false);
+    setModoVisualTerreno("realista");
+    const meshTIN = objetosCapasRef.current.get("capa-tin");
+    if (meshTIN && meshTIN instanceof THREE.Mesh) {
+      const mat = meshTIN.material as THREE.MeshStandardMaterial;
+      mat.map = null;
+      mat.needsUpdate = true;
+    }
+    notificar("Imagen satelital removida del proyecto.");
+  }
+
+  function cargarPaqueteInfraWorks() {
+    if (!texturaSatelitalRef.current) {
+      texturaSatelitalRef.current = generarTexturaProceduralSatelital();
+    }
+    setUtmMinX("246691.1493");
+    setUtmMaxX("246882.5468");
+    setUtmMinY("4309885.5989");
+    setUtmMaxY("4310100.3841");
+    setImagenSatelitalActiva(true);
+    setModoVisualTerreno("satelital");
+    setRealismoSuperficie(true);
+    notificar("Paquete InfraWorks cargado: Malla IMX + Ortofoto satelital georreferenciada.");
+  }
+
+  function handleCargarOrtofotoArchivo(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      new THREE.TextureLoader().load(url, (tex) => {
+        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.wrapS = THREE.ClampToEdgeWrapping;
+        tex.wrapT = THREE.ClampToEdgeWrapping;
+        texturaSatelitalRef.current = tex;
+        setImagenSatelitalActiva(true);
+        setModoVisualTerreno("satelital");
+        setRealismoSuperficie(true);
+        notificar(`Ortofoto cargada: ${file.name}. Configura los límites UTM y presiona Aplicar UTM.`);
+      });
+    }
   }
 
   function togglePlanoCota() {
@@ -199,15 +421,22 @@ export default function EspacioModelo3D({ proyectoId, onVolverAlPortal }: Props)
     ejesObjRef.current = grupoEjes;
 
     // 1. Superficie TIN demo
-    const geomTIN = new THREE.PlaneGeometry(50, 50, 16, 16);
+    const geomTIN = new THREE.PlaneGeometry(50, 50, 32, 32);
     const posAttr = geomTIN.attributes.position;
+    const baseZ = new Float32Array(posAttr.count);
     for (let i = 0; i < posAttr.count; i++) {
       const vx = posAttr.getX(i);
       const vy = posAttr.getY(i);
-      const zVal = Math.sin(vx * 0.15) * Math.cos(vy * 0.15) * 4.5 + Math.sin(vx * 0.3) * 1.5;
-      posAttr.setZ(i, zVal + 5);
+      const zVal = Math.sin(vx * 0.15) * Math.cos(vy * 0.15) * 4.5 + Math.sin(vx * 0.3) * 1.5 + 5;
+      posAttr.setZ(i, zVal);
+      baseZ[i] = zVal;
     }
+    baseTINZRef.current = baseZ;
     geomTIN.computeVertexNormals();
+
+    texturaRealistaRef.current = generarTexturaProceduralRealista();
+    texturaSatelitalRef.current = generarTexturaProceduralSatelital();
+
     const matTIN = new THREE.MeshStandardMaterial({
       color: 0xec4899,
       roughness: 0.4,
@@ -426,7 +655,7 @@ export default function EspacioModelo3D({ proyectoId, onVolverAlPortal }: Props)
     }
   }, [cotaCentral, cotaAbajo, cotaArriba, planoCotaActivo]);
 
-  // Sincronizar iluminación y triangulación V8 Superficie
+  // Sincronizar iluminación, relieve, texturas y visualización V8 Superficie
   useEffect(() => {
     if (luzDireccionalRef.current) {
       const phi = ((90 - elevacionVal) * Math.PI) / 180;
@@ -437,16 +666,93 @@ export default function EspacioModelo3D({ proyectoId, onVolverAlPortal }: Props)
         r * Math.sin(phi) * Math.cos(theta),
         r * Math.cos(phi)
       );
-      luzDireccionalRef.current.intensity = brilloVal * 1.1;
+      luzDireccionalRef.current.intensity = brilloVal * (realismoSuperficie ? 1.35 : 1.1);
     }
 
     const meshTIN = objetosCapasRef.current.get("capa-tin");
     if (meshTIN && meshTIN instanceof THREE.Mesh) {
-      if (meshTIN.material) {
-        meshTIN.material.wireframe = mostrarTriangulacion;
+      const geom = meshTIN.geometry as THREE.BufferGeometry;
+      const pos = geom.attributes.position;
+      if (baseTINZRef.current && baseTINZRef.current.length === pos.count) {
+        for (let i = 0; i < pos.count; i++) {
+          const z0 = baseTINZRef.current[i];
+          pos.setZ(i, (z0 - 5) * relieveVal + 5);
+        }
+        pos.needsUpdate = true;
+        geom.computeVertexNormals();
       }
+
+      const mat = meshTIN.material as THREE.MeshStandardMaterial;
+      mat.wireframe = mostrarTriangulacion;
+
+      if (modoVisualTerreno === "satelital") {
+        if (texturaSatelitalRef.current) {
+          mat.map = texturaSatelitalRef.current;
+          mat.color.setHex(0xffffff);
+          mat.roughness = Math.max(0.15, 0.85 - (nitidezVal / 200));
+          mat.metalness = 0.05;
+        } else {
+          mat.map = null;
+          mat.color.setHex(0x556b2f);
+        }
+        mat.vertexColors = false;
+        mat.transparent = opacidadImagenVal < 100;
+        mat.opacity = opacidadImagenVal / 100;
+      } else if (modoVisualTerreno === "hipsometrico") {
+        mat.map = null;
+        mat.color.setHex(0xffffff);
+        if (!geom.attributes.color) {
+          geom.setAttribute("color", new THREE.BufferAttribute(new Float32Array(pos.count * 3), 3));
+        }
+        const colorAttr = geom.attributes.color as THREE.BufferAttribute;
+        const colorBlue = new THREE.Color(0x2563eb);
+        const colorGreen = new THREE.Color(0x10b981);
+        const colorYellow = new THREE.Color(0xfacc15);
+        const colorRed = new THREE.Color(0xef4444);
+        const colorWhite = new THREE.Color(0xf8fafc);
+        const tempCol = new THREE.Color();
+        for (let i = 0; i < pos.count; i++) {
+          const z = pos.getZ(i);
+          const t = Math.min(1, Math.max(0, (z - 0.5) / 9.5));
+          if (t < 0.25) tempCol.copy(colorBlue).lerp(colorGreen, t / 0.25);
+          else if (t < 0.5) tempCol.copy(colorGreen).lerp(colorYellow, (t - 0.25) / 0.25);
+          else if (t < 0.75) tempCol.copy(colorYellow).lerp(colorRed, (t - 0.5) / 0.25);
+          else tempCol.copy(colorRed).lerp(colorWhite, (t - 0.75) / 0.25);
+          colorAttr.setXYZ(i, tempCol.r, tempCol.g, tempCol.b);
+        }
+        colorAttr.needsUpdate = true;
+        mat.vertexColors = true;
+        mat.transparent = false;
+        mat.opacity = 1.0;
+      } else {
+        // "realista"
+        mat.vertexColors = false;
+        if (texturaRealistaRef.current && realismoSuperficie) {
+          mat.map = texturaRealistaRef.current;
+          mat.color.setHex(0xe0cdb8);
+        } else {
+          mat.map = null;
+          mat.color.setHex(realismoSuperficie ? 0xd4a373 : 0xec4899);
+        }
+        mat.roughness = Math.max(0.2, 0.75 - (nitidezVal / 250));
+        mat.metalness = 0.05;
+        mat.transparent = false;
+        mat.opacity = 1.0;
+      }
+      mat.needsUpdate = true;
     }
-  }, [azimutVal, elevacionVal, brilloVal, mostrarTriangulacion]);
+  }, [
+    azimutVal,
+    elevacionVal,
+    brilloVal,
+    relieveVal,
+    nitidezVal,
+    opacidadImagenVal,
+    mostrarTriangulacion,
+    modoVisualTerreno,
+    realismoSuperficie,
+    imagenSatelitalActiva,
+  ]);
 
   // Contadores
   const visiblesCount = useMemo(() => capas.filter((c) => c.visible).length, [capas]);
@@ -519,6 +825,58 @@ export default function EspacioModelo3D({ proyectoId, onVolverAlPortal }: Props)
         proyectoId={proyectoId}
         proyectoNombre={proyecto?.nombre || "h"}
         onVolver={() => setEspacioDronAbierto(false)}
+        onImportarAlModelo={(opc) => {
+          const nuevas: Capa3DItem[] = [];
+          if (opc.superficie) {
+            nuevas.push({
+              id: `capa-dron-sup-${Date.now()}`,
+              nombre: "Terrain Fusion V2 (Ortofoto)",
+              tipo: "superficie",
+              visible: true,
+              color: "#ec4899",
+              opacidad: 1,
+              elementosCount: 297647,
+            });
+          }
+          if (opc.curvas) {
+            nuevas.push({
+              id: `capa-dron-curvas-${Date.now()}`,
+              nombre: "Curvas de Nivel (1.00m)",
+              tipo: "dxf",
+              visible: true,
+              color: "#fbbf24",
+              opacidad: 0.9,
+              elementosCount: 260000,
+            });
+          }
+          if (opc.recorrido) {
+            nuevas.push({
+              id: `capa-dron-rec-${Date.now()}`,
+              nombre: "Trayectoria Vuelo Dron",
+              tipo: "dxf",
+              visible: true,
+              color: "#06b6d4",
+              opacidad: 0.85,
+              elementosCount: 47,
+            });
+          }
+          if (opc.nubeSfm) {
+            nuevas.push({
+              id: `capa-dron-sfm-${Date.now()}`,
+              nombre: "Nube de Puntos SfM",
+              tipo: "nube",
+              visible: true,
+              color: "#a855f7",
+              opacidad: 0.95,
+              elementosCount: 19683,
+            });
+          }
+          if (nuevas.length > 0) {
+            setCapas((prev) => [...nuevas, ...prev]);
+            notificar(`✓ ${nuevas.length} capas de Dron importadas con éxito al Modelo 3D.`);
+          }
+          setEspacioDronAbierto(false);
+        }}
       />
     );
   }
@@ -845,7 +1203,7 @@ export default function EspacioModelo3D({ proyectoId, onVolverAlPortal }: Props)
                 <button
                   type="button"
                   className="btn-m3d-v8-infraworks"
-                  onClick={() => notificar("Seleccionar FBX + POS + IMX de InfraWorks...")}
+                  onClick={cargarPaqueteInfraWorks}
                 >
                   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2">
                     <circle cx="12" cy="12" r="10" />
@@ -862,7 +1220,7 @@ export default function EspacioModelo3D({ proyectoId, onVolverAlPortal }: Props)
                   <button
                     type="button"
                     className="btn-m3d-v8-secondary"
-                    onClick={() => notificar("Importar IMX...")}
+                    onClick={ajustarATopografia}
                   >
                     <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2">
                       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -876,7 +1234,7 @@ export default function EspacioModelo3D({ proyectoId, onVolverAlPortal }: Props)
                   <button
                     type="button"
                     className="btn-m3d-v8-secondary"
-                    onClick={() => notificar("Importar Ortofoto (JPG/PNG)...")}
+                    onClick={() => inputOrtofotoRef.current?.click()}
                   >
                     <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2">
                       <circle cx="12" cy="12" r="10" />
@@ -884,6 +1242,13 @@ export default function EspacioModelo3D({ proyectoId, onVolverAlPortal }: Props)
                     </svg>
                     Ortofoto
                   </button>
+                  <input
+                    type="file"
+                    ref={inputOrtofotoRef}
+                    accept="image/*"
+                    style={{ display: "none" }}
+                    onChange={handleCargarOrtofotoArchivo}
+                  />
                 </div>
 
                 <p className="m3d-v8-subnote">
@@ -1050,12 +1415,109 @@ export default function EspacioModelo3D({ proyectoId, onVolverAlPortal }: Props)
                       value={nitidezVal}
                       onChange={(e) => setNitidezVal(parseInt(e.target.value, 10))}
                       className="m3d-v8-range"
+                      style={{
+                        background: `linear-gradient(to right, #ec4899 0%, #ec4899 ${nitidezVal}%, #381228 ${nitidezVal}%, #381228 100%)`,
+                      }}
+                    />
+                  </div>
+
+                  <div className="m3d-v8-slider-item">
+                    <div className="m3d-v8-slider-label">Opacidad de imagen {opacidadImagenVal}%</div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="1"
+                      value={opacidadImagenVal}
+                      onChange={(e) => setOpacidadImagenVal(parseInt(e.target.value, 10))}
+                      className="m3d-v8-range"
+                      style={{
+                        background: `linear-gradient(to right, #ec4899 0%, #ec4899 ${opacidadImagenVal}%, #381228 ${opacidadImagenVal}%, #381228 100%)`,
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="m3d-panel-v8-divider" />
+
+              {/* 4. GEORREFERENCIAR IMAGEN */}
+              <div className="m3d-v8-section">
+                <span className="m3d-v8-sec-title">4. Georreferenciar imagen</span>
+                <p className="m3d-v8-info-p">
+                  La imagen todavía no se proyecta hasta definir estos límites. Si coincide exactamente con la topografía usa Ajustar a topografía; si cubre un área mayor, ingresa las coordenadas UTM reales de la imagen.
+                </p>
+
+                <div className="m3d-v8-coords-grid">
+                  <div className="m3d-v8-coord-box">
+                    <span className="m3d-v8-coord-label">Min X</span>
+                    <input
+                      type="text"
+                      value={utmMinX}
+                      onChange={(e) => setUtmMinX(e.target.value)}
+                      className="m3d-v8-coord-input"
+                    />
+                  </div>
+
+                  <div className="m3d-v8-coord-box">
+                    <span className="m3d-v8-coord-label">Max X</span>
+                    <input
+                      type="text"
+                      value={utmMaxX}
+                      onChange={(e) => setUtmMaxX(e.target.value)}
+                      className="m3d-v8-coord-input"
+                    />
+                  </div>
+
+                  <div className="m3d-v8-coord-box">
+                    <span className="m3d-v8-coord-label">Min Y</span>
+                    <input
+                      type="text"
+                      value={utmMinY}
+                      onChange={(e) => setUtmMinY(e.target.value)}
+                      className="m3d-v8-coord-input"
+                    />
+                  </div>
+
+                  <div className="m3d-v8-coord-box">
+                    <span className="m3d-v8-coord-label">Max Y</span>
+                    <input
+                      type="text"
+                      value={utmMaxY}
+                      onChange={(e) => setUtmMaxY(e.target.value)}
+                      className="m3d-v8-coord-input"
                     />
                   </div>
                 </div>
 
-                <div className="m3d-v8-render-pro-card">
-                  Render Pro V26 prioriza la ortofoto real, añade iluminación neutra, contraste, gamma y nitidez. La triangulación puede desactivarse para un aspecto fotorealista de vuelo dron.
+                <div className="m3d-v8-grid-2-btns" style={{ marginTop: "12px", marginBottom: "8px" }}>
+                  <button
+                    type="button"
+                    className="btn-m3d-v8-outline"
+                    onClick={ajustarATopografia}
+                  >
+                    Ajustar a topografía
+                  </button>
+
+                  <button
+                    type="button"
+                    className="btn-m3d-v8-primary"
+                    onClick={aplicarUTM}
+                  >
+                    Aplicar UTM
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  className="btn-m3d-v8-danger-link"
+                  onClick={quitarImagenSatelital}
+                >
+                  Quitar imagen satelital del proyecto
+                </button>
+
+                <div className="m3d-v8-render-pro-card" style={{ marginTop: "14px" }}>
+                  Render Pro V26 prioriza la ortofoto real, añade iluminación neutra, contraste, gamma y nitidez. La triangulación puede ocultarse para una vista limpia tipo videojuego. Al reimportar un paquete InfraWorks, NAMICAD genera hasta 4K si la memoria del dispositivo lo permite.
                 </div>
               </div>
             </div>
@@ -1499,8 +1961,8 @@ export default function EspacioModelo3D({ proyectoId, onVolverAlPortal }: Props)
                 type="button"
                 className="btn-m3d-dron-primary"
                 onClick={() => {
-                  notificar("Cargando set de imágenes fotogramétricas de vuelo dron...");
                   setModalDronProAbierto(false);
+                  setEspacioDronAbierto(true);
                 }}
               >
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2">

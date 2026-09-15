@@ -8371,6 +8371,114 @@ table.tabla-taladros td:first-child {
   color: #94a3b8;
 }
 
+/* SECCIÓN 4 V8: GEORREFERENCIAR IMAGEN */
+.m3d-v8-coords-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 10px;
+  margin: 10px 0 8px 0;
+}
+
+.m3d-v8-coord-box {
+  position: relative;
+  border: 1.5px solid rgba(236, 72, 153, 0.45);
+  border-radius: 12px;
+  padding: 8px 12px 6px 12px;
+  background: rgba(20, 14, 28, 0.95);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.m3d-v8-coord-box:focus-within {
+  border-color: #ec4899;
+  box-shadow: 0 0 12px rgba(236, 72, 153, 0.4);
+}
+
+.m3d-v8-coord-label {
+  position: absolute;
+  top: -8px;
+  left: 10px;
+  background: #150d1e;
+  padding: 0 6px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #ec4899;
+  letter-spacing: 0.3px;
+}
+
+.m3d-v8-coord-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #ffffff;
+  font-size: 12.5px;
+  font-weight: 600;
+  font-family: monospace;
+  padding: 2px 0 0 0;
+}
+
+.btn-m3d-v8-outline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 20px;
+  border: 1.5px solid rgba(236, 72, 153, 0.6);
+  background: transparent;
+  color: #f472b6;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-m3d-v8-outline:hover {
+  background: rgba(236, 72, 153, 0.2);
+  border-color: #ec4899;
+  color: #ffffff;
+}
+
+.btn-m3d-v8-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 20px;
+  border: none;
+  background: linear-gradient(135deg, #ec4899, #db2777);
+  color: #ffffff;
+  font-size: 11.5px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(236, 72, 153, 0.35);
+  transition: all 0.2s ease;
+}
+
+.btn-m3d-v8-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(236, 72, 153, 0.55);
+}
+
+.btn-m3d-v8-danger-link {
+  display: block;
+  background: none;
+  border: none;
+  color: #ec4899;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 8px 0 4px 0;
+  text-align: left;
+  transition: color 0.18s ease;
+}
+
+.btn-m3d-v8-danger-link:hover {
+  color: #f472b6;
+  text-decoration: underline;
+}
+
 /* MODAL DRON PRO - ESPACIO DE FOTOGRAMETRÍA */
 .m3d-dron-modal-card {
   background: #130d1b;
@@ -8701,22 +8809,49 @@ table.tabla-taladros td:first-child {
 }
 
 .btn-v8-dock-toggle {
-  width: 42px;
-  height: 26px;
+  width: 44px;
+  height: 24px;
   flex-shrink: 0;
-  border-radius: 10px;
-  border: 1px solid rgba(236, 72, 153, 0.35);
-  background: rgba(255, 255, 255, 0.05);
-  color: #ec4899;
+  border-radius: 999px;
+  border: 1.5px solid rgba(244, 114, 182, 0.5);
+  background: linear-gradient(135deg, rgba(30, 20, 45, 0.85) 0%, rgba(18, 12, 28, 0.85) 100%);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #f472b6;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4), 0 0 10px rgba(236, 72, 153, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.12);
+  outline: none;
 }
 
 .btn-v8-dock-toggle:hover {
-  background: rgba(236, 72, 153, 0.18);
+  background: linear-gradient(135deg, rgba(236, 72, 153, 0.24) 0%, rgba(219, 39, 119, 0.18) 100%);
+  border-color: #f472b6;
+  color: #ffffff;
+  box-shadow: 0 0 16px rgba(244, 114, 182, 0.55), inset 0 1px 2px rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px) scale(1.05);
+}
+
+.btn-v8-dock-toggle:active {
+  transform: translateY(0) scale(0.96);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5), 0 0 8px rgba(236, 72, 153, 0.3);
+}
+
+.v8-dock-chevron {
+  display: block;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), stroke 0.2s ease, filter 0.2s ease;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+}
+
+.v8-dock-chevron.colapsado {
+  transform: rotate(0deg); /* Flecha hacia abajo: invita a desplegar hacia abajo */
+}
+
+.v8-dock-chevron.expandido {
+  transform: rotate(180deg); /* Flecha hacia arriba: pliega hacia arriba */
 }
 
 .v8-dock-header-icon {
@@ -8793,6 +8928,7 @@ table.tabla-taladros td:first-child {
 }
 
 .btn-v8-stage-item {
+  position: relative;
   width: 44px;
   height: 44px;
   border-radius: 14px;
@@ -8808,11 +8944,32 @@ table.tabla-taladros td:first-child {
   transition: all 0.18s ease;
 }
 
+.v8-stage-num-badge {
+  position: absolute;
+  top: 2px;
+  left: 3px;
+  font-size: 7.5px;
+  font-weight: 900;
+  color: #f472b6;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 3px;
+  padding: 0 2.5px;
+  line-height: 1.1;
+  pointer-events: none;
+  border: 0.8px solid rgba(236, 72, 153, 0.4);
+}
+
 .btn-v8-stage-item.activo {
   background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
   border-color: transparent;
   color: #ffffff;
   box-shadow: 0 2px 12px rgba(236, 72, 153, 0.5);
+}
+
+.btn-v8-stage-item.activo .v8-stage-num-badge {
+  color: #ffffff;
+  background: rgba(0, 0, 0, 0.45);
+  border-color: rgba(255, 255, 255, 0.6);
 }
 
 .btn-v8-stage-item span {
@@ -8821,7 +8978,7 @@ table.tabla-taladros td:first-child {
   letter-spacing: 0.2px;
 }
 
-/* Panel Flotante de la Etapa (Anclado abajo para liberar el visor 3D) */
+/* Panel Flotante de la Etapa (Anclado abajo para liberar el visor 3D, cabecera estática) */
 .v8-stage-floating-panel {
   position: absolute;
   left: 50%;
@@ -8834,25 +8991,14 @@ table.tabla-taladros td:first-child {
   background: rgba(18, 12, 24, 0.96);
   border: 1.5px solid rgba(236, 72, 153, 0.5);
   border-radius: 24px;
-  padding: 16px 18px;
+  padding: 14px 16px 14px;
   display: flex;
   flex-direction: column;
   z-index: 26;
   backdrop-filter: blur(14px);
   box-shadow: 0 14px 40px rgba(0, 0, 0, 0.8), 0 0 20px rgba(236, 72, 153, 0.2);
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(236, 72, 153, 0.45) transparent;
+  overflow: hidden;
   animation: slideUpIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.v8-stage-floating-panel::-webkit-scrollbar {
-  width: 4px;
-}
-
-.v8-stage-floating-panel::-webkit-scrollbar-thumb {
-  background: rgba(236, 72, 153, 0.45);
-  border-radius: 4px;
 }
 
 .v8-stage-floating-panel.minimizado {
@@ -8865,10 +9011,11 @@ table.tabla-taladros td:first-child {
 }
 
 .v8-stage-panel-header {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   padding-bottom: 8px;
 }
@@ -8883,61 +9030,316 @@ table.tabla-taladros td:first-child {
 .v8-stage-panel-header-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 12px;
 }
 
-.v8-stage-floating-panel .btn-header-round-min {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(236, 72, 153, 0.35);
-  color: #cbd5e1;
-  font-size: 14px;
+.btn-v8-panel-action {
+  background: transparent;
+  border: none;
+  color: #ec4899;
+  font-size: 11px;
   font-weight: 800;
-  display: flex;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.btn-v8-panel-action:hover {
+  color: #f472b6;
+  background: rgba(236, 72, 153, 0.12);
+}
+
+.btn-v8-header-circle {
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  border-radius: 50%;
+  border: 1px solid rgba(236, 72, 153, 0.4);
+  background: rgba(236, 72, 153, 0.1);
+  color: #f472b6;
+  font-size: 11px;
+  font-weight: 800;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.15s ease;
-  line-height: 1;
+  padding: 0;
 }
 
-.v8-stage-floating-panel .btn-header-round-min:hover {
+.btn-v8-header-circle:hover {
   background: rgba(236, 72, 153, 0.25);
   border-color: #ec4899;
   color: #ffffff;
   transform: scale(1.08);
 }
 
-.v8-stage-floating-panel .btn-header-round-close {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(236, 72, 153, 0.35);
-  color: #94a3b8;
-  font-size: 11px;
-  font-weight: 800;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  line-height: 1;
-}
-
-.v8-stage-floating-panel .btn-header-round-close:hover {
-  background: rgba(236, 72, 153, 0.3);
+.btn-v8-header-circle.activo {
+  background: #ec4899;
   border-color: #ec4899;
   color: #ffffff;
-  transform: scale(1.08);
+  box-shadow: 0 0 10px rgba(236, 72, 153, 0.5);
+}
+
+.btn-v8-header-circle.btn-close:hover {
+  background: rgba(244, 63, 94, 0.25);
+  border-color: #f43f5e;
+  color: #fb7185;
+}
+
+.v8-stage-guide-box {
+  background: rgba(236, 72, 153, 0.09);
+  border: 1.2px solid rgba(236, 72, 153, 0.45);
+  border-radius: 14px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+  animation: fadeIn 0.18s ease;
+  backdrop-filter: blur(8px);
+}
+
+.v8-stage-guide-theory {
+  background: rgba(0, 0, 0, 0.45);
+  border-left: 3px solid #ec4899;
+  border-radius: 6px;
+  padding: 6px 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.v8-stage-guide-steps {
+  background: rgba(255, 255, 255, 0.04);
+  border-left: 3px solid #06b6d4;
+  border-radius: 6px;
+  padding: 6px 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.v8-stage-guide-tag {
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.v8-stage-guide-theory .v8-stage-guide-tag {
+  color: #f472b6;
+}
+
+.v8-stage-guide-steps .v8-stage-guide-tag {
+  color: #22d3ee;
+}
+
+.v8-stage-guide-theory p,
+.v8-stage-guide-steps p {
+  font-size: 9.5px;
+  line-height: 1.45;
+  color: #f1f5f9;
+  margin: 0;
+}
+
+.v8-panel-mini-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.v8-mini-tag {
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #f472b6;
+  letter-spacing: 0.3px;
+}
+
+.btn-v8-mini-expand {
+  background: rgba(236, 72, 153, 0.15);
+  border: 1px solid rgba(236, 72, 153, 0.4);
+  color: #f472b6;
+  font-size: 9.5px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-v8-mini-expand:hover {
+  background: #ec4899;
+  color: #ffffff;
+}
+
+/* Tarjetas métricas especializadas (SOLUCI y FUSIÓN) */
+.v8-metric-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(236, 72, 153, 0.35);
+  border-radius: 12px;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.v8-metric-title {
+  font-size: 11px;
+  font-weight: 800;
+  color: #ec4899;
+  letter-spacing: 0.3px;
+}
+
+.v8-metric-desc {
+  font-size: 10px;
+  line-height: 1.4;
+  color: #cbd5e1;
+}
+
+/* Sección Cámaras del Snapshot */
+.v8-snapshot-section-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+}
+
+.v8-snapshot-main-title {
+  font-size: 12px;
+  font-weight: 900;
+  color: #ec4899;
+  letter-spacing: 0.5px;
+  margin: 0;
+}
+
+.v8-snapshot-subtitle {
+  font-size: 9.8px;
+  line-height: 1.4;
+  color: #94a3b8;
+  margin: 0;
+}
+
+.v8-snapshot-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  max-height: 240px;
+  overflow-y: auto;
+  margin-top: 4px;
+  padding-right: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(236, 72, 153, 0.45) transparent;
+}
+
+.v8-snapshot-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(236, 72, 153, 0.35);
+  border-radius: 12px;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.v8-snapshot-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.v8-snapshot-title {
+  font-size: 11.5px;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.v8-snapshot-badge {
+  font-size: 9px;
+  font-weight: 900;
+  color: #ec4899;
+  letter-spacing: 0.5px;
+}
+
+.v8-snapshot-line {
+  font-size: 9.8px;
+  color: #cbd5e1;
+  line-height: 1.35;
+}
+
+/* Fusión: Caja AUTO y avisos ámbar */
+.v8-fusion-auto-box {
+  border: 1.5px solid rgba(236, 72, 153, 0.5);
+  border-radius: 12px;
+  padding: 10px 14px;
+  background: rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: center;
+}
+
+.v8-fusion-auto-text {
+  font-size: 14px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 0.5px;
+}
+
+.v8-fusion-auto-subtext {
+  font-size: 9.5px;
+  color: #94a3b8;
+  margin-top: -4px;
+  margin-bottom: 2px;
+}
+
+.v8-amber-banner-box {
+  border: 1px solid rgba(245, 158, 11, 0.7);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.04);
+  margin-top: 2px;
+}
+
+.v8-amber-bordered-box {
+  border: 1px solid rgba(245, 158, 11, 0.7);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 10px;
+  line-height: 1.45;
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.03);
 }
 
 .v8-stage-panel-body {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  padding-top: 4px;
+  padding-bottom: 14px;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(236, 72, 153, 0.45) transparent;
+}
+
+.v8-stage-panel-body > * {
+  flex-shrink: 0;
+}
+
+.v8-stage-panel-body::-webkit-scrollbar {
+  width: 4px;
+}
+
+.v8-stage-panel-body::-webkit-scrollbar-thumb {
+  background: rgba(236, 72, 153, 0.45);
+  border-radius: 4px;
 }
 
 .v8-stage-title {
@@ -9537,13 +9939,16 @@ table.tabla-taladros td:first-child {
 .v8-interactive-ref-card {
   width: 100%;
   height: 160px;
+  min-height: 160px;
+  flex-shrink: 0;
   background: #170f20;
-  border: 1px solid rgba(236, 72, 153, 0.35);
+  border: 1.5px solid rgba(236, 72, 153, 0.45);
   border-radius: 14px;
   position: relative;
   cursor: crosshair;
   overflow: hidden;
   user-select: none;
+  margin: 4px 0;
 }
 
 .v8-interactive-ref-card.theme-cyan {
@@ -10116,12 +10521,147 @@ table.tabla-taladros td:first-child {
   margin-top: 8px;
 }
 
+/* Campos con borde y leyenda flotante tipo Material / CAD */
+.v8-field-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.v8-field-bordered-box {
+  position: relative;
+  border: 1.2px solid rgba(236, 72, 153, 0.45);
+  border-radius: 12px;
+  background: rgba(12, 8, 18, 0.6);
+  padding: 8px 12px 6px;
+  display: flex;
+  flex-direction: column;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.v8-field-bordered-box:focus-within {
+  border-color: #ec4899;
+  box-shadow: 0 0 10px rgba(236, 72, 153, 0.35);
+}
+
+.v8-field-legend {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #f472b6;
+  letter-spacing: 0.3px;
+  margin-bottom: 2px;
+}
+
+.v8-field-input {
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  outline: none;
+  width: 100%;
+  padding: 0;
+  font-family: inherit;
+}
+
+.v8-field-subtext {
+  font-size: 9.5px;
+  color: #94a3b8;
+  padding-left: 4px;
+}
+
+/* Grilla compacta de 2 columnas para métricas de modelo y solución */
+.v8-metrics-micro-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin: 4px 0 6px 0;
+}
+
+.v8-metric-box {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(236, 72, 153, 0.35);
+  border-radius: 12px;
+  padding: 7px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.v8-metric-box .v8-metric-title {
+  font-size: 9.5px;
+  font-weight: 800;
+  color: #ec4899;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.v8-metric-val {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+}
+
+.v8-metric-sub {
+  font-size: 8.8px;
+  color: #94a3b8;
+  line-height: 1.2;
+}
+
+/* Acordeón colapsable para auditoría técnica de V2 */
+.v8-audit-accordion-btn {
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.5);
+  border-radius: 10px;
+  padding: 6px 10px;
+  color: #fbbf24;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.v8-audit-accordion-btn:hover {
+  background: rgba(245, 158, 11, 0.14);
+}
+
+.v8-curvas-current-box {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(236, 72, 153, 0.35);
+  border-radius: 12px;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.v8-curvas-current-title {
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #ec4899;
+  letter-spacing: 0.3px;
+}
+
+.v8-curvas-current-desc {
+  font-size: 10px;
+  color: #cbd5e1;
+  line-height: 1.35;
+}
+
 /* Grilla de presets (para curvas de nivel) */
 .v8-presets-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 6px;
-  margin: 6px 0;
+  margin: 4px 0;
 }
 
 .btn-v8-preset {
@@ -10147,19 +10687,19 @@ table.tabla-taladros td:first-child {
 /* Checklist y Checkboxes de resultados */
 .v8-checklist-box {
   background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(236, 72, 153, 0.35);
   border-radius: 14px;
-  padding: 12px 14px;
+  padding: 10px 14px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 7px;
 }
 
 .v8-checklist-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 11.5px;
+  font-size: 11px;
 }
 
 .v8-checklist-left {
@@ -10176,18 +10716,24 @@ table.tabla-taladros td:first-child {
   font-weight: 600;
 }
 
+.v8-checkbox-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .v8-checkbox-row {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 0;
+  padding: 5px 0;
   cursor: pointer;
   user-select: none;
 }
 
 .v8-custom-checkbox {
-  width: 18px;
-  height: 18px;
+  width: 17px;
+  height: 17px;
   border-radius: 4px;
   border: 1.5px solid rgba(236, 72, 153, 0.6);
   display: flex;
@@ -10206,7 +10752,7 @@ table.tabla-taladros td:first-child {
 }
 
 .v8-checkbox-label {
-  font-size: 11px;
+  font-size: 10.8px;
   color: #e2e8f0;
   font-weight: 600;
 }
@@ -10215,7 +10761,30 @@ table.tabla-taladros td:first-child {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 6px;
-  margin: 6px 0;
+  margin: 4px 0 6px 0;
+}
+
+.btn-v8-outline-full {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 9999px;
+  border: 1.2px solid rgba(236, 72, 153, 0.45);
+  background: rgba(0, 0, 0, 0.25);
+  color: #ec4899;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.btn-v8-outline-full:hover {
+  background: rgba(236, 72, 153, 0.12);
+  border-color: #ec4899;
 }
 
 /* Responsividad móvil del taller de Dron/Fotogrametría (V8). El header y los docks/canvas viven
@@ -10317,6 +10886,14 @@ table.tabla-taladros td:first-child {
     border-radius: 10px;
   }
 
+  .v8-stage-num-badge {
+    top: 1px;
+    left: 1px;
+    font-size: 6px;
+    padding: 0 2px;
+    border-radius: 2.5px;
+  }
+
   .v8-layer-eye svg {
     width: 11px;
     height: 11px;
@@ -10327,15 +10904,16 @@ table.tabla-taladros td:first-child {
     font-size: 6.2px;
   }
 
-  /* El panel flotante de la etapa activa (FOTOS/EDITAR/...) es lo que más espacio ocupaba en
-     móvil; se acota su alto y se angosta el margen lateral acorde a los docks ya más finos. */
+  /* El panel flotante de la etapa activa se ajusta para dejar los docks laterales libres y visibles como en la captura */
   .v8-stage-floating-panel {
-    width: calc(100% - 16px);
-    max-width: none;
-    max-height: 42vh;
+    left: 46%;
+    transform: translateX(-50%);
+    width: calc(100% - 92px);
+    max-width: 360px;
+    max-height: 56vh;
     bottom: 44px;
-    border-radius: 18px;
-    padding: 12px 14px;
+    border-radius: 20px;
+    padding: 10px 12px;
   }
 
   .v8-dron-statusbar {

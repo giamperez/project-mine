@@ -11,8 +11,237 @@
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/icon.svg" />
     <title>Suite Minera</title>
+    <style>
+      /* Pantalla de carga inicial instantánea (0ms) - no depende de bundles JS */
+      #app-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 999999;
+        background: radial-gradient(circle at 50% 35%, #1a1024 0%, #0c0712 70%, #060309 100%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        color: #f8fafc;
+        user-select: none;
+        -webkit-user-select: none;
+        transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.4s;
+        overflow: hidden;
+      }
+      #app-splash.splash-fade-out {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+      .splash-card {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: 32px 28px;
+        max-width: 380px;
+        width: 88%;
+        background: rgba(22, 14, 30, 0.85);
+        border: 1.5px solid rgba(236, 72, 153, 0.35);
+        border-radius: 24px;
+        box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7), 0 0 40px rgba(236, 72, 153, 0.15);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+      }
+      .splash-radar {
+        position: relative;
+        width: 88px;
+        height: 88px;
+        margin-bottom: 22px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .splash-ring {
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        border: 1.5px solid rgba(236, 72, 153, 0.25);
+      }
+      .splash-ring-pulse {
+        position: absolute;
+        inset: -6px;
+        border-radius: 50%;
+        border: 1.5px dashed rgba(6, 182, 212, 0.45);
+        animation: splash-spin 9s linear infinite;
+      }
+      .splash-ring-inner {
+        position: absolute;
+        inset: 12px;
+        border-radius: 50%;
+        border: 1.5px solid rgba(236, 72, 153, 0.5);
+        animation: splash-pulse 2s ease-in-out infinite;
+      }
+      .splash-icon {
+        position: relative;
+        z-index: 2;
+        color: #ec4899;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        filter: drop-shadow(0 0 12px rgba(236, 72, 153, 0.6));
+      }
+      .splash-tag {
+        display: inline-block;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 1.2px;
+        color: #f472b6;
+        text-transform: uppercase;
+        background: rgba(236, 72, 153, 0.12);
+        border: 1px solid rgba(236, 72, 153, 0.3);
+        padding: 3px 10px;
+        border-radius: 12px;
+        margin-bottom: 8px;
+      }
+      .splash-title {
+        font-size: 20px;
+        font-weight: 900;
+        letter-spacing: 0.8px;
+        margin: 0 0 4px 0;
+        color: #ffffff;
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+      }
+      .splash-sub {
+        font-size: 11px;
+        color: #94a3b8;
+        letter-spacing: 0.4px;
+        margin-bottom: 24px;
+      }
+      .splash-progress-track {
+        width: 100%;
+        height: 5px;
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 4px;
+        overflow: hidden;
+        position: relative;
+        margin-bottom: 12px;
+      }
+      .splash-progress-bar {
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        width: 45%;
+        background: linear-gradient(90deg, #ec4899, #06b6d4, #f59e0b);
+        border-radius: 4px;
+        animation: splash-bar 1.8s ease-in-out infinite;
+        box-shadow: 0 0 10px rgba(236, 72, 153, 0.7);
+      }
+      .splash-status-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #cbd5e1;
+        min-height: 20px;
+      }
+      .splash-status-dot {
+        width: 7px;
+        height: 7px;
+        background: #10b981;
+        border-radius: 50%;
+        box-shadow: 0 0 8px #10b981;
+        animation: splash-dot-pulse 1.2s infinite;
+      }
+      .splash-reassure {
+        margin-top: 20px;
+        padding-top: 14px;
+        border-top: 1px solid rgba(255, 255, 255, 0.07);
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        font-size: 10.5px;
+        color: #64748b;
+        letter-spacing: 0.2px;
+      }
+      .splash-reassure span {
+        color: #94a3b8;
+      }
+      @keyframes splash-bar {
+        0% { left: -45%; width: 35%; }
+        50% { width: 60%; }
+        100% { left: 105%; width: 35%; }
+      }
+      @keyframes splash-spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+      @keyframes splash-pulse {
+        0%, 100% { transform: scale(1); opacity: 0.5; }
+        50% { transform: scale(1.08); opacity: 0.9; }
+      }
+      @keyframes splash-dot-pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.4; transform: scale(0.85); }
+      }
+    </style>
   </head>
   <body>
+    <!-- Pantalla de carga inicial: activa inmediatamente para que el usuario sepa que la APK/app está cargando -->
+    <div id="app-splash" aria-live="polite">
+      <div class="splash-card">
+        <div class="splash-radar">
+          <div class="splash-ring"></div>
+          <div class="splash-ring-pulse"></div>
+          <div class="splash-ring-inner"></div>
+          <div class="splash-icon">
+            <svg viewBox="0 0 24 24" width="38" height="38" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+              <polyline points="2 17 12 22 22 17"></polyline>
+              <polyline points="2 12 12 17 22 12"></polyline>
+            </svg>
+          </div>
+        </div>
+        <span class="splash-tag">Sistema Minero 3D · Móvil</span>
+        <h1 class="splash-title">SUITE MINERA</h1>
+        <div class="splash-sub">FOTOGRAMETRÍA & INGENIERÍA 3D</div>
+        <div class="splash-progress-track">
+          <div class="splash-progress-bar"></div>
+        </div>
+        <div class="splash-status-row">
+          <span class="splash-status-dot"></span>
+          <span id="splash-status-text">Iniciando aplicación y motor 3D...</span>
+        </div>
+        <div class="splash-reassure">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#ec4899" stroke-width="2">
+            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+            <line x1="12" y1="18" x2="12.01" y2="18"></line>
+          </svg>
+          <span>Cargando en memoria · No cierre la app</span>
+        </div>
+      </div>
+    </div>
+    <script>
+      // Rotador de estados de carga antes de que cargue React
+      (function() {
+        var msgs = [
+          "Iniciando módulos de ingeniería...",
+          "Cargando motor 3D y fotogrametría...",
+          "Optimizando memoria para dispositivo móvil...",
+          "Preparando espacio de trabajo..."
+        ];
+        var idx = 0;
+        var el = document.getElementById("splash-status-text");
+        if (el) {
+          setInterval(function() {
+            idx = (idx + 1) % msgs.length;
+            if (el) el.textContent = msgs[idx];
+          }, 850);
+        }
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

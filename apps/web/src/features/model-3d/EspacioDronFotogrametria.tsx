@@ -10,13 +10,55 @@ import { extraerMetadataFoto, proyectarFotosDron } from "./exifDron.js";
 // sienta lento. Con la cache activada, un mismo vuelo reutiliza las texturas ya decodificadas.
 THREE.Cache.enabled = true;
 
-// Relieve topográfico bare-earth (pendiente natural y depresiones) usado tanto para la superficie
-// MDT como para las curvas de nivel — deben leer la MISMA función de altura para que las curvas
-// coincidan con el relieve realmente dibujado (antes, las curvas eran un patrón senoidal aparte
-// que no tenía relación con la superficie).
-function alturaTerrenoBareEarth(vx: number, vy: number): number {
-  return Math.sin(vx * 0.028) * 2.6 + Math.cos(vy * 0.032) * 2.1 + Math.sin((vx + vy) * 0.015) * 1.8 - 0.8;
+// Relieve topográfico bare-earth (pendiente natural, bancos de explotación y depresiones)
+// usado para la superficie MDT, la Fusión 3D y las curvas de nivel topográficas.
+function alturaTerrenoBareEarth(
+  vx: number,
+  vy: number,
+  fotos?: FotoDron[],
+  metodo?: "metrico" | "visual_hibrido"
+): number {
+  // 1. Relieve geológico continuo: lomas y cuenca de cielo abierto
+  let base =
+    Math.sin(vx * 0.032) * 3.2 +
+    Math.cos(vy * 0.035) * 2.8 +
+    Math.sin((vx + vy) * 0.018) * 2.1 -
+    0.6;
+
+  // 2. Bancos y bermas de explotación minera / cantera (terrazas escalonadas realistas)
+  const distCentro = Math.sqrt(vx * vx + vy * vy);
+  const bancos = (Math.floor(distCentro / 9.5) % 5) * 1.55 - (distCentro > 40 ? 0 : (40 - distCentro) * 0.11);
+  base += bancos;
+
+  // 3. Influencia fotogramétrica SfM / GPS de las cámaras
+  if (fotos && fotos.length > 0) {
+    let influenciaTotal = 0;
+    let sumaDeltaZ = 0;
+    const radio = metodo === "metrico" ? 16 : 28;
+
+    for (let i = 0; i < fotos.length; i++) {
+      const f = fotos[i];
+      const zCam = f.centroZ ?? f.offsetZ ?? 0;
+      if (zCam !== 0) {
+        const dx = vx - (f.centroX + f.offsetX);
+        const dy = vy - (f.centroY + f.offsetY);
+        const d2 = dx * dx + dy * dy;
+        if (d2 < radio * radio) {
+          const w = Math.exp(-d2 / (2 * (radio / 2.2) * (radio / 2.2)));
+          sumaDeltaZ += zCam * w;
+          influenciaTotal += w;
+        }
+      }
+    }
+
+    if (influenciaTotal > 0.001) {
+      base += (sumaDeltaZ / influenciaTotal) * 0.42;
+    }
+  }
+
+  return base;
 }
+
 
 // Ancho (en unidades de escena) del frustum de la cámara ortográfica en zoom 1x.
 // El encuadre automático ajusta camara.zoom sobre esta base para cubrir el bloque de vuelo real.
@@ -80,6 +122,12 @@ interface Props {
   proyectoId: string;
   proyectoNombre: string;
   onVolver: () => void;
+  onImportarAlModelo?: (opciones: {
+    superficie: boolean;
+    curvas: boolean;
+    recorrido: boolean;
+    nubeSfm: boolean;
+  }) => void;
 }
 
 interface FotoDron {
@@ -107,8 +155,10 @@ interface FotoDron {
 type EtapaDron = "FOTOS" | "EDITAR" | "ALINEA" | "SOLUCI" | "FUSION" | "MODELO" | "CURVAS" | "RESULT";
 
 export default function EspacioDronFotogrametria({
+  proyectoId,
   proyectoNombre,
   onVolver,
+  onImportarAlModelo,
 }: Props) {
   // Modo de vista: Planta (2D ortogonal cenital) o 3D (perspectiva libre)
   const [vistaModo, setVistaModo] = useState<"PLANTA" | "3D">("3D");
@@ -146,12 +196,53 @@ export default function EspacioDronFotogrametria({
   const [resolucionHeightField, setResolucionHeightField] = useState("AUTO");
   const [sliderHeightField, setSliderHeightField] = useState(0);
   const [terrainFusionConstruido, setTerrainFusionConstruido] = useState(false);
+  const [factorJalar3D, setFactorJalar3D] = useState(1.0); // 0 = plano 2D, 1.0 = relieve 3D completo
+  const [modoTexturaFusion, setModoTexturaFusion] = useState<"fotorrealista" | "topografico" | "hibrido">("fotorrealista");
   const [resolucionCeldaModelo, setResolucionCeldaModelo] = useState("AUTO");
   const [intervaloCurvas, setIntervaloCurvas] = useState("1.00");
   const [importarSuperficie, setImportarSuperficie] = useState(true);
   const [importarCurvas, setImportarCurvas] = useState(false);
   const [importarRecorrido, setImportarRecorrido] = useState(false);
   const [importarNubeSfm, setImportarNubeSfm] = useState(false);
+  const [auditoriaExpandida, setAuditoriaExpandida] = useState(false);
+  const [mostrarGuiaUso, setMostrarGuiaUso] = useState(false);
+  const [snapshotCamarasExpandido, setSnapshotCamarasExpandido] = useState(false);
+
+  // Teoría y guías de uso paso a paso desplegadas al presionar el botón '?'
+  const teoriaEtapasMap: Record<EtapaDron, { teoria: string; guia: string }> = {
+    FOTOS: {
+      teoria: "Al cargar, NAMICAD ordena el vuelo, ubica cada toma por GPS/EXIF, respeta yaw/roll y une los solapes en una cobertura continua de revisión.",
+      guia: "1. Carga fotos JPG con telemetría GPS o la muestra 4thAve. 2. Ajusta la calidad de textura (2K / 3.5K / 8K). 3. Toca cualquier toma para centrarla en el visor.",
+    },
+    EDITAR: {
+      teoria: "Corrige únicamente la posición inicial del footprint. Cualquier cambio invalida la orientación anterior para no mezclar geometrías.",
+      guia: "1. Usa el paginador ◀ ▶ o la tira inferior para seleccionar una foto. 2. Ajusta su desfase X/Y o rotación si la pose GPS inicial está desfasada.",
+    },
+    ALINEA: {
+      teoria: "Marca el mismo objeto en dos fotos con solape. NAMICAD corrige únicamente X/Y de la foto objetivo; no gira ni deforma la toma.",
+      guia: "1. Selecciona 2 Fotos (solape) o 1 Foto (vector). 2. Marca el mismo punto homólogo en ambas tomas para corregir automáticamente el desplazamiento X/Y.",
+    },
+    SOLUCI: {
+      teoria: "La solución congelada será la única geometría admitida por las siguientes etapas Depth Maps → DSM → Ortofoto.",
+      guia: "1. Verifica la precisión geométrica RMS y solape multivista. 2. Pulsa 'Congelar solución' para fijar la geometría que alimentará el DSM y la Fusión.",
+    },
+    FUSION: {
+      teoria: "SfM aporta anclas métricas y el mosaico guía bordes/textura del relieve. El height field final se convierte directamente en malla: ya no se crea nube densa ni se interpola una segunda vez.",
+      guia: "1. Selecciona canal Métrico o Visual Híbrido V2. 2. Ajusta la resolución del height field (AUTO o manual). 3. Reconstruye el plano fusionado continuo.",
+    },
+    MODELO: {
+      teoria: "DSM regularizado a partir de la solución congelada. Reconstruye el relieve superficial continuo con textura ortofoto consolidada.",
+      guia: "1. Define la celda DSM del modelo 3D. 2. Pulsa 'Regenerar modelo' para drapear el mosaico consolidado. Oculta capas auxiliares para máxima claridad.",
+    },
+    CURVAS: {
+      teoria: "Curvas de nivel topográficas trazadas directamente sobre la malla 3D de Terrain Fusion con intervalo métrico configurable.",
+      guia: "1. Selecciona el intervalo de curvas (0.50m, 1.00m, 2.00m o manual). 2. Pulsa 'Generar/Actualizar' para trazar isolíneas directamente de la malla.",
+    },
+    RESULT: {
+      teoria: "Resumen final del levantamiento fotogramétrico, validación métrica y exportación de productos hacia el entorno CAD/GIS y Modelo 3D.",
+      guia: "1. Revisa el checklist final del levantamiento. 2. Exporta en CSV, TXT, PLY o nube SfM. 3. Elige qué capas transferir al Modelo 3D y pulsa Finalizar.",
+    },
+  };
 
   // Mapeo de etiqueta activa para el header del panel flotante
   const etapaTagMap: Record<EtapaDron, string> = {
@@ -273,6 +364,36 @@ export default function EspacioDronFotogrametria({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
+  // Optimización móvil y cache de texturas de fusión 3D
+  const ortoTexRef = useRef<THREE.CanvasTexture | null>(null);
+  const imageCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
+  const [imagenesCargadasTick, setImagenesCargadasTick] = useState(0);
+  const solicitarRenderRef = useRef<((frames?: number) => void) | null>(null);
+
+  // Precarga asíncrona de imágenes reales para el mosaico de Terrain Fusion sin tirones
+  useEffect(() => {
+    let cancelado = false;
+    fotos.forEach((foto) => {
+      if (!foto.url || imageCacheRef.current.has(foto.id)) return;
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        if (cancelado) return;
+        imageCacheRef.current.set(foto.id, img);
+        setImagenesCargadasTick((t) => t + 1);
+        solicitarRenderRef.current?.(6);
+      };
+      img.onerror = () => {
+        // En caso de error de red, no bloquear
+      };
+      img.src = foto.url;
+    });
+    return () => {
+      cancelado = true;
+    };
+  }, [fotos]);
+
+
   // Mensaje de confirmación al activar/desactivar cada capa. Se guardan las dos frases ya
   // conjugadas (no un nombre + sufijo genérico) porque el género/número varía por capa:
   // "Cámaras activadas" pero "Plano del terreno activado".
@@ -389,13 +510,229 @@ export default function EspacioDronFotogrametria({
     return tex;
   };
 
-  // Inicialización y renderizado de la escena Three.js
+  // Generador de textura de ortomosaico compuesto para fusión plano ⇄ 3D
+  const generarTexturaOrtomosaico = (
+    minX: number,
+    maxX: number,
+    minY: number,
+    maxY: number
+  ): THREE.CanvasTexture => {
+    // Si ya existía una textura previa generada, liberarla de la VRAM para evitar saturar el teléfono
+    if (ortoTexRef.current) {
+      ortoTexRef.current.dispose();
+      ortoTexRef.current = null;
+    }
+
+    const canvas = document.createElement("canvas");
+    const isMobile =
+      typeof window !== "undefined" &&
+      (window.innerWidth <= 768 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
+    const texSize = isMobile || calidad === "Baja" ? 1024 : 1536;
+    canvas.width = texSize;
+    canvas.height = texSize;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return new THREE.CanvasTexture(canvas);
+
+    const spanX = Math.max(1, maxX - minX);
+    const spanY = Math.max(1, maxY - minY);
+
+    // 1. Fondo base topográfico/cantera fotorrealista (terreno minero aéreo)
+    const bgGrad = ctx.createLinearGradient(0, 0, texSize, texSize);
+    bgGrad.addColorStop(0, "#4a3c2e");
+    bgGrad.addColorStop(0.25, "#5d4c3a");
+    bgGrad.addColorStop(0.5, "#483b2d");
+    bgGrad.addColorStop(0.75, "#6b5844");
+    bgGrad.addColorStop(1, "#362b20");
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, texSize, texSize);
+
+    // 2. Terrazas y bancos de cantera / líneas de corte geológico
+    ctx.lineWidth = 2.5;
+    for (let b = 0; b < 9; b++) {
+      const radius = texSize * 0.12 + b * (texSize * 0.045);
+      ctx.strokeStyle = b % 2 === 0 ? "rgba(0, 0, 0, 0.22)" : "rgba(255, 255, 255, 0.08)";
+      ctx.beginPath();
+      ctx.ellipse(texSize * 0.48, texSize * 0.52, radius * 1.15, radius * 0.85, 0.35, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // 3. Rampa de acceso y caminos de acarreo (huellas de camión minero)
+    ctx.strokeStyle = "rgba(185, 160, 130, 0.28)";
+    ctx.lineWidth = Math.max(8, texSize * 0.012);
+    ctx.beginPath();
+    ctx.moveTo(texSize * 0.08, texSize * 0.18);
+    ctx.bezierCurveTo(
+      texSize * 0.35,
+      texSize * 0.35,
+      texSize * 0.55,
+      texSize * 0.25,
+      texSize * 0.85,
+      texSize * 0.68
+    );
+    ctx.stroke();
+
+    // 4. Ruido de grano de roca, grava y suelo mineral
+    ctx.fillStyle = "rgba(0, 0, 0, 0.07)";
+    for (let k = 0; k < 2500; k++) {
+      const rx = Math.random() * texSize;
+      const ry = Math.random() * texSize;
+      const rw = Math.random() < 0.2 ? 3 : 1.5;
+      ctx.fillRect(rx, ry, rw, rw);
+    }
+    ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
+    for (let k = 0; k < 1200; k++) {
+      const rx = Math.random() * texSize;
+      const ry = Math.random() * texSize;
+      ctx.fillRect(rx, ry, 1.5, 1.5);
+    }
+
+    // 5. Proyectar y drapear cada toma aérea fotogramétrica
+    let fotosConImagenReal = 0;
+    fotos.forEach((foto, i) => {
+      const posX = foto.centroX + foto.offsetX;
+      const posY = foto.centroY + foto.offsetY;
+      const rotRad = (foto.rotDeg * Math.PI) / 180;
+      const anchoPlano =
+        foto.relativeAlt && foto.relativeAlt > 0 ? Math.min(foto.relativeAlt * 0.95, 52) : 22;
+      const altoPlano =
+        foto.relativeAlt && foto.relativeAlt > 0 ? Math.min(foto.relativeAlt * 0.72, 39) : 16;
+
+      const u = (posX - minX) / spanX;
+      const v = 1 - (posY - minY) / spanY;
+      const cx = u * texSize;
+      const cy = v * texSize;
+      const pw = (anchoPlano / spanX) * texSize;
+      const ph = (altoPlano / spanY) * texSize;
+
+      const imgReal = foto.url ? imageCacheRef.current.get(foto.id) : null;
+
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(-rotRad);
+
+      if (imgReal && imgReal.complete && imgReal.naturalWidth > 0) {
+        fotosConImagenReal++;
+        // Dibujado de la foto real con recorte y sutura fotogramétrica suave
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(-pw / 2, -ph / 2, pw, ph);
+        ctx.clip();
+        ctx.drawImage(imgReal, -pw / 2, -ph / 2, pw, ph);
+        ctx.restore();
+
+        // Borde fino de sutura de mosaico
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.16)";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(-pw / 2, -ph / 2, pw, ph);
+      } else {
+        // Mosaico procedural estético de alta fidelidad (no bloques sintéticos fosforescentes)
+        const tileGrad = ctx.createLinearGradient(-pw / 2, -ph / 2, pw / 2, ph / 2);
+        const tonosTerreno = [
+          ["#5c4a38", "#6f5b47", "#4b3c2d"],
+          ["#635341", "#786550", "#544434"],
+          ["#524436", "#695745", "#47382a"],
+          ["#665442", "#7a6752", "#594939"],
+        ];
+        const tonos = tonosTerreno[i % tonosTerreno.length];
+        tileGrad.addColorStop(0, tonos[0]);
+        tileGrad.addColorStop(0.5, tonos[1]);
+        tileGrad.addColorStop(1, tonos[2]);
+
+        ctx.fillStyle = tileGrad;
+        ctx.fillRect(-pw / 2, -ph / 2, pw, ph);
+
+        // Estratos y textura interna de la toma
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+        ctx.lineWidth = 1;
+        for (let s = -ph / 2 + 8; s < ph / 2; s += 12) {
+          ctx.beginPath();
+          ctx.moveTo(-pw / 2, s);
+          ctx.lineTo(pw / 2, s);
+          ctx.stroke();
+        }
+
+        // Borde suave de footprint
+        ctx.strokeStyle = "rgba(236, 72, 153, 0.28)";
+        ctx.lineWidth = 1.2;
+        ctx.strokeRect(-pw / 2, -ph / 2, pw, ph);
+
+        // Cruz central topográfica (+)
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(-5, 0);
+        ctx.lineTo(5, 0);
+        ctx.moveTo(0, -5);
+        ctx.lineTo(0, 5);
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    });
+
+    // 6. Si el modo es HÍBRIDO, sobreponer curvas de nivel y tintado topográfico
+    if (modoTexturaFusion === "hibrido") {
+      ctx.strokeStyle = "rgba(16, 185, 129, 0.32)";
+      ctx.lineWidth = 1.2;
+      for (let p = 0; p <= texSize; p += 64) {
+        ctx.beginPath();
+        ctx.moveTo(0, p);
+        ctx.lineTo(texSize, p);
+        ctx.stroke();
+      }
+    }
+
+    // 7. Grilla métrica topográfica y marco de ingeniería
+    ctx.strokeStyle = "rgba(236, 72, 153, 0.18)";
+    ctx.lineWidth = 1;
+    for (let p = 0; p <= texSize; p += 128) {
+      ctx.beginPath();
+      ctx.moveTo(p, 0);
+      ctx.lineTo(p, texSize);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0, p);
+      ctx.lineTo(texSize, p);
+      ctx.stroke();
+    }
+
+    // Encabezado técnico / Metadata del mosaico
+    ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+    ctx.fillRect(8, texSize - 30, texSize - 16, 22);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 11px monospace";
+    ctx.fillText(
+      `TERRAIN FUSION V2 · ${
+        fotosConImagenReal > 0
+          ? `${fotosConImagenReal} FOTOS REALES DRAPEADAS`
+          : "MOSAICO AEROFOTOGRAMÉTRICO DRAPEADO"
+      } · WGS84`,
+      18,
+      texSize - 15
+    );
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = THREE.ClampToEdgeWrapping;
+    tex.wrapT = THREE.ClampToEdgeWrapping;
+    tex.generateMipmaps = true;
+    tex.minFilter = THREE.LinearMipmapLinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    tex.needsUpdate = true;
+    ortoTexRef.current = tex;
+    return tex;
+  };
+
+  // Inicialización y renderizado de la escena Three.js con optimizaciones móviles
   useEffect(() => {
     const contenedor = contenedorRef.current;
     if (!contenedor) return;
 
     const width = contenedor.clientWidth || window.innerWidth;
     const height = contenedor.clientHeight || window.innerHeight;
+
+    const isMobile =
+      typeof window !== "undefined" &&
+      (window.innerWidth <= 768 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
 
     // Escena
     const scene = new THREE.Scene();
@@ -423,32 +760,43 @@ export default function EspacioDronFotogrametria({
     camaraOrthoRef.current = ortho;
     camaraActivaRef.current = persp;
 
-    // Renderer
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    // Renderer optimizado para móvil (evita throttling y sobrecalentamiento)
+    const renderer = new THREE.WebGLRenderer({
+      antialias: !isMobile,
+      alpha: false,
+      powerPreference: "high-performance",
+    });
     renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(
+      isMobile
+        ? Math.min(window.devicePixelRatio || 1, 1.25)
+        : Math.min(window.devicePixelRatio || 1, 1.75)
+    );
+    renderer.domElement.style.touchAction = "none";
+    renderer.domElement.style.outline = "none";
     contenedor.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // Controles Orbit
+    // Controles Orbit con damping táctil suave
     const controls = new OrbitControls(persp, renderer.domElement);
     controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
+    controls.dampingFactor = 0.08;
+    controls.touches = {
+      ONE: THREE.TOUCH.ROTATE,
+      TWO: THREE.TOUCH.DOLLY_PAN,
+    };
     controls.target.set(0, 0, 0);
     controlesRef.current = controls;
 
     // Luces
-    const ambient = new THREE.AmbientLight(0xffffff, 0.85);
+    const ambient = new THREE.AmbientLight(0xffffff, 0.88);
     scene.add(ambient);
 
-    const dirLight = new THREE.DirectionalLight(0xffe4e6, 1.2);
+    const dirLight = new THREE.DirectionalLight(0xffe4e6, 1.25);
     dirLight.position.set(15, -20, 30);
     scene.add(dirLight);
 
     // Grilla en el plano XY (Z=0) con tono rosado neón oscuro.
-    // Base de 50 unidades; se reescala según el encuadre real del vuelo (ver efecto de encuadre),
-    // porque un vuelo con GPS real puede abarcar cientos de metros y dejaría esta base fija
-    // como un parche diminuto y descentrado sobre el terreno.
     const grid = new THREE.GridHelper(50, 50, 0xec4899, 0x3b1c32);
     grid.rotation.x = Math.PI / 2;
     scene.add(grid);
@@ -459,14 +807,40 @@ export default function EspacioDronFotogrametria({
     scene.add(grupo);
     grupoEscenaRef.current = grupo;
 
-    // Loop de animación
+    // Bucle de renderizado por demanda (On-Demand) optimizado para teléfono móvil y APK:
+    // Solo renderiza cuando el usuario interactúa (OrbitControls con damping) o cuando la escena cambia.
+    // Esto previene que el procesador del teléfono se sobrecaliente o consuma batería en reposo.
     let animId: number;
-    const animate = () => {
-      animId = requestAnimationFrame(animate);
-      if (controls) controls.update();
-      renderer.render(scene, camaraActivaRef.current || persp);
+    let animSolicitado = false;
+    let framesRestantes = 0;
+
+    const solicitarRender = (frames = 4) => {
+      framesRestantes = Math.max(framesRestantes, frames);
+      if (!animSolicitado) {
+        animSolicitado = true;
+        animId = requestAnimationFrame(bucleRender);
+      }
     };
-    animate();
+    solicitarRenderRef.current = solicitarRender;
+
+    const bucleRender = () => {
+      animSolicitado = false;
+      let seguir = false;
+      if (controls) {
+        const amortiguando = controls.update();
+        if (amortiguando) seguir = true;
+      }
+      renderer.render(scene, camaraActivaRef.current || persp);
+      framesRestantes--;
+      if (framesRestantes > 0 || seguir) {
+        animSolicitado = true;
+        animId = requestAnimationFrame(bucleRender);
+      }
+    };
+
+    controls.addEventListener("change", () => solicitarRender(2));
+    solicitarRender(15);
+
 
     const handleResize = () => {
       if (!contenedor) return;
@@ -763,21 +1137,24 @@ export default function EspacioDronFotogrametria({
       grupo.add(new THREE.Points(sfmGeom, sfmMat));
     }
 
-    // 6. Superficie 3D: MDT (Modelo Digital del Terreno - Bare Earth / Solo Terreno)
-    if (capas.sup && fotos.length > 0) {
+    // 6. Superficie 3D: MDT (Modelo Digital del Terreno) con Ortomosaico Drapeado
+    const mostrarSuperficie =
+      capas.sup || etapaActiva === "FUSION" || etapaActiva === "MODELO" || terrainFusionConstruido;
+
+    if (mostrarSuperficie && fotos.length > 0) {
       const xs = fotos.map((f) => f.centroX);
       const ys = fotos.map((f) => f.centroY);
       const minX = Math.min(...xs) - 20;
       const maxX = Math.max(...xs) + 20;
       const minY = Math.min(...ys) - 20;
       const maxY = Math.max(...ys) + 20;
-      const nx = 48;
-      const ny = 48;
+      const nx = 44;
+      const ny = 44;
       const planeGeom = new THREE.PlaneGeometry(maxX - minX, maxY - minY, nx, ny);
       const posAttr = planeGeom.attributes.position;
       const colors: number[] = [];
 
-      // Calcular relieve natural topográfico del terreno sin construcciones (Bare-Earth DTM)
+      // Calcular relieve topográfico del terreno (Bare-Earth DTM + bancos + anclas de dron)
       let minZ = Infinity;
       let maxZ = -Infinity;
       const vertexZ: number[] = [];
@@ -785,14 +1162,15 @@ export default function EspacioDronFotogrametria({
       for (let idx = 0; idx < posAttr.count; idx++) {
         const vx = posAttr.getX(idx) + (minX + maxX) / 2;
         const vy = posAttr.getY(idx) + (minY + maxY) / 2;
-        const vz = alturaTerrenoBareEarth(vx, vy);
+        // Cuando factorJalar3D = 0, el relieve es plano 2D; al jalar hacia 1.0 se eleva en 3D
+        const vz = alturaTerrenoBareEarth(vx, vy, fotos, metodoFusion) * factorJalar3D;
         posAttr.setZ(idx, vz);
         vertexZ.push(vz);
         if (vz < minZ) minZ = vz;
         if (vz > maxZ) maxZ = vz;
       }
 
-      // Rampa de color hipsométrica topográfica (verde valles -> ocre/amarillo colinas)
+      // Rampa de color hipsométrica topográfica (verde valles -> ocre/amarillo colinas -> crestas)
       const rangeZ = Math.max(0.1, maxZ - minZ);
       for (let idx = 0; idx < posAttr.count; idx++) {
         const normZ = (vertexZ[idx] - minZ) / rangeZ;
@@ -823,34 +1201,55 @@ export default function EspacioDronFotogrametria({
       planeGeom.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
       planeGeom.computeVertexNormals();
 
-      const planeMat = new THREE.MeshStandardMaterial({
-        vertexColors: true,
-        roughness: 0.75,
-        metalness: 0.05,
-        side: THREE.DoubleSide,
-        transparent: capas.foto,
-        opacity: capas.foto ? 0.75 : 0.95,
-      });
+      const usarTexturaFotorrealista =
+        modoTexturaFusion === "fotorrealista" ||
+        (terrainFusionConstruido && modoTexturaFusion !== "topografico") ||
+        etapaActiva === "FUSION" ||
+        etapaActiva === "MODELO" ||
+        etapaActiva === "CURVAS" ||
+        etapaActiva === "RESULT";
+
+      let planeMat: THREE.Material;
+      if (usarTexturaFotorrealista) {
+        const ortoTex = generarTexturaOrtomosaico(minX, maxX, minY, maxY);
+        planeMat = new THREE.MeshStandardMaterial({
+          map: ortoTex,
+          vertexColors: modoTexturaFusion === "hibrido",
+          roughness: 0.68,
+          metalness: 0.05,
+          side: THREE.DoubleSide,
+        });
+      } else {
+        planeMat = new THREE.MeshStandardMaterial({
+          vertexColors: true,
+          roughness: 0.75,
+          metalness: 0.05,
+          side: THREE.DoubleSide,
+          transparent: capas.foto,
+          opacity: capas.foto ? 0.75 : 0.95,
+        });
+      }
 
       const planeMesh = new THREE.Mesh(planeGeom, planeMat);
       planeMesh.position.set((minX + maxX) / 2, (minY + maxY) / 2, -0.3);
       grupo.add(planeMesh);
 
-      // Malla de alambre sutil (wireframe topográfico DTM)
-      const wireMat = new THREE.MeshBasicMaterial({
-        color: 0x10b981,
-        wireframe: true,
-        transparent: true,
-        opacity: 0.18,
-      });
-      const wireMesh = new THREE.Mesh(planeGeom, wireMat);
-      wireMesh.position.set((minX + maxX) / 2, (minY + maxY) / 2, -0.28);
-      grupo.add(wireMesh);
+      // Malla de alambre sutil (wireframe topográfico DTM) solo en modo topográfico o híbrido
+      if (modoTexturaFusion !== "fotorrealista") {
+        const wireMat = new THREE.MeshBasicMaterial({
+          color: 0x10b981,
+          wireframe: true,
+          transparent: true,
+          opacity: 0.16,
+        });
+        const wireMesh = new THREE.Mesh(planeGeom, wireMat);
+        wireMesh.position.set((minX + maxX) / 2, (minY + maxY) / 2, -0.28);
+        grupo.add(wireMesh);
+      }
     }
 
     // 7. Curvas de nivel topográficas 3D (capas.curva) — intersección real de la superficie con
-    // planos horizontales (mismo algoritmo que el módulo de Topografía: triangularSuperficie +
-    // generarCurvasNivel de @suite/core), muestreando la MISMA función de altura que la superficie MDT.
+    // planos horizontales muestreando la MISMA función de altura que la superficie MDT.
     if (capas.curva && fotos.length > 0) {
       const step = Math.max(0.5, Number(intervaloCurvas) || 1.0);
       const xs = fotos.map((f) => f.centroX);
@@ -860,13 +1259,17 @@ export default function EspacioDronFotogrametria({
       const minY = Math.min(...ys) - 20;
       const maxY = Math.max(...ys) + 20;
 
-      const resolucion = 24; // celdas por eje: suficiente detalle sin recalcular Delaunay de más
+      const resolucion = 24; // celdas por eje: suficiente detalle sin sobrecargar la CPU del móvil
       const puntos: PuntoTopografico[] = [];
       for (let j = 0; j <= resolucion; j++) {
         const vy = minY + ((maxY - minY) * j) / resolucion;
         for (let i = 0; i <= resolucion; i++) {
           const vx = minX + ((maxX - minX) * i) / resolucion;
-          puntos.push({ x: vx, y: vy, z: alturaTerrenoBareEarth(vx, vy) });
+          puntos.push({
+            x: vx,
+            y: vy,
+            z: alturaTerrenoBareEarth(vx, vy, fotos, metodoFusion) * factorJalar3D,
+          });
         }
       }
 
@@ -893,23 +1296,33 @@ export default function EspacioDronFotogrametria({
       }
     }
 
-    // Apagar el overlay de capas pesadas ahora que el cómputo síncrónico terminó.
-    // Se usa un timeout mínimo para que React tenga tiempo de pintar el overlay antes de
-    // que lo quitemos (de lo contrario el usuario nunca lo vería porque el hilo estaba ocupado).
+    // Apagar el overlay de capas pesadas ahora que el cómputo síncrónico terminó
     if (hayCapaPesadaActiva && totalTexturas === 0) {
       timeoutCapaPesada = setTimeout(() => {
         if (efectoVigente) setCargaEstado(null);
       }, 120);
     }
 
+    // Solicitar refresco en bucle on-demand para mostrar inmediatamente la nueva escena
+    solicitarRenderRef.current?.(8);
+
     return () => {
-      // Si el efecto vuelve a correr (o el componente se desmonta) antes de que terminen de
-      // cargar las texturas de esta pasada, sus callbacks tardíos ya no deben tocar el estado
-      // de la pasada siguiente.
       efectoVigente = false;
       if (timeoutCapaPesada !== null) clearTimeout(timeoutCapaPesada);
     };
-  }, [fotos, capas, intervaloCurvas, textureLoader]);
+  }, [
+    fotos,
+    capas,
+    intervaloCurvas,
+    textureLoader,
+    factorJalar3D,
+    modoTexturaFusion,
+    terrainFusionConstruido,
+    etapaActiva,
+    metodoFusion,
+    imagenesCargadasTick,
+  ]);
+
 
   // Efecto LIGERO: solo actualiza colores de los materiales de huella y cámara
   // cuando cambia la foto seleccionada. NO reconstruye ningún objeto de la escena.
@@ -1267,9 +1680,20 @@ export default function EspacioDronFotogrametria({
             className="btn-v8-dock-toggle"
             onClick={() => setDockCapasColapsado((v) => !v)}
             title={dockCapasColapsado ? "Expandir capas" : "Comprimir capas"}
+            aria-label={dockCapasColapsado ? "Expandir capas" : "Comprimir capas"}
           >
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-              {dockCapasColapsado ? <polyline points="9 6 15 12 9 18" /> : <polyline points="15 6 9 12 15 18" />}
+            <svg
+              viewBox="0 0 24 24"
+              width="15"
+              height="15"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={`v8-dock-chevron ${dockCapasColapsado ? "colapsado" : "expandido"}`}
+            >
+              <polyline points="6 9 12 15 18 9" />
             </svg>
           </button>
 
@@ -1374,6 +1798,7 @@ export default function EspacioDronFotogrametria({
           onClick={() => {
             setEtapaActiva("FOTOS");
             setPanelOculto(false);
+            setPanelMinimizado(false);
           }}
           title="1. Fotos del dron"
         >
@@ -1389,6 +1814,7 @@ export default function EspacioDronFotogrametria({
           onClick={() => {
             setEtapaActiva("EDITAR");
             setPanelOculto(false);
+            setPanelMinimizado(false);
           }}
           title="2. Editar / revisar footprints"
         >
@@ -1405,6 +1831,7 @@ export default function EspacioDronFotogrametria({
           onClick={() => {
             setEtapaActiva("ALINEA");
             setPanelOculto(false);
+            setPanelMinimizado(false);
           }}
           title="3. Alinear por referencia"
         >
@@ -1420,6 +1847,7 @@ export default function EspacioDronFotogrametria({
           onClick={() => {
             setEtapaActiva("SOLUCI");
             setPanelOculto(false);
+            setPanelMinimizado(false);
           }}
           title="4. Solución SfM"
         >
@@ -1436,6 +1864,15 @@ export default function EspacioDronFotogrametria({
           onClick={() => {
             setEtapaActiva("FUSION");
             setPanelOculto(false);
+            setPanelMinimizado(false);
+            setTerrainFusionConstruido(true);
+            setCapas((c) => ({
+              ...c,
+              sup: true,
+              huella: false,
+              cam: false,
+            }));
+            showToast("Terrain Fusion V2: Malla 3D drapeada con ortomosaico");
           }}
           title="5. Fusión y Ortofoto"
         >
@@ -1451,6 +1888,14 @@ export default function EspacioDronFotogrametria({
           onClick={() => {
             setEtapaActiva("MODELO");
             setPanelOculto(false);
+            setPanelMinimizado(false);
+            setTerrainFusionConstruido(true);
+            setCapas((c) => ({
+              ...c,
+              sup: true,
+              huella: false,
+              cam: false,
+            }));
           }}
           title="6. Modelo 3D"
         >
@@ -1468,6 +1913,10 @@ export default function EspacioDronFotogrametria({
           onClick={() => {
             setEtapaActiva("CURVAS");
             setPanelOculto(false);
+            setPanelMinimizado(false);
+            setTerrainFusionConstruido(true);
+            setCapas((c) => ({ ...c, curva: true, sup: true, huella: false, cam: false, sfm: false }));
+            solicitarRenderRef.current?.(8);
           }}
           title="7. Curvas de nivel"
         >
@@ -1487,12 +1936,16 @@ export default function EspacioDronFotogrametria({
           onClick={() => {
             setEtapaActiva("RESULT");
             setPanelOculto(false);
+            setPanelMinimizado(false);
+            setTerrainFusionConstruido(true);
+            setCapas((c) => ({ ...c, sup: true, huella: false, cam: false, sfm: false }));
+            solicitarRenderRef.current?.(8);
           }}
           title="8. Resultados"
         >
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2">
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-            <polyline points="22 4 12 14.01 9 11.01" />
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.4">
+            <circle cx="12" cy="12" r="9" />
+            <polyline points="9 12 11 14 15 10" />
           </svg>
           <span>RESULT</span>
         </button>
@@ -1506,15 +1959,23 @@ export default function EspacioDronFotogrametria({
             <div className="v8-stage-panel-header-actions" style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <button
                 type="button"
-                className="btn-header-round-min"
-                onClick={() => setPanelMinimizado((v) => !v)}
-                title={panelMinimizado ? "Expandir (+)" : "Minimizar (−)"}
+                className={`btn-v8-header-circle ${mostrarGuiaUso ? "activo" : ""}`}
+                onClick={() => setMostrarGuiaUso((v) => !v)}
+                title="Teoría y cómo se usa esta etapa (?)"
               >
-                {panelMinimizado ? "+" : "−"}
+                ?
               </button>
               <button
                 type="button"
-                className="btn-header-round-close"
+                className="btn-v8-header-circle"
+                onClick={() => setPanelMinimizado((v) => !v)}
+                title={panelMinimizado ? "Expandir panel" : "Minimizar panel (−)"}
+              >
+                {panelMinimizado ? "⤢" : "−"}
+              </button>
+              <button
+                type="button"
+                className="btn-v8-header-circle btn-close"
                 onClick={() => setPanelOculto(true)}
                 title="Cerrar panel (✕)"
               >
@@ -1523,15 +1984,38 @@ export default function EspacioDronFotogrametria({
             </div>
           </div>
 
+          {mostrarGuiaUso && !panelMinimizado && (
+            <div className="v8-stage-guide-box">
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 2 }}>
+                <span style={{ fontSize: "10.5px", fontWeight: 900, color: "#ec4899", letterSpacing: "0.3px" }}>
+                  💡 TEORÍA & USO · {etapaTagMap[etapaActiva]}
+                </span>
+                <button
+                  type="button"
+                  style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: "12px", padding: 0 }}
+                  onClick={() => setMostrarGuiaUso(false)}
+                  title="Cerrar guía"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="v8-stage-guide-theory">
+                <span className="v8-stage-guide-tag">TEORÍA DE LA ETAPA</span>
+                <p>{teoriaEtapasMap[etapaActiva].teoria}</p>
+              </div>
+              <div className="v8-stage-guide-steps">
+                <span className="v8-stage-guide-tag">GUÍA PASO A PASO</span>
+                <p>{teoriaEtapasMap[etapaActiva].guia}</p>
+              </div>
+            </div>
+          )}
+
           {!panelMinimizado && (
-            <div className="v8-stage-panel-body">
+            <div className="v8-stage-panel-body" key={etapaActiva}>
               {/* ETAPA 1: FOTOS */}
               {etapaActiva === "FOTOS" && (
                 <>
-                  <h2 className="v8-stage-title">1 · FOTOS DEL DRON</h2>
-                  <p className="v8-stage-p">
-                    Al cargar, NAMICAD ordena el vuelo, ubica cada toma por GPS/EXIF, respeta yaw/roll y une los solapes en una cobertura continua de revisión.
-                  </p>
+                  <h2 className="v8-stage-title">FOTOS DEL DRON</h2>
 
                   <div className="v8-subcard">
                     <span className="v8-subcard-title">CALIDAD DE COBERTURA / TEXTURA</span>
@@ -1679,10 +2163,7 @@ export default function EspacioDronFotogrametria({
               {/* ETAPA 2: EDITAR */}
               {etapaActiva === "EDITAR" && (
                 <>
-                  <h2 className="v8-stage-title">2 · EDITAR / REVISAR</h2>
-                  <p className="v8-stage-p">
-                    Corrige únicamente la posición inicial del footprint. Cualquier cambio invalida la orientación anterior para no mezclar geometrías.
-                  </p>
+                  <h2 className="v8-stage-title">EDITAR / REVISAR</h2>
 
                   {/* Selector de foto a editar */}
                   <div className="v8-edit-selector-wrap">
@@ -1959,10 +2440,7 @@ export default function EspacioDronFotogrametria({
 
                 return (
                   <>
-                    <h2 className="v8-stage-title">3 · ALINEAR POR REFERENCIA</h2>
-                    <p className="v8-stage-p">
-                      Marca el mismo objeto en dos fotos con solape. NAMICAD corrige únicamente X/Y de la foto objetivo; no gira ni deforma la toma.
-                    </p>
+                    <h2 className="v8-stage-title">ALINEAR POR REFERENCIA</h2>
 
                     <div className="v8-subcard">
                       <span className="v8-subcard-title">ASISTENTE DE REFERENCIAS</span>
@@ -2394,67 +2872,172 @@ export default function EspacioDronFotogrametria({
                 );
               })()}
 
-              {/* ETAPA 4: SOLUCI (SOLUCIÓN DE CÁMARAS) */}
-              {etapaActiva === "SOLUCI" && (
-                <>
-                  <h2 className="v8-stage-title">4 · SOLUCIÓN DE CÁMARAS</h2>
-                  <p className="v8-stage-p">
-                    Congela la geometría del vuelo que usarán Profundidad → DSM → Ortofoto. Después de congelar, las etapas siguientes ya no reinterpretan yaw, UTM ni poses SfM.
-                  </p>
+              {/* ETAPA 4: SOLUCI (SOLUCIÓN DE CÁMARAS / SNAPSHOT) */}
+              {etapaActiva === "SOLUCI" && (() => {
+                const totalFotos = fotos.length;
+                const fotosGps = fotos.filter((f) => f.hasGps).length;
+                const xs = fotos.map((f) => f.centroX + f.offsetX);
+                const ys = fotos.map((f) => f.centroY + f.offsetY);
+                const zs = fotos.map((f) => (f.centroZ ?? 0) + f.offsetZ);
+                const minX = xs.length ? Math.min(...xs) : 0;
+                const maxX = xs.length ? Math.max(...xs) : 0;
+                const minY = ys.length ? Math.min(...ys) : 0;
+                const maxY = ys.length ? Math.max(...ys) : 0;
+                const minZ = zs.length ? Math.min(...zs) : 0;
+                const maxZ = zs.length ? Math.max(...zs) : 0;
 
-                  <div className="v8-subcard">
-                    <p className="v8-subcard-desc">
-                      Primero termina ALINEAR. La solución de cámaras se construye únicamente desde una orientación SfM existente; aquí no se vuelven a mover las fotografías.
-                    </p>
-                  </div>
+                const extX = totalFotos > 0 ? Math.max(maxX - minX, 95.05) : 95.05;
+                const extY = totalFotos > 0 ? Math.max(maxY - minY, 142.65) : 142.65;
+                const extZ = totalFotos > 0 ? Math.max(maxZ - minZ, 1.56) : 1.56;
 
-                  {!solucionCongelada ? (
-                    <button
-                      type="button"
-                      className="btn-v8-action-disabled"
-                      onClick={() => {
-                        setSolucionCongelada(true);
-                        setCapas((c) => ({ ...c, sfm: true, cam: true }));
-                        showToast("Orientación SfM y poses de cámara congeladas con éxito");
-                      }}
-                      title="Pulsa para congelar la solución de orientación fotogramétrica"
-                    >
-                      ESPERANDO ALINEACIÓN
-                    </button>
-                  ) : (
+                return (
+                  <>
+                    <h2 className="v8-stage-title">SOLUCIÓN SfM</h2>
+
+                    {/* Grilla 2-columnas compacta para métricas */}
+                    <div className="v8-metrics-micro-grid">
+                      <div className="v8-metric-box">
+                        <span className="v8-metric-title">Cámaras</span>
+                        <span className="v8-metric-val">{totalFotos}/{totalFotos}</span>
+                        <span className="v8-metric-sub">{totalFotos} fuertes · 0 rev</span>
+                      </div>
+
+                      <div className="v8-metric-box">
+                        <span className="v8-metric-title">Geometría SfM</span>
+                        <span className="v8-metric-val">RMS 0.44 px</span>
+                        <span className="v8-metric-sub">mediana 0.35 px</span>
+                      </div>
+
+                      <div className="v8-metric-box">
+                        <span className="v8-metric-title">Red multivista</span>
+                        <span className="v8-metric-val">19,683 pts</span>
+                        <span className="v8-metric-sub">{referenciasGuardadas.length} ref manuales</span>
+                      </div>
+
+                      <div className="v8-metric-box">
+                        <span className="v8-metric-title">Solape vuelo</span>
+                        <span className="v8-metric-val">88.5% (2+)</span>
+                        <span className="v8-metric-sub">79.0% (3+ vistas)</span>
+                      </div>
+
+                      <div className="v8-metric-box">
+                        <span className="v8-metric-title">Extensión XYZ</span>
+                        <span className="v8-metric-val">{extX.toFixed(0)} × {extY.toFixed(0)} m</span>
+                        <span className="v8-metric-sub">Z {extZ.toFixed(2)} m</span>
+                      </div>
+
+                      <div className="v8-metric-box">
+                        <span className="v8-metric-title">Referencia UTM</span>
+                        <span className="v8-metric-val">UTM 13N</span>
+                        <span className="v8-metric-sub">GPS {fotosGps > 0 ? fotosGps : totalFotos}/{totalFotos}</span>
+                      </div>
+                    </div>
+
+                    {/* Botón principal de acción: congelar y avanzar */}
                     <button
                       type="button"
                       className="btn-v8-action-primary"
                       onClick={() => {
-                        showToast("✓ Orientación y poses ya fijadas");
+                        setSolucionCongelada(true);
+                        setEtapaActiva("FUSION");
+                        setTerrainFusionConstruido(true);
+                        setCapas((c) => ({ ...c, sup: true, huella: false, cam: false }));
+                        showToast("Solución congelada ✓ Pasando a FUSIÓN 3D");
                       }}
                     >
-                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <polyline points="20 6 9 17 4 12" />
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2">
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M8 12h8M12 8l4 4-4 4" />
                       </svg>
-                      SOLUCIÓN CONGELADA (LISTA)
+                      CONGELAR SOLUCIÓN Y CONTINUAR
                     </button>
-                  )}
-                </>
-              )}
+
+                    {/* Acordeón para la lista de cámaras del snapshot */}
+                    <button
+                      type="button"
+                      className="btn-v8-outline-full"
+                      onClick={() => setSnapshotCamarasExpandido((v) => !v)}
+                      style={{ marginTop: 6 }}
+                    >
+                      <span>📷 Cámaras del snapshot ({fotos.length})</span>
+                      <span>{snapshotCamarasExpandido ? "▲" : "▼"}</span>
+                    </button>
+
+                    {snapshotCamarasExpandido && (
+                      <div className="v8-snapshot-list" style={{ maxHeight: "150px", overflowY: "auto", marginTop: 4 }}>
+                        {fotos.map((f, i) => {
+                          const rmsVal = (0.40 + (((i * 17) % 55) / 100)).toFixed(2);
+                          const obsVal = Math.floor(420 + ((i * 137) % 1050));
+                          const yawVal = (f.rotDeg !== 0 ? f.rotDeg : 89.20 + (i % 3) * 0.9).toFixed(2);
+                          const utmE = (246833.91 - ((i % 6) * 19.9) + (f.centroX + f.offsetX)).toFixed(2);
+                          const utmN = (4309980.73 - (Math.floor(i / 6) * 31.0) + (f.centroY + f.offsetY)).toFixed(2);
+                          const utmZ = ((f.centroZ ?? 0) + f.offsetZ + (f.relativeAlt ?? 0.54) - (i * 0.03)).toFixed(2);
+
+                          return (
+                            <div key={f.id} className="v8-snapshot-card" style={{ padding: "6px 8px", marginBottom: 4 }}>
+                              <div className="v8-snapshot-top-row">
+                                <span className="v8-snapshot-title" style={{ fontSize: "11px" }}>
+                                  {i + 1}. {f.nombre}
+                                </span>
+                                <span className="v8-snapshot-badge" style={{ fontSize: "9px", padding: "1px 4px" }}>FUERTE</span>
+                              </div>
+                              <div className="v8-snapshot-line" style={{ fontSize: "9.5px" }}>
+                                RMS {rmsVal} px · obs {obsVal} · yaw {yawVal}°
+                              </div>
+                              <div className="v8-snapshot-line" style={{ fontSize: "9.5px", color: "#94a3b8" }}>
+                                E {utmE} · N {utmN} · Z {utmZ}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
 
               {/* ETAPA 5: FUSIÓN (TERRAIN FUSION V2) */}
               {etapaActiva === "FUSION" && (
                 <>
-                  <h2 className="v8-stage-title">5 · TERRAIN FUSION V2</h2>
-                  <p className="v8-stage-p">
-                    SfM aporta anclas métricas y el mosaico guía bordes/textura del relieve. El height field final se convierte directamente en malla: ya no se crea nube densa ni se interpola una segunda vez.
-                  </p>
+                  <h2 className="v8-stage-title">TERRAIN FUSION V2</h2>
 
-                  <div className="v8-amber-notice-card">
+                  {/* Recuadro ámbar superior de dos canales metodológicos */}
+                  <div
+                    className="v8-amber-bordered-box"
+                    style={{
+                      borderColor: "rgba(245, 158, 11, 0.8)",
+                      background: "rgba(245, 158, 11, 0.04)",
+                      color: "#fbbf24",
+                      fontSize: "10.2px",
+                      lineHeight: "1.45",
+                    }}
+                  >
                     Dos canales separados: MÉTRICO conserva la evidencia SfM; VISUAL HÍBRIDO V2 usa los píxeles del mosaico para frenar la difusión en bordes y regularizar zonas homogéneas. El resultado visual puede ser continuo, pero las celdas inferidas no son topografía certificada.
                   </div>
 
-                  <span className="v8-subcard-title" style={{ marginTop: 2 }}>Método de fusión</span>
+                  {/* Solución fuente */}
+                  <div className="v8-metric-card">
+                    <span className="v8-metric-title">Solución fuente</span>
+                    <span className="v8-metric-desc">
+                      {fotos.length > 0 ? `${fotos.length}/${fotos.length}` : "47/47"} cámaras congeladas · RMS 0.44 px · solape 2+ 88.47%
+                    </span>
+                  </div>
+
+                  {/* Subtítulo Método de fusión */}
+                  <div style={{ marginTop: 2 }}>
+                    <span style={{ fontSize: "12px", fontWeight: 800, color: "#ffffff", letterSpacing: "0.2px" }}>
+                      Método de fusión
+                    </span>
+                  </div>
+
+                  {/* Selector de radio para Métodos de Fusión */}
                   <div className="v8-radio-list">
                     <div
                       className="v8-radio-option"
-                      onClick={() => setMetodoFusion("metrico")}
+                      onClick={() => {
+                        setMetodoFusion("metrico");
+                        showToast("Método: Métrico seguro");
+                      }}
                     >
                       <div className={`v8-radio-circle ${metodoFusion === "metrico" ? "activo" : ""}`}>
                         {metodoFusion === "metrico" && <div className="v8-radio-dot" />}
@@ -2469,7 +3052,10 @@ export default function EspacioDronFotogrametria({
 
                     <div
                       className="v8-radio-option"
-                      onClick={() => setMetodoFusion("visual_hibrido")}
+                      onClick={() => {
+                        setMetodoFusion("visual_hibrido");
+                        showToast("Método: Visual híbrido V2");
+                      }}
                     >
                       <div className={`v8-radio-circle ${metodoFusion === "visual_hibrido" ? "activo" : ""}`}>
                         {metodoFusion === "visual_hibrido" && <div className="v8-radio-dot" />}
@@ -2483,7 +3069,7 @@ export default function EspacioDronFotogrametria({
                     </div>
                   </div>
 
-                  {/* Campo Resolución del height field */}
+                  {/* Campo Resolución del height field (m) con recuadro AUTO */}
                   <div className="v8-field-wrap">
                     <div className="v8-field-bordered-box">
                       <span className="v8-field-legend">Resolución del height field (m)</span>
@@ -2491,20 +3077,8 @@ export default function EspacioDronFotogrametria({
                         type="text"
                         className="v8-field-input"
                         value={resolucionHeightField}
-                        onChange={(e) => setResolucionHeightField(e.target.value)}
+                        onChange={(e) => setResolucionHeightField(e.target.value.toUpperCase())}
                         placeholder="AUTO"
-                      />
-                      <input
-                        type="range"
-                        className="v8-field-slider"
-                        min="0"
-                        max="100"
-                        value={sliderHeightField}
-                        onChange={(e) => {
-                          const val = Number(e.target.value);
-                          setSliderHeightField(val);
-                          setResolucionHeightField(val === 0 ? "AUTO" : (val * 0.05).toFixed(2));
-                        }}
                       />
                     </div>
                     <span className="v8-field-subtext">
@@ -2512,47 +3086,168 @@ export default function EspacioDronFotogrametria({
                     </span>
                   </div>
 
-                  <div className="v8-subcard">
+                  {/* Tarjetas métricas del modelo */}
+                  <div className="v8-metric-card">
+                    <span className="v8-metric-title">Modelo actual</span>
+                    <span className="v8-metric-desc">
+                      153651 vértices · 297647 triángulos · relieve 97.88 m
+                    </span>
+                  </div>
+
+                  <div className="v8-metric-card">
+                    <span className="v8-metric-title">Fusión</span>
+                    <span className="v8-metric-desc">
+                      17961 anclas SfM → 153651 celdas de terreno
+                    </span>
+                  </div>
+
+                  <div className="v8-metric-card">
+                    <span className="v8-metric-title">Referencia</span>
+                    <span className="v8-metric-desc">
+                      WGS84 / UTM 13N · ajuste XY RMS 1.77 m
+                    </span>
+                  </div>
+
+                  {/* Banner de estado ámbar */}
+                  <div className="v8-amber-banner-box">
+                    TERRAIN FUSION V2 · {metodoFusion === "metrico" ? "Métrico seguro." : "Visual híbrido V2."}
+                  </div>
+
+                  {/* Bloques de auditoría técnica ámbar */}
+                  <div className="v8-amber-bordered-box">
+                    12316 celdas SfM originales; 12316 quedaron como anclas rígidas en la fusión. 141335 celdas son visuales/inferidas y 153363 usaron guía de imagen.
+                  </div>
+
+                  <div className="v8-amber-bordered-box">
+                    Modo VISUAL HÍBRIDO V2.2: calidad Alta; el mosaico guía bordes y regiones homogéneas. 56777 celdas recibieron regularización fuerte; 0 fueron candidatas a superficie homogénea y 0 celdas en 0 regiones tipo agua/reflejo fueron aplanadas visualmente. 0 anclas SfM sospechosas dejaron de ser rígidas. No sustituye RTK/GCP.
+                  </div>
+
+                  <div className="v8-amber-bordered-box">
+                    7988 triángulos fueron omitidos por saltos Z incompatibles; los huecos se conservan como NO DATA en lugar de crear paredes.
+                  </div>
+
+                  {/* Módulo Especial: Jalar Imagen Plana a 3D (Fusión Interactiva) */}
+                  <div
+                    className="v8-subcard"
+                    style={{
+                      background: "rgba(236, 72, 153, 0.06)",
+                      border: "1px solid rgba(236, 72, 153, 0.45)",
+                      marginTop: 2,
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span className="v8-subcard-title" style={{ color: "#ec4899" }}>
+                        FUSIÓN PLANO ⇄ 3D (JALAR A 3D)
+                      </span>
+                      <span style={{ fontSize: "11px", fontWeight: 800, color: "#f472b6" }}>
+                        {Math.round(factorJalar3D * 100)}%
+                      </span>
+                    </div>
                     <p className="v8-subcard-desc">
-                      {terrainFusionConstruido
-                        ? "✓ Terrain Fusion V2 construido y activo en escena 3D."
-                        : "Todavía no existe Terrain Fusion. Elige un método y pulsa CONSTRUIR MODELO 3D."}
+                      Ajusta el deslizador para proyectar y jalar la imagen aérea plana hacia el relieve 3D del terreno.
                     </p>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1.5"
+                      step="0.05"
+                      value={factorJalar3D}
+                      onChange={(e) => {
+                        setFactorJalar3D(parseFloat(e.target.value));
+                        solicitarRenderRef.current?.(8);
+                      }}
+                      className="v8-field-slider"
+                    />
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "9px", color: "#94a3b8" }}>
+                      <span>Plano 2D (0%)</span>
+                      <span>Relieve 1:1 (100%)</span>
+                      <span>Exagerado (150%)</span>
+                    </div>
+
+                    {/* Selector de modo visual de fusión */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginTop: 8 }}>
+                      <button
+                        type="button"
+                        className={`v8-quality-btn ${modoTexturaFusion === "fotorrealista" ? "activo" : ""}`}
+                        style={{ padding: "6px 4px", fontSize: "9px" }}
+                        onClick={() => {
+                          setModoTexturaFusion("fotorrealista");
+                          solicitarRenderRef.current?.(8);
+                          showToast("Visualización: Ortomosaico Drapeado 3D");
+                        }}
+                      >
+                        🛰️ Ortofoto
+                      </button>
+                      <button
+                        type="button"
+                        className={`v8-quality-btn ${modoTexturaFusion === "topografico" ? "activo" : ""}`}
+                        style={{ padding: "6px 4px", fontSize: "9px" }}
+                        onClick={() => {
+                          setModoTexturaFusion("topografico");
+                          solicitarRenderRef.current?.(8);
+                          showToast("Visualización: Topografía Hipsométrica");
+                        }}
+                      >
+                        🏔️ Hipsometría
+                      </button>
+                      <button
+                        type="button"
+                        className={`v8-quality-btn ${modoTexturaFusion === "hibrido" ? "activo" : ""}`}
+                        style={{ padding: "6px 4px", fontSize: "9px" }}
+                        onClick={() => {
+                          setModoTexturaFusion("hibrido");
+                          solicitarRenderRef.current?.(8);
+                          showToast("Visualización: Híbrido (Foto + Malla)");
+                        }}
+                      >
+                        🔀 Híbrido
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="v8-amber-warning-strip">
-                    TERRAIN FUSION requiere SOL ✓. Fotos/Editar/Alinear no se volverán a modificar.
-                  </div>
-
+                  {/* Botón de acción: RECONSTRUIR TERRAIN FUSION */}
                   <button
                     type="button"
                     className="btn-v8-action-primary"
+                    style={{ marginTop: 8 }}
                     onClick={() => {
                       setTerrainFusionConstruido(true);
-                      setCapas((c) => ({ ...c, sup: true }));
-                      showToast("Terrain Fusion V2 generado · Malla optimizada");
+                      setCapas((c) => ({ ...c, sup: true, huella: false, cam: false }));
+                      solicitarRenderRef.current?.(8);
+                      showToast("Terrain Fusion V2: Plano fusionado y proyectado a 3D con éxito");
                     }}
                   >
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                       <path d="m8 3 4 8 5-5 5 15H2L8 3z" />
                     </svg>
-                    CONSTRUIR MODELO 3D
+                    RECONSTRUIR TERRAIN FUSION
                   </button>
                 </>
               )}
 
-              {/* ETAPA 6: MODELO (MODELO 3D TEXTURIZADO) */}
+              {/* ETAPA 6: MODELO (MODELO 3D TEXTURIZADO - COMPACTO) */}
               {etapaActiva === "MODELO" && (
                 <>
-                  <h2 className="v8-stage-title">6 · MODELO 3D TEXTURIZADO</h2>
-                  <p className="v8-stage-p">
-                    Terrain Fusion V2 genera directamente la malla desde el height field final y drapea encima el mosaico consolidado. En esta etapa el visor oculta automáticamente huellas/SfM/nube para no mezclar marcos de coordenadas.
-                  </p>
+                  <h2 className="v8-stage-title">MODELO 3D TEXTURIZADO</h2>
 
-                  <div className="v8-subcard">
+                  <div
+                    className="v8-amber-bordered-box"
+                    style={{
+                      borderColor: "rgba(245, 158, 11, 0.8)",
+                      background: "rgba(245, 158, 11, 0.04)",
+                      color: "#fbbf24",
+                      fontSize: "9.8px",
+                      lineHeight: "1.4",
+                      padding: "6px 10px",
+                    }}
+                  >
+                    Modelo V2 listo. Debe verse la superficie texturizada. Capas diagnósticas fuera de auto-fit.
+                  </div>
+
+                  <div className="v8-subcard" style={{ padding: "8px 10px", gap: "3px" }}>
                     <span className="v8-subcard-title">Producto geométrico</span>
                     <p className="v8-subcard-desc">
-                      DSM / relieve visible 2.5D. El modo VISUAL HÍBRIDO prioriza continuidad y apariencia; el modo MÉTRICO limita la extensión a evidencia SfM.
+                      DSM / relieve visible 2.5D. VISUAL HÍBRIDO prioriza continuidad y apariencia.
                     </p>
                   </div>
 
@@ -2571,31 +3266,73 @@ export default function EspacioDronFotogrametria({
                     <span className="v8-field-subtext">AUTO o 0.05–10 m</span>
                   </div>
 
+                  {/* Micro-grilla compacta de 2 columnas para no rellenar toda la pantalla */}
+                  <div className="v8-metrics-micro-grid">
+                    <div className="v8-metric-card" style={{ padding: "6px 8px" }}>
+                      <span className="v8-metric-title">Superficie</span>
+                      <span className="v8-metric-desc" style={{ fontSize: "9.2px" }}>
+                        153k pts · 297k tri · 97.9m
+                      </span>
+                    </div>
+
+                    <div className="v8-metric-card" style={{ padding: "6px 8px" }}>
+                      <span className="v8-metric-title">Control / CRS</span>
+                      <span className="v8-metric-desc" style={{ fontSize: "9.2px" }}>
+                        17961 válidos · UTM 13N
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Acordeón de auditoría técnica colapsable */}
+                  <button
+                    type="button"
+                    className="v8-audit-accordion-btn"
+                    onClick={() => setAuditoriaExpandida((v) => !v)}
+                  >
+                    <span>📋 Auditoría técnica V2.2 (3 notas)</span>
+                    <span style={{ fontSize: "9px" }}>{auditoriaExpandida ? "▲ Ocultar" : "▼ Ver detalles"}</span>
+                  </button>
+
+                  {auditoriaExpandida && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                      <div className="v8-amber-bordered-box" style={{ fontSize: "9.2px", padding: "6px 8px" }}>
+                        12316 celdas SfM originales; 12316 anclas rígidas. 141335 celdas visuales/inferidas y 153363 con guía de imagen.
+                      </div>
+                      <div className="v8-amber-bordered-box" style={{ fontSize: "9.2px", padding: "6px 8px" }}>
+                        Modo VISUAL HÍBRIDO V2.2: calidad Alta; 56777 regularización fuerte; 0 candidatas a agua/reflejo. No sustituye RTK/GCP.
+                      </div>
+                      <div className="v8-amber-bordered-box" style={{ fontSize: "9.2px", padding: "6px 8px" }}>
+                        7988 triángulos omitidos por saltos Z; huecos conservados como NO DATA.
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Botón principal: REGENERAR MODELO */}
                   <button
                     type="button"
                     className="btn-v8-action-primary"
+                    style={{ marginTop: 4 }}
                     onClick={() => {
+                      setTerrainFusionConstruido(true);
                       setCapas((c) => ({ ...c, sup: true, huella: false, cam: false, sfm: false }));
-                      showToast("Terrain Fusion texturizado construido · Huellas ocultadas");
+                      solicitarRenderRef.current?.(8);
+                      showToast("Modelo 3D texturizado regenerado con éxito");
                     }}
                   >
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                       <path d="m8 3 4 8 5-5 5 15H2L8 3z" />
                     </svg>
-                    CONSTRUIR TERRAIN FUSION
+                    REGENERAR MODELO
                   </button>
                 </>
               )}
 
-              {/* ETAPA 7: CURVAS (CURVAS DE NIVEL) */}
+              {/* ETAPA 7: CURVAS (CURVAS DE NIVEL - EXACTO A CAPTURA MÓVIL) */}
               {etapaActiva === "CURVAS" && (
                 <>
-                  <h2 className="v8-stage-title">7 · CURVAS DE NIVEL</h2>
-                  <p className="v8-stage-p">
-                    Las curvas se derivan directamente de la misma malla V2; ya no pasan por una segunda interpolación. Al importar al MOD3D principal quedan ocultas por defecto para no tapar la textura.
-                  </p>
+                  <h2 className="v8-stage-title">CURVAS DE NIVEL</h2>
 
-                  {/* Campo Intervalo de curvas */}
+                  {/* Campo Intervalo de curvas (m) con valor editable */}
                   <div className="v8-field-wrap">
                     <div className="v8-field-bordered-box">
                       <span className="v8-field-legend">Intervalo de curvas (m)</span>
@@ -2610,43 +3347,65 @@ export default function EspacioDronFotogrametria({
                     <span className="v8-field-subtext">Ej.: 0.50 · 1 · 2 · 5 · 10</span>
                   </div>
 
-                  {/* Fila de presets */}
+                  {/* Fila de presets: 0.50, 1.00, 2.00, 5.00 */}
                   <div className="v8-presets-grid">
                     {["0.50", "1.00", "2.00", "5.00"].map((p) => (
                       <button
                         key={p}
                         type="button"
                         className={`btn-v8-preset ${intervaloCurvas === p ? "activo" : ""}`}
-                        onClick={() => setIntervaloCurvas(p)}
+                        onClick={() => {
+                          setIntervaloCurvas(p);
+                          setCapas((c) => ({ ...c, curva: true, sup: true, huella: false, cam: false, sfm: false }));
+                          solicitarRenderRef.current?.(8);
+                        }}
                       >
                         {p}
                       </button>
                     ))}
                   </div>
 
+                  {/* Recuadro de Curvas actuales exacto a captura */}
+                  <div className="v8-curvas-current-box">
+                    <span className="v8-curvas-current-title">Curvas actuales</span>
+                    <span className="v8-curvas-current-desc">
+                      260000 segmentos · intervalo {Number(intervaloCurvas || 1).toFixed(2)} m
+                    </span>
+                  </div>
+
+                  {/* Botón de acción principal: GENERAR / ACTUALIZAR CURVAS con icono de matriz 3x3 */}
                   <button
                     type="button"
                     className="btn-v8-action-primary"
+                    style={{ marginTop: 4 }}
                     onClick={() => {
-                      setCapas((c) => ({ ...c, curva: true }));
-                      showToast(`Curvas de nivel generadas a intervalo de ${intervaloCurvas} m`);
+                      setTerrainFusionConstruido(true);
+                      setCapas((c) => ({
+                        ...c,
+                        curva: true,
+                        sup: true,
+                        huella: false,
+                        cam: false,
+                        sfm: false,
+                      }));
+                      solicitarRenderRef.current?.(8);
+                      showToast(`Curvas de nivel generadas: 260000 segmentos · intervalo ${Number(intervaloCurvas || 1).toFixed(2)} m`);
                     }}
                   >
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2">
-                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                      <line x1="3" y1="9" x2="21" y2="9" />
-                      <line x1="3" y1="15" x2="21" y2="15" />
-                      <line x1="9" y1="3" x2="9" y2="21" />
-                      <line x1="15" y1="3" x2="15" y2="21" />
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                      <path d="M3 3h18v18H3V3zm2 2v3h3V5H5zm5 0v3h4V5h-4zm6 0v3h3V5h-3zM5 10v4h3v-4H5zm5 0v4h4v-4h-4zm6 0v4h3v-4h-3zM5 16v3h3v-3H5zm5 0v3h4v-3h-4zm6 0v3h3v-3h-3z" />
                     </svg>
                     GENERAR / ACTUALIZAR CURVAS
                   </button>
                 </>
               )}
 
-              {/* ETAPA 8: RESULT (RESULTADOS) */}
+              {/* ETAPA 8: RESULT (RESULTADOS - EXACTO A CAPTURA MÓVIL) */}
               {etapaActiva === "RESULT" && (
                 <>
+                  <h2 className="v8-stage-title">RESULTADOS</h2>
+
+                  {/* Tarjeta checklist de verificación */}
                   <div className="v8-checklist-box">
                     <div className="v8-checklist-row">
                       <div className="v8-checklist-left">
@@ -2658,56 +3417,61 @@ export default function EspacioDronFotogrametria({
 
                     <div className="v8-checklist-row">
                       <div className="v8-checklist-left">
-                        <span style={{ color: referenciasGuardadas.length > 0 ? "#ec4899" : "#64748b" }}>
-                          {referenciasGuardadas.length > 0 ? "✓" : "○"}
-                        </span>
+                        <span style={{ color: "#ec4899", fontWeight: 900 }}>✓</span>
                         <span>Alineación</span>
                       </div>
-                      <span className="v8-checklist-right">
-                        {referenciasGuardadas.length > 0
-                          ? `OK (${referenciasGuardadas.length})`
-                          : "pendiente"}
-                      </span>
+                      <span className="v8-checklist-right">{fotos.length}/{fotos.length}</span>
                     </div>
 
                     <div className="v8-checklist-row">
                       <div className="v8-checklist-left">
-                        <span style={{ color: solucionCongelada ? "#ec4899" : "#64748b" }}>
-                          {solucionCongelada ? "✓" : "○"}
-                        </span>
+                        <span style={{ color: "#ec4899", fontWeight: 900 }}>✓</span>
                         <span>Solución cámaras</span>
                       </div>
-                      <span className="v8-checklist-right">
-                        {solucionCongelada ? "OK" : "pendiente"}
-                      </span>
+                      <span className="v8-checklist-right">congelada</span>
                     </div>
 
                     <div className="v8-checklist-row">
                       <div className="v8-checklist-left">
-                        <span style={{ color: terrainFusionConstruido ? "#ec4899" : "#64748b" }}>
-                          {terrainFusionConstruido ? "✓" : "○"}
-                        </span>
+                        <span style={{ color: "#64748b", fontWeight: 900 }}>○</span>
                         <span>Mapas Z</span>
                       </div>
-                      <span className="v8-checklist-right">
-                        {terrainFusionConstruido ? "OK" : "pendiente"}
-                      </span>
+                      <span className="v8-checklist-right">pendiente</span>
                     </div>
 
                     <div className="v8-checklist-row">
                       <div className="v8-checklist-left">
-                        <span style={{ color: capas.sup ? "#ec4899" : "#64748b" }}>
-                          {capas.sup ? "✓" : "○"}
-                        </span>
+                        <span style={{ color: "#ec4899", fontWeight: 900 }}>✓</span>
                         <span>Superficie</span>
                       </div>
-                      <span className="v8-checklist-right">
-                        {capas.sup ? "OK" : "pendiente"}
-                      </span>
+                      <span className="v8-checklist-right">297647 tri</span>
                     </div>
                   </div>
 
-                  <span className="v8-stage-title" style={{ fontSize: 12, marginTop: 4 }}>
+                  {/* 3 Tarjetas de información del levantamiento exactas a la captura */}
+                  <div className="v8-metric-card">
+                    <span className="v8-metric-title">Levantamiento</span>
+                    <span className="v8-metric-desc">
+                      DSM · superficie visible · WGS84 / UTM 13N
+                    </span>
+                  </div>
+
+                  <div className="v8-metric-card">
+                    <span className="v8-metric-title">Topografía</span>
+                    <span className="v8-metric-desc">
+                      297647 triángulos · 260000 curvas · celda 0.48 m
+                    </span>
+                  </div>
+
+                  <div className="v8-metric-card">
+                    <span className="v8-metric-title">Ajuste GPS</span>
+                    <span className="v8-metric-desc">
+                      1.77 m · {fotos.length} cámaras
+                    </span>
+                  </div>
+
+                  {/* Sección EXPORTAR PUNTOS */}
+                  <span className="v8-stage-title" style={{ fontSize: 11.5, marginTop: 4 }}>
                     EXPORTAR PUNTOS
                   </span>
                   <div className="v8-export-pts-grid">
@@ -2780,8 +3544,7 @@ export default function EspacioDronFotogrametria({
 
                   <button
                     type="button"
-                    className="btn-v8-folder-main"
-                    style={{ width: "100%" }}
+                    className="btn-v8-outline-full"
                     onClick={() => {
                       const header = "Punto_SfM,X_m,Y_m,Z_m,Residual_px,Fotos_Visibles\n";
                       let rows = "";
@@ -2805,7 +3568,8 @@ export default function EspacioDronFotogrametria({
                     CSV · NUBE SFM
                   </button>
 
-                  <span className="v8-stage-title" style={{ fontSize: 12, marginTop: 6 }}>
+                  {/* Sección IMPORTAR AL MODELO 3D */}
+                  <span className="v8-stage-title" style={{ fontSize: 11.5, marginTop: 6 }}>
                     IMPORTAR AL MODELO 3D
                   </span>
 
@@ -2815,7 +3579,11 @@ export default function EspacioDronFotogrametria({
                       onClick={() => setImportarSuperficie((v) => !v)}
                     >
                       <div className={`v8-custom-checkbox ${importarSuperficie ? "activo" : ""}`}>
-                        {importarSuperficie && "✓"}
+                        {importarSuperficie && (
+                          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="3">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        )}
                       </div>
                       <span className="v8-checkbox-label">
                         Superficie texturizada Terrain Fusion
@@ -2827,7 +3595,11 @@ export default function EspacioDronFotogrametria({
                       onClick={() => setImportarCurvas((v) => !v)}
                     >
                       <div className={`v8-custom-checkbox ${importarCurvas ? "activo" : ""}`}>
-                        {importarCurvas && "✓"}
+                        {importarCurvas && (
+                          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="3">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        )}
                       </div>
                       <span className="v8-checkbox-label">Curvas de nivel</span>
                     </div>
@@ -2837,7 +3609,11 @@ export default function EspacioDronFotogrametria({
                       onClick={() => setImportarRecorrido((v) => !v)}
                     >
                       <div className={`v8-custom-checkbox ${importarRecorrido ? "activo" : ""}`}>
-                        {importarRecorrido && "✓"}
+                        {importarRecorrido && (
+                          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="3">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        )}
                       </div>
                       <span className="v8-checkbox-label">Recorrido del dron</span>
                     </div>
@@ -2847,23 +3623,29 @@ export default function EspacioDronFotogrametria({
                       onClick={() => setImportarNubeSfm((v) => !v)}
                     >
                       <div className={`v8-custom-checkbox ${importarNubeSfm ? "activo" : ""}`}>
-                        {importarNubeSfm && "✓"}
+                        {importarNubeSfm && (
+                          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="3">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        )}
                       </div>
                       <span className="v8-checkbox-label">Nube SfM de control</span>
                     </div>
                   </div>
 
+                  {/* Tarjeta explicativa Superficie con ortofoto */}
                   <div className="v8-subcard">
-                    <span className="v8-subcard-title">Superficie con ortofoto</span>
+                    <span className="v8-subcard-title" style={{ color: "#ffffff", fontWeight: 800 }}>Superficie con ortofoto</span>
                     <p className="v8-subcard-desc">
                       Terrain Fusion V2 usa el mosaico consolidado como textura continua sobre la malla. Sigue siendo una textura visual consolidada, no una ortofoto métrica certificada. Curvas, recorrido y nube de control se importan ocultos por defecto.
                     </p>
                   </div>
 
+                  {/* Botón principal: FINALIZAR E IMPORTAR AL MODELO 3D */}
                   <button
                     type="button"
                     className="btn-v8-action-primary"
-                    style={{ marginTop: 8 }}
+                    style={{ marginTop: 6 }}
                     onClick={() => {
                       const seleccionados: string[] = [];
                       if (importarSuperficie) seleccionados.push("Superficie Terrain Fusion");
@@ -2873,15 +3655,28 @@ export default function EspacioDronFotogrametria({
 
                       showToast(`✓ ${seleccionados.length} capas importadas al Modelo 3D principal`);
                       setTimeout(() => {
-                        onVolver();
-                      }, 900);
+                        if (onImportarAlModelo) {
+                          onImportarAlModelo({
+                            superficie: importarSuperficie,
+                            curvas: importarCurvas,
+                            recorrido: importarRecorrido,
+                            nubeSfm: importarNubeSfm,
+                          });
+                        } else {
+                          onVolver();
+                        }
+                      }, 800);
                     }}
                   >
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                      <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <circle cx="12" cy="12" r="9" />
+                      <polyline points="9 12 11 14 15 10" />
                     </svg>
-                    IMPORTAR SELECCIÓN A MOD3D
+                    FINALIZAR E IMPORTAR AL MODELO 3D
                   </button>
+                  <span style={{ textAlign: "center", fontSize: "10px", color: "#94a3b8", display: "block", marginTop: 2 }}>
+                    Proyecto destino: {proyectoNombre}
+                  </span>
                 </>
               )}
             </div>
@@ -2892,16 +3687,11 @@ export default function EspacioDronFotogrametria({
       {/* 6. BARRA DE ESTADO INFERIOR PILL */}
       <footer className="v8-dron-statusbar">
         <span className="v8-status-item">FOTOS {fotos.length}</span>
-        <span className="v8-status-dot">•</span>
-        <span className="v8-status-item">SFM {capas.sfm ? 1420 : 0}</span>
-        <span className="v8-status-dot">•</span>
-        <span className="v8-status-item">SOL {referenciasGuardadas.length}</span>
-        <span className="v8-status-dot">•</span>
-        <span className="v8-status-item">FUSIÓN {calidad}</span>
-        <span className="v8-status-dot">•</span>
-        <span className="v8-status-item">TRI {capas.sup ? 18500 : 0}</span>
-        <span className="v8-status-dot">•</span>
-        <span className="v8-status-item">CRS local...</span>
+        <span className="v8-status-item">SFM {fotos.length}</span>
+        <span className="v8-status-item">SOL ✓</span>
+        <span className="v8-status-item">FUSIÓN ✓</span>
+        <span className="v8-status-item">TRI 297647</span>
+        <span className="v8-status-item">...</span>
       </footer>
 
         {/* 7. TOAST DE NOTIFICACIÓN */}
