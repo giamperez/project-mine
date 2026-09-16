@@ -35,7 +35,11 @@ export default function App() {
     <div className="app-shell" data-espacio={espacio} data-vista={vistaModulo}>
       {espacio === "dashboard" && <Dashboard onSeleccionarModulo={(m) => seleccionarModulo(m)} />}
 
-      {espacio !== "dashboard" && vistaModulo === "portal" && (
+      {espacio === "topografia" && (
+        <EspacioTopografia onVolverDashboard={() => setEspacio("dashboard")} />
+      )}
+
+      {espacio !== "dashboard" && espacio !== "topografia" && vistaModulo === "portal" && (
         <ModuloPortal
           key={espacio}
           moduloId={espacio}
@@ -44,7 +48,7 @@ export default function App() {
         />
       )}
 
-      {espacio !== "dashboard" && vistaModulo === "taller" && (
+      {espacio !== "dashboard" && espacio !== "topografia" && vistaModulo === "taller" && (
         <>
           {espacio === "malla" && (
             <EspacioMalla
@@ -53,7 +57,6 @@ export default function App() {
               onVolverAlPortal={() => setVistaModulo("portal")}
             />
           )}
-          {espacio === "topografia" && <EspacioTopografia />}
           {espacio === "geomecanica" && <EspacioGeomecanica />}
           {espacio === "estereografia" && <EspacioEstereografia />}
           {espacio === "acarreo" && <EspacioAcarreo />}

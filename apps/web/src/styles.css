@@ -8630,6 +8630,1608 @@ table.tabla-taladros td:first-child {
 }
 
 /* ==========================================================================
+   PANEL FLOTANTE LATERAL: V9 · CAD / MODELADO (EXACTO A LAS CAPTURAS)
+   ========================================================================== */
+
+.m3d-panel-v9 {
+  position: absolute;
+  left: 0;
+  top: 155px;
+  bottom: 75px;
+  width: 325px;
+  background: rgba(18, 12, 24, 0.96);
+  border: 1.5px solid rgba(236, 72, 153, 0.45);
+  border-left: none;
+  border-radius: 0 24px 24px 0;
+  padding: 16px 16px 22px;
+  z-index: 28;
+  backdrop-filter: blur(14px);
+  box-shadow: 4px 12px 35px rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(236, 72, 153, 0.4) transparent;
+  animation: slideInFromLeft 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.m3d-panel-v9::-webkit-scrollbar {
+  width: 5px;
+}
+
+.m3d-panel-v9::-webkit-scrollbar-thumb {
+  background: rgba(236, 72, 153, 0.4);
+  border-radius: 3px;
+}
+
+.m3d-v9-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.m3d-v9-header-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.m3d-v9-header-icon {
+  color: #ec4899;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.m3d-v9-titles {
+  display: flex;
+  flex-direction: column;
+}
+
+.m3d-v9-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: #f472b6;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.m3d-v9-sub {
+  font-size: 10px;
+  font-weight: 500;
+  color: #cbd5e1;
+  margin-top: 3px;
+  line-height: 1.35;
+}
+
+.m3d-v9-header-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.m3d-v9-chevron {
+  color: #ec4899;
+  font-size: 13px;
+}
+
+.btn-m3d-v9-ocultar {
+  background: transparent;
+  border: none;
+  color: #ec4899;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 2px 4px;
+  transition: all 0.15s ease;
+}
+
+.btn-m3d-v9-ocultar:hover {
+  color: #f472b6;
+  text-decoration: underline;
+}
+
+/* Banner de sugerencia */
+.m3d-v9-tip-card {
+  background: rgba(236, 72, 153, 0.06);
+  border: 1px solid rgba(236, 72, 153, 0.25);
+  border-radius: 12px;
+  padding: 8px 10px;
+  font-size: 10px;
+  line-height: 1.4;
+  color: #cbd5e1;
+}
+
+/* Títulos de sección */
+.m3d-v9-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.m3d-v9-sec-title {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 0.2px;
+}
+
+/* Grilla de Herramientas */
+.m3d-v9-tools-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.btn-m3d-v9-tool {
+  padding: 7px 4px;
+  border-radius: 14px;
+  border: 1px solid rgba(236, 72, 153, 0.35);
+  background: #0d0c15;
+  color: #cbd5e1;
+  font-size: 10.5px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+
+.btn-m3d-v9-tool:hover {
+  background: rgba(236, 72, 153, 0.15);
+  border-color: #ec4899;
+  color: #ffffff;
+}
+
+.btn-m3d-v9-tool.activo {
+  background: rgba(236, 72, 153, 0.3);
+  border-color: #ec4899;
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(236, 72, 153, 0.35);
+}
+
+/* Caja de descripción de la herramienta */
+.m3d-v9-desc-box {
+  background: rgba(20, 14, 28, 0.85);
+  border: 1px solid rgba(236, 72, 153, 0.25);
+  border-radius: 12px;
+  padding: 8px 10px;
+  font-size: 10px;
+  line-height: 1.4;
+  color: #cbd5e1;
+}
+
+/* Fila de Planos de Trabajo */
+.m3d-v9-planes-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.btn-m3d-v9-plane {
+  padding: 7px 4px;
+  border-radius: 14px;
+  border: 1px solid rgba(236, 72, 153, 0.35);
+  background: #0d0c15;
+  color: #cbd5e1;
+  font-size: 10.5px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+
+.btn-m3d-v9-plane:hover {
+  background: rgba(236, 72, 153, 0.15);
+  border-color: #ec4899;
+  color: #ffffff;
+}
+
+.btn-m3d-v9-plane.activo {
+  background: rgba(236, 72, 153, 0.3);
+  border-color: #ec4899;
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(236, 72, 153, 0.35);
+}
+
+/* Rejilla de Origen 3D (3 columnas) */
+.m3d-v9-coords-3col {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.m3d-v9-input-box {
+  position: relative;
+  border: 1.5px solid rgba(236, 72, 153, 0.45);
+  border-radius: 12px;
+  padding: 6px 10px 4px;
+  background: rgba(20, 14, 28, 0.95);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.m3d-v9-input-box:focus-within {
+  border-color: #ec4899;
+  box-shadow: 0 0 10px rgba(236, 72, 153, 0.4);
+}
+
+.m3d-v9-input-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #94a3b8;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.m3d-v9-input-field {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: monospace;
+}
+
+.m3d-v9-note-text {
+  font-size: 9.5px;
+  line-height: 1.4;
+  color: #94a3b8;
+  margin: 0;
+}
+
+/* Vista previa activa y switch */
+.m3d-v9-preview-card {
+  background: rgba(20, 14, 28, 0.7);
+  border: 1px solid rgba(236, 72, 153, 0.25);
+  border-radius: 14px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.m3d-v9-preview-header {
+  font-size: 12px;
+  font-weight: 800;
+  color: #f472b6;
+}
+
+.m3d-v9-preview-desc {
+  font-size: 9.5px;
+  line-height: 1.4;
+  color: #cbd5e1;
+  margin: 0;
+}
+
+.m3d-v9-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.m3d-v9-toggle-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.m3d-v9-toggle-title {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.m3d-v9-toggle-sub {
+  font-size: 9.5px;
+  color: #94a3b8;
+  margin-top: 1px;
+}
+
+.m3d-v9-layer-input {
+  width: 100%;
+  background: rgba(13, 12, 21, 0.9);
+  border: 1.5px solid rgba(236, 72, 153, 0.4);
+  border-radius: 12px;
+  padding: 8px 12px;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.m3d-v9-layer-input:focus {
+  border-color: #ec4899;
+  box-shadow: 0 0 10px rgba(236, 72, 153, 0.3);
+}
+
+.m3d-v9-layer-input::placeholder {
+  color: #64748b;
+}
+
+/* Paleta de colores (12 colores en 2 filas) */
+.m3d-v9-colors-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+}
+
+.btn-m3d-v9-color {
+  aspect-ratio: 1.35;
+  border-radius: 10px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  padding: 0;
+}
+
+.btn-m3d-v9-color:hover {
+  transform: scale(1.08);
+}
+
+.btn-m3d-v9-color.activo {
+  border-color: #ffffff;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+.btn-m3d-v9-color svg {
+  color: #ffffff;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8));
+}
+
+/* Botón Guardar Polilínea */
+.btn-m3d-v9-save {
+  width: 100%;
+  padding: 12px 18px;
+  border-radius: 25px;
+  border: none;
+  background: #381a2e;
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.btn-m3d-v9-save.habilitado {
+  background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 16px rgba(236, 72, 153, 0.4);
+}
+
+.btn-m3d-v9-save.habilitado:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(236, 72, 153, 0.55);
+}
+
+.btn-m3d-v9-save:active {
+  transform: scale(0.98);
+}
+
+/* Mini Badge flotante cuando el panel V9 está minimizado */
+.m3d-v9-minimized-pill {
+  position: absolute;
+  top: 95px;
+  left: 14px;
+  z-index: 29;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: rgba(18, 12, 24, 0.92);
+  border: 1.5px solid #ec4899;
+  border-radius: 20px;
+  color: #fce7f3;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 16px rgba(236, 72, 153, 0.35);
+  animation: popInWelcome 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.2s ease;
+}
+
+.m3d-v9-minimized-pill:hover {
+  transform: scale(1.04);
+  background: rgba(236, 72, 153, 0.25);
+}
+
+/* ==========================================================================
+   PANEL FLOTANTE LATERAL: HERRAMIENTAS V4 (EXACTO A LAS CAPTURAS)
+   ========================================================================== */
+
+.m3d-panel-v4 {
+  position: absolute;
+  left: 0;
+  top: 155px;
+  bottom: 75px;
+  width: 325px;
+  background: rgba(18, 12, 24, 0.96);
+  border: 1.5px solid rgba(236, 72, 153, 0.45);
+  border-left: none;
+  border-radius: 0 24px 24px 0;
+  padding: 16px 16px 22px;
+  z-index: 28;
+  backdrop-filter: blur(14px);
+  box-shadow: 4px 12px 35px rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(236, 72, 153, 0.4) transparent;
+  animation: slideInFromLeft 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.m3d-panel-v4::-webkit-scrollbar {
+  width: 5px;
+}
+
+.m3d-panel-v4::-webkit-scrollbar-thumb {
+  background: rgba(236, 72, 153, 0.4);
+  border-radius: 3px;
+}
+
+.m3d-v4-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.m3d-v4-titles {
+  display: flex;
+  flex-direction: column;
+}
+
+.m3d-v4-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: #f472b6;
+  letter-spacing: 0.5px;
+}
+
+.m3d-v4-sub {
+  font-size: 10px;
+  font-weight: 500;
+  color: #cbd5e1;
+  margin-top: 3px;
+  line-height: 1.35;
+}
+
+.btn-m3d-v4-ocultar {
+  background: transparent;
+  border: none;
+  color: #ec4899;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 2px 4px;
+  transition: all 0.15s ease;
+}
+
+.btn-m3d-v4-ocultar:hover {
+  color: #f472b6;
+  text-decoration: underline;
+}
+
+.m3d-panel-v4-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 2px 0;
+}
+
+.m3d-v4-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.m3d-v4-sec-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 0.2px;
+}
+
+.m3d-v4-sub-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.m3d-v4-info-text {
+  font-size: 9.5px;
+  line-height: 1.4;
+  color: #cbd5e1;
+  margin: 0;
+}
+
+.m3d-v4-help-text {
+  font-size: 9.5px;
+  line-height: 1.4;
+  color: #94a3b8;
+  margin: 2px 0 0 0;
+}
+
+.m3d-v4-status-note {
+  font-size: 9.5px;
+  color: #f472b6;
+  margin: 2px 0 0 0;
+}
+
+.m3d-v4-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.m3d-v4-toggle-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.m3d-v4-toggle-title {
+  font-size: 12px;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.m3d-v4-toggle-sub {
+  font-size: 9.5px;
+  line-height: 1.35;
+  color: #cbd5e1;
+  margin-top: 2px;
+}
+
+.m3d-v4-input-box {
+  position: relative;
+  border: 1.5px solid rgba(236, 72, 153, 0.45);
+  border-radius: 12px;
+  padding: 6px 12px 6px 12px;
+  background: rgba(20, 14, 28, 0.95);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.m3d-v4-input-box:focus-within {
+  border-color: #ec4899;
+  box-shadow: 0 0 10px rgba(236, 72, 153, 0.4);
+}
+
+.m3d-v4-input-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #94a3b8;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.m3d-v4-input-field {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: monospace;
+}
+
+.m3d-v4-input-field::placeholder {
+  color: #64748b;
+  font-family: inherit;
+  font-weight: 500;
+}
+
+.m3d-v4-slider-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.m3d-v4-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 10px;
+  background: #381228;
+  border-radius: 5px;
+  outline: none;
+  cursor: pointer;
+}
+
+.m3d-v4-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 6px;
+  height: 20px;
+  background: #ec4899;
+  border-radius: 3px;
+  box-shadow: 0 0 8px rgba(236, 72, 153, 0.8);
+  cursor: pointer;
+}
+
+.m3d-v4-range::-moz-range-thumb {
+  width: 6px;
+  height: 20px;
+  background: #ec4899;
+  border-radius: 3px;
+  box-shadow: 0 0 8px rgba(236, 72, 153, 0.8);
+  cursor: pointer;
+}
+
+.m3d-v4-grid-2-btns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.btn-m3d-v4-primary {
+  width: 100%;
+  padding: 11px 16px;
+  border-radius: 20px;
+  border: none;
+  background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(236, 72, 153, 0.35);
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.btn-m3d-v4-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(236, 72, 153, 0.5);
+}
+
+.btn-m3d-v4-secondary {
+  width: 100%;
+  padding: 11px 16px;
+  border-radius: 20px;
+  border: 1.5px solid rgba(236, 72, 153, 0.45);
+  background: rgba(18, 12, 24, 0.8);
+  color: #ec4899;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.btn-m3d-v4-secondary:hover {
+  background: rgba(236, 72, 153, 0.15);
+  color: #f472b6;
+}
+
+.btn-m3d-v4-dark {
+  width: 100%;
+  padding: 11px 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #251b2d;
+  color: #cbd5e1;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-m3d-v4-dark:hover {
+  background: #34253e;
+  border-color: rgba(236, 72, 153, 0.4);
+  color: #ffffff;
+}
+
+.btn-m3d-v4-calculate {
+  width: 100%;
+  padding: 13px 18px;
+  border-radius: 25px;
+  border: none;
+  background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  box-shadow: 0 4px 18px rgba(236, 72, 153, 0.45);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  margin-top: 4px;
+}
+
+.btn-m3d-v4-calculate:hover {
+  transform: translateY(-1.5px);
+  box-shadow: 0 6px 24px rgba(236, 72, 153, 0.6);
+  background: linear-gradient(135deg, #f472b6 0%, #ec4899 100%);
+}
+
+.btn-m3d-v4-calculate:active {
+  transform: scale(0.98);
+}
+
+.m3d-v4-block-status {
+  background: rgba(13, 12, 21, 0.8);
+  border: 1px solid rgba(236, 72, 153, 0.2);
+  border-radius: 10px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.m3d-v4-block-status strong {
+  font-size: 10.5px;
+  color: #ffffff;
+}
+
+.m3d-v4-block-status span {
+  font-size: 9.5px;
+  color: #94a3b8;
+}
+
+/* ==========================================================================
+   PANEL FLOTANTE LATERAL: DISEÑO V5 (PUNTOS, LÍNEAS, TEXTOS, RAMPAS, LABORES, TOPOGRAFÍA)
+   ========================================================================== */
+
+.m3d-panel-v5 {
+  position: absolute;
+  left: 0;
+  top: 155px;
+  bottom: 75px;
+  width: 330px;
+  background: rgba(18, 12, 24, 0.96);
+  border: 1.5px solid rgba(236, 72, 153, 0.45);
+  border-left: none;
+  border-radius: 0 24px 24px 0;
+  padding: 16px 16px 22px;
+  z-index: 28;
+  backdrop-filter: blur(14px);
+  box-shadow: 4px 12px 35px rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(236, 72, 153, 0.4) transparent;
+  animation: slideInFromLeft 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.m3d-panel-v5::-webkit-scrollbar {
+  width: 5px;
+}
+
+.m3d-panel-v5::-webkit-scrollbar-thumb {
+  background: rgba(236, 72, 153, 0.4);
+  border-radius: 3px;
+}
+
+.m3d-v5-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.m3d-v5-titles {
+  display: flex;
+  flex-direction: column;
+}
+
+.m3d-v5-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: #f472b6;
+  letter-spacing: 0.5px;
+}
+
+.m3d-v5-sub {
+  font-size: 10px;
+  font-weight: 500;
+  color: #cbd5e1;
+  margin-top: 3px;
+  line-height: 1.35;
+}
+
+.btn-m3d-v5-ocultar {
+  background: transparent;
+  border: none;
+  color: #ec4899;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 2px 4px;
+  transition: all 0.15s ease;
+}
+
+.btn-m3d-v5-ocultar:hover {
+  color: #f472b6;
+  text-decoration: underline;
+}
+
+.m3d-v5-tabs-scroll {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+
+.m3d-v5-tabs-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.btn-m3d-v5-tab {
+  padding: 6px 14px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #201628;
+  color: #cbd5e1;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.btn-m3d-v5-tab:hover {
+  background: #2d1e38;
+  border-color: rgba(236, 72, 153, 0.4);
+  color: #ffffff;
+}
+
+.btn-m3d-v5-tab.activo {
+  background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+  border-color: #ec4899;
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(236, 72, 153, 0.45);
+}
+
+.m3d-v5-info-card {
+  background: rgba(13, 12, 21, 0.85);
+  border: 1px solid rgba(236, 72, 153, 0.25);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 10px;
+  line-height: 1.45;
+  color: #cbd5e1;
+}
+
+.m3d-v5-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.m3d-v5-sec-title {
+  font-size: 12px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 0.2px;
+}
+
+.m3d-v5-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.m3d-v5-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.m3d-v5-input-box {
+  position: relative;
+  border: 1.5px solid rgba(236, 72, 153, 0.45);
+  border-radius: 12px;
+  padding: 6px 12px;
+  background: rgba(20, 14, 28, 0.95);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.m3d-v5-input-box:focus-within {
+  border-color: #ec4899;
+  box-shadow: 0 0 10px rgba(236, 72, 153, 0.4);
+}
+
+.m3d-v5-input-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #94a3b8;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.m3d-v5-input-field {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #ffffff;
+  font-size: 12.5px;
+  font-weight: 700;
+  font-family: inherit;
+}
+
+.m3d-v5-input-field::placeholder {
+  color: #64748b;
+  font-family: inherit;
+  font-weight: 500;
+}
+
+.btn-m3d-v5-create {
+  width: 100%;
+  padding: 13px 18px;
+  border-radius: 25px;
+  border: none;
+  background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+  color: #ffffff;
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  box-shadow: 0 4px 18px rgba(236, 72, 153, 0.45);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  margin-top: 6px;
+  text-align: center;
+}
+
+.btn-m3d-v5-create:hover {
+  transform: translateY(-1.5px);
+  box-shadow: 0 6px 24px rgba(236, 72, 153, 0.6);
+  background: linear-gradient(135deg, #f472b6 0%, #ec4899 100%);
+}
+
+.btn-m3d-v5-create:active {
+  transform: scale(0.98);
+}
+
+/* ==========================================================================
+   PANEL FLOTANTE LATERAL: TOPOGRAFÍA V6 (RECTAS, POLÍGONOS E INFRAESTRUCTURA)
+   ========================================================================== */
+
+.m3d-panel-v6 {
+  position: absolute;
+  left: 0;
+  top: 155px;
+  bottom: 75px;
+  width: 330px;
+  background: rgba(18, 12, 24, 0.96);
+  border: 1.5px solid rgba(236, 72, 153, 0.45);
+  border-left: none;
+  border-radius: 0 24px 24px 0;
+  padding: 16px 16px 22px;
+  z-index: 28;
+  backdrop-filter: blur(14px);
+  box-shadow: 4px 12px 35px rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(236, 72, 153, 0.4) transparent;
+  animation: slideInFromLeft 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.m3d-panel-v6::-webkit-scrollbar {
+  width: 5px;
+}
+
+.m3d-panel-v6::-webkit-scrollbar-thumb {
+  background: rgba(236, 72, 153, 0.4);
+  border-radius: 3px;
+}
+
+.m3d-v6-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.m3d-v6-titles {
+  display: flex;
+  flex-direction: column;
+}
+
+.m3d-v6-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: #f472b6;
+  letter-spacing: 0.5px;
+}
+
+.m3d-v6-sub {
+  font-size: 10px;
+  font-weight: 500;
+  color: #cbd5e1;
+  margin-top: 3px;
+  line-height: 1.35;
+}
+
+.btn-m3d-v6-ocultar {
+  background: transparent;
+  border: none;
+  color: #ec4899;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 2px 4px;
+  transition: all 0.15s ease;
+}
+
+.btn-m3d-v6-ocultar:hover {
+  color: #f472b6;
+  text-decoration: underline;
+}
+
+.m3d-v6-tabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+
+.m3d-v6-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.btn-m3d-v6-tab {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #201628;
+  color: #cbd5e1;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+
+.btn-m3d-v6-tab:hover {
+  background: #2d1e38;
+  border-color: rgba(236, 72, 153, 0.4);
+  color: #ffffff;
+}
+
+.btn-m3d-v6-tab.activo {
+  background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+  border-color: #ec4899;
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(236, 72, 153, 0.45);
+}
+
+.btn-m3d-v6-subtab {
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #181122;
+  color: #94a3b8;
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: center;
+}
+
+.btn-m3d-v6-subtab:hover {
+  background: #231730;
+  color: #ffffff;
+}
+
+.btn-m3d-v6-subtab.activo {
+  background: rgba(236, 72, 153, 0.2);
+  border-color: #ec4899;
+  color: #f472b6;
+  font-weight: 700;
+}
+
+.m3d-v6-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.m3d-v6-sec-title {
+  font-size: 12px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 0.2px;
+}
+
+.m3d-v6-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.m3d-v6-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.m3d-v6-input-box {
+  position: relative;
+  border: 1.5px solid rgba(236, 72, 153, 0.45);
+  border-radius: 12px;
+  padding: 6px 12px;
+  background: rgba(20, 14, 28, 0.95);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.m3d-v6-input-box:focus-within {
+  border-color: #ec4899;
+  box-shadow: 0 0 10px rgba(236, 72, 153, 0.4);
+}
+
+.m3d-v6-input-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #94a3b8;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.m3d-v6-input-field {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #ffffff;
+  font-size: 12.5px;
+  font-weight: 700;
+  font-family: inherit;
+}
+
+.m3d-v6-input-field::placeholder {
+  color: #64748b;
+  font-family: inherit;
+  font-weight: 500;
+}
+
+.m3d-v6-textarea {
+  width: 100%;
+  background: rgba(20, 14, 28, 0.95);
+  border: 1.5px solid rgba(236, 72, 153, 0.45);
+  border-radius: 12px;
+  padding: 8px 12px;
+  color: #ffffff;
+  font-size: 11px;
+  font-family: monospace;
+  outline: none;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.m3d-v6-textarea:focus {
+  border-color: #ec4899;
+  box-shadow: 0 0 10px rgba(236, 72, 153, 0.4);
+}
+
+.m3d-v6-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10.5px;
+  color: #cbd5e1;
+  cursor: pointer;
+  margin-top: 2px;
+}
+
+.m3d-v6-calc-card {
+  background: rgba(13, 12, 21, 0.9);
+  border: 1.5px solid rgba(236, 72, 153, 0.35);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.m3d-v6-calc-title {
+  font-size: 12px;
+  font-weight: 800;
+  color: #f472b6;
+  letter-spacing: 0.3px;
+}
+
+.m3d-v6-calc-sub {
+  font-size: 10px;
+  line-height: 1.4;
+  color: #cbd5e1;
+  margin: 0;
+}
+
+.m3d-v6-calc-results {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.m3d-v6-calc-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+}
+
+.m3d-v6-calc-row span {
+  color: #94a3b8;
+}
+
+.m3d-v6-calc-row b {
+  color: #ffffff;
+  font-family: monospace;
+  font-weight: 700;
+}
+
+.btn-m3d-v6-create {
+  width: 100%;
+  padding: 13px 18px;
+  border-radius: 25px;
+  border: none;
+  background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+  color: #ffffff;
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  box-shadow: 0 4px 18px rgba(236, 72, 153, 0.45);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  margin-top: 4px;
+  text-align: center;
+}
+
+.btn-m3d-v6-create:hover {
+  transform: translateY(-1.5px);
+  box-shadow: 0 6px 24px rgba(236, 72, 153, 0.6);
+  background: linear-gradient(135deg, #f472b6 0%, #ec4899 100%);
+}
+
+.btn-m3d-v6-create:active {
+  transform: scale(0.98);
+}
+
+/* ==========================================================================
+   PANEL FLOTANTE LATERAL: V7 CORTADA (TONELAJE, MINERAL, ESTÉRIL Y LEYES)
+   ========================================================================== */
+
+.m3d-panel-v7 {
+  position: absolute;
+  left: 0;
+  top: 155px;
+  bottom: 75px;
+  width: 330px;
+  background: rgba(18, 12, 24, 0.96);
+  border: 1.5px solid rgba(236, 72, 153, 0.45);
+  border-left: none;
+  border-radius: 0 24px 24px 0;
+  padding: 16px 16px 22px;
+  z-index: 28;
+  backdrop-filter: blur(14px);
+  box-shadow: 4px 12px 35px rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(236, 72, 153, 0.4) transparent;
+  animation: slideInFromLeft 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.m3d-panel-v7::-webkit-scrollbar {
+  width: 5px;
+}
+
+.m3d-panel-v7::-webkit-scrollbar-thumb {
+  background: rgba(236, 72, 153, 0.4);
+  border-radius: 3px;
+}
+
+.m3d-v7-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.m3d-v7-titles {
+  display: flex;
+  flex-direction: column;
+}
+
+.m3d-v7-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: #f472b6;
+  letter-spacing: 0.5px;
+}
+
+.m3d-v7-sub {
+  font-size: 10px;
+  font-weight: 500;
+  color: #cbd5e1;
+  margin-top: 3px;
+  line-height: 1.35;
+}
+
+.btn-m3d-v7-ocultar {
+  background: transparent;
+  border: none;
+  color: #ec4899;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 2px 4px;
+  transition: all 0.15s ease;
+}
+
+.btn-m3d-v7-ocultar:hover {
+  color: #f472b6;
+  text-decoration: underline;
+}
+
+.m3d-panel-v7-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 2px 0;
+}
+
+.m3d-v7-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.m3d-v7-sec-title {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.m3d-v7-sub-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #cbd5e1;
+}
+
+.m3d-v7-info-text {
+  font-size: 10px;
+  line-height: 1.4;
+  color: #94a3b8;
+  margin: 0;
+}
+
+.m3d-v7-hint-text {
+  font-size: 9.5px;
+  line-height: 1.35;
+  color: #64748b;
+  margin: 2px 0 0 0;
+}
+
+.m3d-v7-notice-warning {
+  background: rgba(234, 179, 8, 0.08);
+  border: 1px solid rgba(234, 179, 8, 0.3);
+  color: #fbbf24;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  padding: 8px 10px;
+  border-radius: 8px;
+}
+
+.m3d-v7-notice-success {
+  background: rgba(34, 197, 94, 0.08);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  color: #4ade80;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  padding: 8px 10px;
+  border-radius: 8px;
+}
+
+.m3d-v7-select-box {
+  position: relative;
+  width: 100%;
+}
+
+.m3d-v7-select {
+  width: 100%;
+  background: #1c1426;
+  border: 1.5px solid rgba(236, 72, 153, 0.45);
+  border-radius: 12px;
+  padding: 8px 12px;
+  color: #ffffff;
+  font-size: 11.5px;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+}
+
+.m3d-v7-input-box {
+  position: relative;
+  border: 1.5px solid rgba(236, 72, 153, 0.45);
+  border-radius: 12px;
+  padding: 6px 12px;
+  background: rgba(20, 14, 28, 0.95);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.m3d-v7-input-box:focus-within {
+  border-color: #ec4899;
+  box-shadow: 0 0 10px rgba(236, 72, 153, 0.4);
+}
+
+.m3d-v7-input-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #94a3b8;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.m3d-v7-input-field {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+}
+
+.btn-m3d-v7-evaluate {
+  width: 100%;
+  padding: 13px 18px;
+  border-radius: 25px;
+  border: none;
+  background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  box-shadow: 0 4px 18px rgba(236, 72, 153, 0.45);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  margin-top: 4px;
+  text-align: center;
+}
+
+.btn-m3d-v7-evaluate:hover {
+  transform: translateY(-1.5px);
+  box-shadow: 0 6px 24px rgba(236, 72, 153, 0.6);
+  background: linear-gradient(135deg, #f472b6 0%, #ec4899 100%);
+}
+
+.btn-m3d-v7-evaluate:active {
+  transform: scale(0.98);
+}
+
+.m3d-v7-results-container {
+  background: rgba(13, 12, 21, 0.92);
+  border: 1.5px solid rgba(236, 72, 153, 0.35);
+  border-radius: 14px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.m3d-v7-results-title {
+  font-size: 11.5px;
+  font-weight: 800;
+  color: #f472b6;
+}
+
+.m3d-v7-kpis-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.m3d-v7-kpi-card {
+  background: rgba(24, 16, 32, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.m3d-v7-kpi-card span {
+  font-size: 9.5px;
+  color: #94a3b8;
+}
+
+.m3d-v7-kpi-card b {
+  font-size: 12px;
+  color: #ffffff;
+  font-family: monospace;
+}
+
+.m3d-v7-grade-badge {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(236, 72, 153, 0.15);
+  border: 1px solid rgba(236, 72, 153, 0.4);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 11px;
+}
+
+.m3d-v7-grade-badge span {
+  color: #cbd5e1;
+}
+
+.m3d-v7-grade-badge b {
+  color: #f472b6;
+  font-size: 12px;
+  font-family: monospace;
+}
+
+.m3d-v7-table-wrapper {
+  overflow-x: auto;
+}
+
+.m3d-v7-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10px;
+}
+
+.m3d-v7-table th {
+  text-align: left;
+  color: #94a3b8;
+  padding: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  font-weight: 700;
+}
+
+.m3d-v7-table td {
+  padding: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: #cbd5e1;
+}
+
+.m3d-v7-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-right: 4px;
+}
+
+/* ==========================================================================
    ESPACIO V8 · DRON - FOTOGRAMETRÍA + TOPOGRAFÍA (EXACTO A LAS CAPTURAS)
    ========================================================================== */
 
@@ -10916,22 +12518,1797 @@ table.tabla-taladros td:first-child {
     padding: 10px 12px;
   }
 
-  .v8-dron-statusbar {
-    left: 50%;
-    max-width: calc(100vw - 16px);
-    padding: 4px 8px;
-    gap: 4px 6px;
-    font-size: 8px;
-    white-space: normal;
-    flex-wrap: wrap;
-    justify-content: center;
+}
+
+/* ==========================================================================
+   MÓDULO TOPOGRAFÍA: NAMICAD TOPO (CENTRO TOPOGRÁFICO INTELIGENTE)
+   ========================================================================== */
+
+.espacio-topografia-shell {
+  width: 100%;
+  height: 100%;
+  min-height: 100dvh;
+  background: radial-gradient(circle at 50% 10%, #170924 0%, #0c0712 60%, #060309 100%);
+  color: #f1f5f9;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Scrollbar suave */
+.espacio-topografia-shell::-webkit-scrollbar {
+  width: 6px;
+}
+.espacio-topografia-shell::-webkit-scrollbar-track {
+  background: rgba(12, 7, 18, 0.8);
+}
+.espacio-topografia-shell::-webkit-scrollbar-thumb {
+  background: #331f47;
+  border-radius: 4px;
+}
+
+/* Contenedores generales */
+.topo-hub-container,
+.topo-modal-container,
+.topo-taller-container {
+  width: 100%;
+  max-width: 540px;
+  margin: 0 auto;
+  padding: 12px 16px 120px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-sizing: border-box;
+}
+
+@media (min-width: 800px) {
+  .topo-hub-container,
+  .topo-modal-container,
+  .topo-taller-container {
+    max-width: 880px;
+    padding: 20px 24px 130px 24px;
+    gap: 20px;
   }
 }
 
+@media (min-width: 1100px) {
+  .topo-hub-container,
+  .topo-modal-container,
+  .topo-taller-container {
+    max-width: 1160px;
+    padding: 24px 32px 140px 32px;
+  }
+}
 
+/* Header superior con botón circular de retorno */
+.topo-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 4px 0 8px 0;
+}
 
+.topo-portal-nav-header {
+  margin-bottom: -4px;
+}
 
+.topo-btn-back {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: rgba(14, 30, 38, 0.85);
+  border: 1.5px solid rgba(6, 182, 212, 0.35);
+  color: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  flex-shrink: 0;
+}
 
+.topo-btn-back:hover {
+  border-color: #06b6d4;
+  transform: scale(1.05);
+  background: rgba(6, 182, 212, 0.15);
+  box-shadow: 0 0 16px rgba(6, 182, 212, 0.35);
+}
 
+.topo-header-text {
+  flex: 1;
+}
 
+.topo-header-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  line-height: 1.2;
+}
 
+.topo-header-subtitle {
+  margin: 2px 0 0 0;
+  font-size: 12px;
+  color: #94a3b8;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+.topo-header-badge-status {
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #34d399;
+  background: rgba(52, 211, 153, 0.12);
+  border: 1px solid rgba(52, 211, 153, 0.4);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.topo-status-dot {
+  font-size: 9px;
+  animation: topoPulse 2s infinite;
+}
+
+@keyframes topoPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* Toast flotante */
+.topo-toast-notification {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1e1330;
+  border: 1px solid #38bdf8;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 16px rgba(56, 189, 248, 0.3);
+  color: #e0f2fe;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  z-index: 9999;
+  animation: topoSlideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes topoSlideDown {
+  from { opacity: 0; transform: translate(-50%, -10px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* Tarjetas base con diseño oscuro refinado */
+/* ==========================================================================
+   MÓDULO DE TOPOGRAFÍA (NAMICAD TOPO) - TEMA MONOCROMO CAD INDUSTRIAL
+   ========================================================================== */
+
+/* Tarjetas base con diseño oscuro refinado y bordes de precisión */
+.topo-card {
+  background: #0f141d;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  padding: 20px 22px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.55);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.topo-card-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.topo-card-tag {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  line-height: 1.2;
+}
+
+.topo-card-tag.cyan {
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+}
+
+.topo-card-tag.green {
+  color: #34d399;
+  background: rgba(52, 211, 153, 0.12);
+  border: 1px solid rgba(52, 211, 153, 0.35);
+}
+
+.topo-card-tag.pink {
+  color: #fb7185;
+  background: rgba(251, 113, 133, 0.12);
+  border: 1px solid rgba(251, 113, 133, 0.35);
+}
+
+.topo-card-tag.purple {
+  color: #c084fc;
+  background: rgba(192, 132, 252, 0.12);
+  border: 1px solid rgba(192, 132, 252, 0.35);
+}
+
+.topo-card-tag.yellow {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.12);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+}
+
+.topo-card-tag.monochrome {
+  color: #f1f5f9;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.topo-card-title {
+  margin: 0 0 4px 0;
+  font-size: 18px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+}
+
+.topo-card-desc {
+  margin: 0 0 16px 0;
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1.45;
+}
+
+/* HERO CARD TOPOGRAFÍA */
+.topo-hero-card {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  padding: 24px 26px;
+  min-height: 220px;
+  justify-content: space-between;
+  background: linear-gradient(135deg, #131a24 0%, #0d121a 100%);
+  border-radius: 18px;
+}
+
+@media (min-width: 800px) {
+  .topo-hero-card {
+    display: grid;
+    grid-template-columns: 1fr 220px;
+    align-items: center;
+    gap: 20px;
+  }
+}
+
+.topo-hero-bg-radar {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  width: 190px;
+  height: 190px;
+  pointer-events: none;
+  opacity: 0.75;
+}
+
+@media (min-width: 800px) {
+  .topo-hero-bg-radar {
+    position: relative;
+    top: auto;
+    right: auto;
+    width: 200px;
+    height: 200px;
+    margin: 0 auto;
+  }
+}
+
+.topo-radar-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.topo-radar-sweep {
+  transform-origin: 80px 80px;
+  animation: topoRadarSpin 6s linear infinite;
+}
+
+@keyframes topoRadarSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.topo-radar-blip {
+  animation: topoBlip 1.8s ease-in-out infinite alternate;
+}
+.topo-radar-blip-2 {
+  animation: topoBlip 2.4s ease-in-out infinite alternate 0.6s;
+}
+
+@keyframes topoBlip {
+  0% { opacity: 0.3; transform: scale(0.8); }
+  100% { opacity: 1; transform: scale(1.2); }
+}
+
+.topo-hero-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+}
+
+.topo-hero-title {
+  margin: 0 0 6px 0;
+  font-size: 22px;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.25;
+}
+
+.topo-hero-desc {
+  margin: 0 0 16px 0;
+  font-size: 13px;
+  color: #cbd5e1;
+  max-width: 650px;
+  line-height: 1.45;
+}
+
+.topo-hero-stats-row {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  margin-bottom: 20px;
+}
+
+.topo-hero-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.topo-hero-stat-num {
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+}
+
+.topo-hero-stat-num.pink,
+.topo-hero-stat-num.green,
+.topo-hero-stat-num.purple,
+.topo-hero-stat-num.monochrome {
+  color: #ffffff;
+}
+
+.topo-hero-stat-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.06em;
+  margin-top: 3px;
+}
+
+.topo-btn-crear-proyecto-hero {
+  background: #ffffff;
+  border: 1px solid #ffffff;
+  border-radius: 999px;
+  color: #0b0f14;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 14px 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 20px rgba(255, 255, 255, 0.18);
+  width: 100%;
+  max-width: 380px;
+}
+
+.topo-btn-crear-proyecto-hero:hover {
+  transform: translateY(-1.5px);
+  background: #e2e8f0;
+  box-shadow: 0 6px 24px rgba(255, 255, 255, 0.25);
+}
+
+.topo-btn-sparkle {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* SECCIÓN PROYECTOS RECIENTES */
+.topo-section-recientes {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.topo-section-recientes-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.topo-section-tag {
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #ffffff;
+}
+
+.topo-section-tag.pink,
+.topo-section-tag.monochrome {
+  color: #ffffff;
+}
+
+.topo-section-recientes-count {
+  margin: 2px 0 0 0;
+  font-size: 11.5px;
+  color: #94a3b8;
+}
+
+.topo-pill-base-independiente {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #e2e8f0;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 999px;
+  letter-spacing: 0.04em;
+}
+
+/* Tarjetas de Proyectos Guardados en Grid */
+.topo-proyectos-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+@media (min-width: 768px) {
+  .topo-proyectos-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+}
+
+.topo-project-item-card {
+  background: #0f141d;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 18px 20px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+.topo-project-item-card.border-cyan,
+.topo-project-item-card.border-pink {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.topo-project-item-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.6), 0 0 16px rgba(255, 255, 255, 0.06);
+}
+
+.topo-project-item-main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.topo-project-icon-box {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.topo-project-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.topo-project-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.topo-project-sub {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #cbd5e1;
+}
+
+.topo-project-sub.cyan {
+  color: #cbd5e1;
+}
+
+.topo-project-datum {
+  margin: 2px 0 0 0;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.topo-project-chevron {
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.topo-project-item-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 10px;
+}
+
+.topo-project-date {
+  font-size: 11px;
+  color: #94a3b8;
+  font-family: ui-monospace, monospace;
+}
+
+.topo-project-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.topo-action-link {
+  background: transparent;
+  border: none;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  padding: 2px 4px;
+  transition: opacity 0.15s;
+  color: #cbd5e1;
+}
+
+.topo-action-link.cyan,
+.topo-action-link.pink {
+  color: #cbd5e1;
+}
+
+.topo-action-link:hover {
+  text-decoration: underline;
+  color: #ffffff;
+}
+
+/* DISCLAIMER / ADVERTENCIA INFERIOR */
+.topo-disclaimer-card {
+  background: #0d121a;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.topo-disclaimer-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+  font-family: monospace;
+}
+
+.topo-disclaimer-text {
+  margin: 0;
+  font-size: 11px;
+  color: #94a3b8;
+  line-height: 1.45;
+}
+
+/* ==========================================================================
+   MODAL / SELECTOR DE MOTORES TOPOGRÁFICOS
+   ========================================================================== */
+
+.topo-modal-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.topo-card-identificacion {
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.topo-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.topo-input-text {
+  background: #090d14;
+  border: 1.5px solid rgba(255, 255, 255, 0.16);
+  border-radius: 12px;
+  padding: 12px 14px;
+  color: #ffffff;
+  font-size: 14px;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.topo-input-text:focus {
+  border-color: #ffffff;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.15);
+}
+
+.topo-field-hint {
+  font-size: 10.5px;
+  color: #94a3b8;
+  font-style: italic;
+}
+
+.topo-section-motores {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.topo-section-header {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.topo-section-header .topo-section-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.topo-section-header .topo-section-desc {
+  margin: 0;
+  font-size: 11.5px;
+  color: #94a3b8;
+}
+
+/* Cuadrícula de los 8 motores topográficos */
+.topo-grid-motores {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+@media (min-width: 768px) {
+  .topo-grid-motores {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+  }
+}
+
+.topo-motor-card {
+  background: #0f141d;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 16px 14px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  min-height: 140px;
+}
+
+.topo-motor-card:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+  background: #141b26;
+}
+
+.topo-motor-card.selected {
+  border: 1.5px solid #ffffff;
+  background: #16202c;
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+}
+
+.topo-motor-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.topo-motor-icon-wrap {
+  color: #cbd5e1;
+  display: flex;
+  align-items: center;
+}
+
+.topo-motor-card.selected .topo-motor-icon-wrap {
+  color: #ffffff;
+}
+
+.topo-motor-badge {
+  font-size: 9.5px;
+  font-weight: 800;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #94a3b8;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.topo-motor-badge.active {
+  background: #ffffff;
+  color: #0b0f14;
+  border-color: #ffffff;
+  font-weight: 800;
+}
+
+.topo-motor-name {
+  margin: 0 0 4px 0;
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.25;
+}
+
+.topo-motor-sub {
+  margin: 0 0 10px 0;
+  font-size: 10.5px;
+  color: #94a3b8;
+  line-height: 1.35;
+  flex: 1;
+}
+
+.topo-motor-card-footer {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  padding-top: 4px;
+}
+
+.topo-motor-status-selected {
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.topo-motor-status-action {
+  color: #64748b;
+}
+
+.topo-bottom-action-card {
+  background: #0f141d;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.topo-bottom-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.topo-bottom-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.topo-bottom-text h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.topo-bottom-text p {
+  margin: 2px 0 0 0;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.topo-btn-crear-abrir {
+  background: #ffffff;
+  border: 1px solid #ffffff;
+  border-radius: 999px;
+  color: #0b0f14;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 13px 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 16px rgba(255, 255, 255, 0.15);
+  transition: all 0.2s;
+}
+
+.topo-btn-crear-abrir:hover {
+  transform: translateY(-1.5px);
+  background: #e2e8f0;
+}
+
+/* ==========================================================================
+   TALLER DE CÁLCULO Y VISUALIZACIÓN DINÁMICA
+   ========================================================================== */
+
+.topo-taller-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@media (min-width: 960px) {
+  .topo-taller-body {
+    display: grid;
+    grid-template-columns: 1fr 1.15fr;
+    gap: 20px;
+    align-items: start;
+  }
+}
+
+.topo-taller-col-left,
+.topo-taller-col-right {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.topo-card-proyecto-activo {
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.topo-motor-pill-badge {
+  font-size: 10px;
+  font-weight: 900;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.topo-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.topo-input-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.topo-input-wrapper.span-full {
+  grid-column: span 2;
+}
+
+.topo-label-float {
+  font-size: 10.5px;
+  color: #94a3b8;
+  margin-bottom: 5px;
+  font-weight: 600;
+}
+
+.topo-input-control {
+  background: #090d14;
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: #ffffff;
+  font-size: 14px;
+  font-family: ui-monospace, monospace;
+  font-weight: 700;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.topo-input-control:focus {
+  border-color: #ffffff;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.15);
+}
+
+.topo-input-wrapper.has-unit .topo-input-control {
+  padding-right: 32px;
+}
+
+.topo-unit {
+  position: absolute;
+  right: 12px;
+  bottom: 11px;
+  font-size: 12px;
+  font-weight: 700;
+  pointer-events: none;
+  color: #94a3b8;
+}
+
+.topo-unit.cyan { color: #cbd5e1; }
+
+.topo-input-subhint {
+  font-size: 9.5px;
+  color: #64748b;
+  margin-top: 4px;
+  font-style: italic;
+}
+
+/* Botones de acción RESTAURAR / GUARDAR / COMPARTIR */
+.topo-actions-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.topo-btn-action {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #e2e8f0;
+  border-radius: 8px;
+  padding: 9px 8px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.topo-btn-action:hover,
+.topo-btn-action.purple:hover,
+.topo-btn-action.green:hover,
+.topo-btn-action.cyan:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.topo-btn-action.purple,
+.topo-btn-action.green,
+.topo-btn-action.cyan {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #e2e8f0;
+}
+
+/* Segmented Control para Modos (Compacto, ultra-refinado y responsivo) */
+.topo-segmented-control {
+  display: inline-flex;
+  align-items: center;
+  background: #090d14;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 7px;
+  padding: 2.5px;
+  gap: 3px;
+  flex-shrink: 0;
+  width: auto;
+  max-width: 100%;
+}
+
+.topo-seg-btn,
+.topo-segmented-control button {
+  flex: 0 0 auto;
+  white-space: nowrap !important;
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  line-height: 1.15;
+}
+
+.topo-seg-btn:hover,
+.topo-segmented-control button:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.topo-seg-btn.active,
+.topo-segmented-control button.active {
+  background: #ffffff;
+  color: #0b0f14;
+  font-weight: 800;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
+}
+
+/* Card Visualización Gráfica SVG */
+.topo-card-grafico {
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.topo-svg-canvas-wrapper {
+  width: 100%;
+  background: #090d14;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+}
+
+.topo-svg-canvas {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Cuadrícula de KPIs y Resultados - Color y contraste en letras y números */
+.topo-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+@media (max-width: 500px) {
+  .topo-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.topo-kpi-card {
+  background: #0d121b;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  transition: all 0.2s ease;
+}
+
+.topo-kpi-card.cyan {
+  border-color: rgba(56, 189, 248, 0.3);
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.08) 0%, #0d121b 100%);
+}
+.topo-kpi-card.cyan .topo-kpi-label { color: #38bdf8; }
+.topo-kpi-card.cyan .topo-kpi-val { color: #7dd3fc; }
+
+.topo-kpi-card.green {
+  border-color: rgba(52, 211, 153, 0.3);
+  background: linear-gradient(135deg, rgba(52, 211, 153, 0.08) 0%, #0d121b 100%);
+}
+.topo-kpi-card.green .topo-kpi-label { color: #34d399; }
+.topo-kpi-card.green .topo-kpi-val { color: #86efac; }
+
+.topo-kpi-card.pink {
+  border-color: rgba(251, 113, 133, 0.3);
+  background: linear-gradient(135deg, rgba(251, 113, 133, 0.08) 0%, #0d121b 100%);
+}
+.topo-kpi-card.pink .topo-kpi-label { color: #fb7185; }
+.topo-kpi-card.pink .topo-kpi-val { color: #fda4af; }
+
+.topo-kpi-card.purple {
+  border-color: rgba(192, 132, 252, 0.3);
+  background: linear-gradient(135deg, rgba(192, 132, 252, 0.08) 0%, #0d121b 100%);
+}
+.topo-kpi-card.purple .topo-kpi-label { color: #c084fc; }
+.topo-kpi-card.purple .topo-kpi-val { color: #d8b4fe; }
+
+.topo-kpi-card.yellow {
+  border-color: rgba(251, 191, 36, 0.3);
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.08) 0%, #0d121b 100%);
+}
+.topo-kpi-card.yellow .topo-kpi-label { color: #fbbf24; }
+.topo-kpi-card.yellow .topo-kpi-val { color: #fde047; }
+
+.topo-kpi-label {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.topo-kpi-val {
+  font-size: 13.5px;
+  font-weight: 900;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* Tabla Técnica de Replanteo */
+.topo-card-tabla {
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.topo-table-responsive-container {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.topo-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-family: ui-monospace, monospace;
+}
+
+.topo-data-table th {
+  color: #cbd5e1;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  white-space: nowrap;
+}
+
+.topo-data-table td {
+  padding: 8px 10px;
+  color: #e2e8f0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  white-space: nowrap;
+}
+
+.topo-data-table tr.highlight-row {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.topo-tag-badge {
+  background: #ffffff;
+  color: #0b0f14;
+  font-size: 9px;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 4px;
+  margin-left: 6px;
+}
+
+.topo-empty-hint {
+  font-size: 12px;
+  color: #94a3b8;
+  font-style: italic;
+  margin: 8px 0;
+}
+
+/* Libreta digital: filas dinámicas */
+.topo-libreta-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 14px 0 10px 0;
+}
+
+.topo-libreta-count {
+  margin: 2px 0 0 0;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.topo-btn-agregar-fila {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 8px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.topo-btn-agregar-fila:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: #ffffff;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.15);
+}
+
+.topo-registros-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.topo-registro-card {
+  background: #090d14;
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 14px 16px;
+}
+
+.topo-registro-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.topo-registro-tag {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #cbd5e1;
+}
+
+.topo-btn-quitar {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.topo-btn-quitar:hover {
+  color: #ffffff;
+  text-decoration: underline;
+}
+
+/* Toggle Plano 2D / Vista 3D */
+.topo-view-toggle {
+  display: flex;
+  background: #090d14;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.topo-view-tab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.topo-view-tab.active {
+  background: #ffffff;
+  color: #0b0f14;
+}
+
+.topo-3d-canvas-wrapper {
+  width: 100%;
+  height: 360px;
+  display: block;
+}
+
+.topo-3d-canvas-wrapper canvas {
+  display: block;
+  width: 100% !important;
+}
+
+/* ========================================================================== */
+/* ESTILOS ESPECÍFICOS DE RESULTADOS DE MOTORES */
+/* ========================================================================== */
+
+.topo-card-resultados-nivelacion,
+.topo-card-resultados-coordenadas,
+.topo-card-resultados-curva-horizontal,
+.topo-card-resultados-curva-vertical,
+.topo-card-resultados-pendiente,
+.topo-card-resultados-area,
+.topo-card-resultados-buzones {
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  background: #0f141d !important;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.55) !important;
+}
+
+.topo-direccion-curva-wrapper {
+  margin-bottom: 16px;
+}
+
+.topo-segmented-control.mini {
+  width: auto;
+  max-width: 100%;
+}
+
+.topo-aviso-banner-yellow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+}
+
+.topo-aviso-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.topo-aviso-text {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: #cbd5e1;
+  font-weight: 500;
+}
+
+.topo-gauge-circle-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.topo-gauge-svg {
+  display: block;
+}
+
+.topo-libreta-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 18px 0 12px 0;
+  gap: 12px;
+}
+
+.topo-btn-add-row-green {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 8px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.topo-btn-add-row-green:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.topo-registro-card-item {
+  background: #090d14;
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  transition: border-color 0.2s ease;
+}
+
+.topo-registro-card-item:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.topo-registro-title-pink {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #cbd5e1;
+  text-transform: uppercase;
+}
+
+.topo-btn-quitar-row {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+
+.topo-btn-quitar-row:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Leyenda del gráfico */
+.topo-visor-svg-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.topo-chart-legend {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+}
+
+.topo-chart-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #cbd5e1;
+}
+
+.topo-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.topo-legend-dot.white { background: #ffffff; }
+.topo-legend-dot.cyan { background: #38bdf8; }
+.topo-legend-dot.green { background: #34d399; }
+.topo-legend-dot.pink { background: #fb7185; }
+.topo-legend-dot.yellow { background: #fbbf24; }
+.topo-legend-dot.purple { background: #c084fc; }
+
+.topo-legend-dot.dashed {
+  background: transparent;
+  border: 1.5px dashed #94a3b8;
+}
+
+.topo-legend-dot.silver {
+  background: #94a3b8;
+}
+
+.topo-legend-dot.slate {
+  background: #64748b;
+}
+
+/* Helpers de color para texto técnico y métricas */
+.text-cyan { color: #38bdf8 !important; }
+.text-pink { color: #fb7185 !important; }
+.text-green { color: #34d399 !important; }
+.text-yellow { color: #fbbf24 !important; }
+.text-purple { color: #c084fc !important; }
+
+/* ========================================================================== */
+/* TOPOGRAFÍA 3D, EXPORTACIÓN Y REPLANTEO GPS - COMPACTO Y RESPONSIVO */
+/* ========================================================================== */
+
+.topo-header-left-col {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.topo-header-right-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.topo-btn-action-pill {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #e2e8f0;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.16s ease;
+  white-space: nowrap;
+  line-height: 1.15;
+}
+
+.topo-btn-action-pill:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.topo-btn-action-pill.active {
+  background: rgba(52, 211, 153, 0.16);
+  border-color: #34d399;
+  color: #34d399;
+  font-weight: 800;
+  box-shadow: 0 0 10px rgba(52, 211, 153, 0.2);
+}
+
+.topo-btn-action-pill.active-pink {
+  background: rgba(56, 189, 248, 0.16);
+  border-color: #38bdf8;
+  color: #38bdf8;
+  font-weight: 800;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
+}
+
+.topo-btn-action-pill.highlight {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+
+.topo-btn-action-pill.highlight:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: #ffffff;
+}
+
+.topo-export-dropdown-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.topo-export-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 250px;
+  background: #0b0f15;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(16px);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.topo-export-dropdown-menu button {
+  background: transparent;
+  border: none;
+  color: #e2e8f0;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 8px 10px;
+  border-radius: 8px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.topo-export-dropdown-menu button:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  padding-left: 12px;
+}
+
+.topo-dropdown-divider {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin: 4px 0;
+}
+
+/* HUD DE REPLANTEO EN TIEMPO REAL */
+.topo-card-replanteo-hud {
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  background: #0c1017 !important;
+  margin-bottom: 16px;
+}
+
+.topo-btn-cerrar-hud {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #94a3b8;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.topo-btn-cerrar-hud:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.topo-replanteo-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: center;
+}
+
+@media (max-width: 640px) {
+  .topo-replanteo-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+.topo-replanteo-gauge {
+  background: #111722;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 14px;
+  padding: 14px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.topo-replanteo-gauge.en-tolerancia {
+  border-color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 16px rgba(255, 255, 255, 0.15);
+}
+
+.topo-replanteo-dist-val {
+  font-size: 26px;
+  font-weight: 900;
+  color: #ffffff;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+}
+
+.topo-replanteo-gauge.en-tolerancia .topo-replanteo-dist-val {
+  color: #ffffff;
+}
+
+.topo-replanteo-dist-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #cbd5e1;
+}
+
+.topo-replanteo-deltas {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+  margin-top: 4px;
+}
+
+/* VISOR 3D UNIVERSAL THREE.JS */
+.topo-3d-universal-wrapper {
+  position: relative;
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #0c1017;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.topo-3d-viewport-canvas {
+  width: 100%;
+  height: 380px;
+  cursor: grab;
+  touch-action: none;
+}
+
+.topo-3d-viewport-canvas:active {
+  cursor: grabbing;
+}
+
+.topo-3d-controls-overlay {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 10;
+  display: flex;
+  gap: 6px;
+}
+
+.topo-3d-btn-pill {
+  background: rgba(15, 20, 28, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #cbd5e1;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  padding: 5px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition: all 0.15s ease;
+}
+
+.topo-3d-btn-pill:hover,
+.topo-3d-btn-pill.active {
+  background: #ffffff;
+  border-color: #ffffff;
+  color: #0b0f14;
+}
+
+.topo-3d-hint-bar {
+  padding: 8px 12px;
+  background: rgba(12, 16, 23, 0.95);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 11px;
+  color: #94a3b8;
+  text-align: center;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}

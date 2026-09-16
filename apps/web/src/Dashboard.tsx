@@ -315,7 +315,7 @@ export default function Dashboard({ onSeleccionarModulo }: DashboardProps) {
       codigo: "ENG.MOD.v2.4",
       categoria: "recursos",
       Icono: IconoModelo3D,
-      color: "#38bdf8",
+      color: "#ec4899",
       descripcion: "Visualización 3D de modelos de bloques, sondajes, curvas de nivel y wireframes en capas.",
       metricaClave: metricas.modelo3dActivo,
       etiquetas: ["Capas Independientes", "Wireframes Datamine", "Importar/Compartir"],
