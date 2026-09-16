@@ -6,6 +6,7 @@ import {
   type ResultadoCinematicoCompleto,
   type ResultadoEstereografia,
   type ResultadoSMR,
+  type TaludEstereografia,
   type TipoFallaSMR,
 } from "@suite/core";
 import { BarraProgreso, Chip, PillGroup, RiskBadge, Tarjeta } from "./uiEstereografia.js";
@@ -32,6 +33,8 @@ interface Props {
   onCambiarTipoFallaSMR: (v: TipoFallaSMR) => void;
   metodoExcavacionSMR: MetodoExcavacionSMR;
   onCambiarMetodoExcavacionSMR: (v: MetodoExcavacionSMR) => void;
+  talud?: TaludEstereografia;
+  anguloFriccion_grados?: number;
   oculto?: boolean;
 }
 
@@ -113,6 +116,8 @@ export default function PanelResultadosEstereografia({
   onCambiarTipoFallaSMR,
   metodoExcavacionSMR,
   onCambiarMetodoExcavacionSMR,
+  talud,
+  anguloFriccion_grados = 30,
   oculto,
 }: Props) {
   const cunasOrdenadas = [...resultado.analisisCunas].sort((a, b) => Number(b.factible) - Number(a.factible));
@@ -547,8 +552,8 @@ export default function PanelResultadosEstereografia({
 
       {/* Tarjeta 7: Calculadora Complementaria de Factor de Seguridad Planar (FOS) */}
       <CalculadoraFOSPlanar
-        talud={resultado.analisisPlanoVuelco[0] ? { dip_grados: 60, dipDirection_grados: 180 } : { dip_grados: 60, dipDirection_grados: 180 }}
-        anguloFriccion_grados={30}
+        talud={talud ?? { dip_grados: 60, dipDirection_grados: 180 }}
+        anguloFriccion_grados={anguloFriccion_grados}
       />
     </aside>
   );

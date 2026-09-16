@@ -24,8 +24,11 @@ export interface ItemProyectoPortal {
 function leerValorGuardado<T>(clave: string, fallback: T): T {
   try {
     const raw = localStorage.getItem(PREFIJO_ALMACENAMIENTO + clave);
-    if (!raw) return fallback;
-    return JSON.parse(raw) as T;
+    if (!raw || raw === "null" || raw === "undefined") return fallback;
+    const parsed = JSON.parse(raw);
+    if (parsed === null || parsed === undefined) return fallback;
+    if (Array.isArray(fallback) && !Array.isArray(parsed)) return fallback;
+    return parsed as T;
   } catch {
     return fallback;
   }
@@ -82,7 +85,7 @@ function generarProyectosIniciales(modId: ModuloId): ItemProyectoPortal[] {
   }
   if (modId === "estereografia") {
     const disc = leerValorGuardado<any[]>("estereografia.discontinuidades", []);
-    const cant = disc.length > 0 ? disc.length : 4;
+    const cant = Array.isArray(disc) && disc.length > 0 ? disc.length : 4;
     return [
       {
         id: "estereografia-1",
@@ -250,6 +253,7 @@ export default function ModuloPortal({
       }
       case "estereografia": {
         const disc = leerValorGuardado<any[]>("estereografia.discontinuidades", []);
+        const cant = Array.isArray(disc) && disc.length > 0 ? disc.length : 4;
         return {
           titulo: "Estereografía Estructural",
           subtitulo: "Proyección estereográfica de Schmidt y cinemática de taludes",
@@ -257,9 +261,9 @@ export default function ModuloPortal({
           botonPrincipal: "+ Nuevo Análisis Estructural",
           kpi1: { valor: proyectos.length, label: "ESTUDIOS" },
           kpi2: { valor: "SCHMIDT", label: "PROYECCIÓN" },
-          kpi3: { valor: disc.length > 0 ? disc.length : 4, label: "FAMILIAS" },
+          kpi3: { valor: cant, label: "FAMILIAS" },
           proyectoNombreDefecto: "Talud Sur Banco 4200",
-          resumenDiseno: `Estructura: ${disc.length > 0 ? disc.length : 4} familias activas`,
+          resumenDiseno: `Estructura: ${cant} familias activas`,
           singular: "Estudio",
           plural: "Estudios",
         };

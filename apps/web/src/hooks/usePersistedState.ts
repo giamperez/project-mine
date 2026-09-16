@@ -5,7 +5,10 @@ export const PREFIJO_ALMACENAMIENTO = "suite-mineria:";
 function leerAlmacenado<T>(clave: string): T | undefined {
   try {
     const crudo = localStorage.getItem(PREFIJO_ALMACENAMIENTO + clave);
-    return crudo ? (JSON.parse(crudo) as T) : undefined;
+    if (!crudo || crudo === "null" || crudo === "undefined") return undefined;
+    const parseado = JSON.parse(crudo) as T;
+    if (parseado === null || parseado === undefined) return undefined;
+    return parseado;
   } catch {
     return undefined; // JSON corrupto o localStorage no disponible — se ignora, se usa el default
   }
@@ -22,13 +25,29 @@ function leerAlmacenado<T>(clave: string): T | undefined {
  */
 export function usePersistedState<T>(clave: string, valorInicial: T | (() => T)) {
   const [estado, setEstado] = useState<T>(() => {
+    const inicial = typeof valorInicial === "function" ? (valorInicial as () => T)() : valorInicial;
     const guardado = leerAlmacenado<T>(clave);
-    return guardado !== undefined ? guardado : typeof valorInicial === "function" ? (valorInicial as () => T)() : valorInicial;
+    if (guardado === undefined || guardado === null) return inicial;
+
+    // Si el valor inicial es array, asegurar que el guardado sea array válido
+    if (Array.isArray(inicial) && !Array.isArray(guardado)) {
+      return inicial;
+    }
+    // Si el valor inicial es objeto no-array, asegurar que guardado sea objeto válido
+    if (inicial !== null && typeof inicial === "object" && !Array.isArray(inicial)) {
+      if (typeof guardado !== "object" || Array.isArray(guardado) || guardado === null) {
+        return inicial;
+      }
+    }
+
+    return guardado;
   });
 
   useEffect(() => {
     try {
-      localStorage.setItem(PREFIJO_ALMACENAMIENTO + clave, JSON.stringify(estado));
+      if (estado !== undefined) {
+        localStorage.setItem(PREFIJO_ALMACENAMIENTO + clave, JSON.stringify(estado));
+      }
     } catch {
       // localStorage lleno o no disponible (p.ej. modo privado de Safari) — no es critico, se ignora
     }
@@ -37,3 +56,4 @@ export function usePersistedState<T>(clave: string, valorInicial: T | (() => T))
 
   return [estado, setEstado] as const;
 }
+

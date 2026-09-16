@@ -20,8 +20,11 @@ interface DashboardProps {
 function leerValorGuardado<T>(clave: string, fallback: T): T {
   try {
     const raw = localStorage.getItem(PREFIJO_ALMACENAMIENTO + clave);
-    if (!raw) return fallback;
-    return JSON.parse(raw) as T;
+    if (!raw || raw === "null" || raw === "undefined") return fallback;
+    const parsed = JSON.parse(raw);
+    if (parsed === null || parsed === undefined) return fallback;
+    if (Array.isArray(fallback) && !Array.isArray(parsed)) return fallback;
+    return parsed as T;
   } catch {
     return fallback;
   }
@@ -201,7 +204,8 @@ export default function Dashboard({ onSeleccionarModulo }: DashboardProps) {
 
     // Estereografía
     const discontinuidades = leerValorGuardado<any[]>("estereografia.discontinuidades", []);
-    const familiasActivo = discontinuidades.length > 0 ? `${discontinuidades.length} discontinuidades` : "4 discontinuidades";
+    const cantDisc = Array.isArray(discontinuidades) ? discontinuidades.length : 0;
+    const familiasActivo = cantDisc > 0 ? `${cantDisc} discontinuidades` : "4 discontinuidades";
 
     // Acarreo
     const acarreoEntrada = leerValorGuardado<any>("acarreo.entrada", null);
@@ -217,11 +221,13 @@ export default function Dashboard({ onSeleccionarModulo }: DashboardProps) {
 
     // Modelo de Bloques
     const colares = leerValorGuardado<any[]>("modeloBloques.colares", []);
-    const bloquesActivo = colares.length > 0 ? `${colares.length} sondajes perforados` : "9 sondajes perforados";
+    const cantColares = Array.isArray(colares) ? colares.length : 0;
+    const bloquesActivo = cantColares > 0 ? `${cantColares} sondajes perforados` : "9 sondajes perforados";
 
     // Modelo 3D
     const proyectosModelo3D = leerValorGuardado<any[]>("modelo3d.listaProyectos", []);
-    const modelo3dActivo = `${proyectosModelo3D.length} proyecto${proyectosModelo3D.length === 1 ? "" : "s"}`;
+    const cantM3D = Array.isArray(proyectosModelo3D) ? proyectosModelo3D.length : 0;
+    const modelo3dActivo = `${cantM3D} proyecto${cantM3D === 1 ? "" : "s"}`;
 
     return {
       taladrosNum,

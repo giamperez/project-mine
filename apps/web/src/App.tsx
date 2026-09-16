@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Dashboard, { type ModuloId } from "./Dashboard.js";
-import { ModuloPortal } from "./components/shared/index.js";
+import { ModuloPortal, ErrorBoundary } from "./components/shared/index.js";
 import { EspacioMalla } from "./features/blast-pattern/index.js";
 import { EspacioTopografia } from "./features/topography/index.js";
 import { EspacioGeomecanica } from "./features/geomechanics/index.js";
@@ -32,46 +32,53 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell" data-espacio={espacio} data-vista={vistaModulo}>
-      {espacio === "dashboard" && <Dashboard onSeleccionarModulo={(m) => seleccionarModulo(m)} />}
+    <ErrorBoundary onReset={() => { setEspacio("dashboard"); setVistaModulo("portal"); }}>
+      <div className="app-shell" data-espacio={espacio} data-vista={vistaModulo}>
+        {espacio === "dashboard" && <Dashboard onSeleccionarModulo={(m) => seleccionarModulo(m)} />}
 
-      {espacio === "topografia" && (
-        <EspacioTopografia onVolverDashboard={() => setEspacio("dashboard")} />
-      )}
+        {espacio === "topografia" && (
+          <EspacioTopografia onVolverDashboard={() => setEspacio("dashboard")} />
+        )}
 
-      {espacio !== "dashboard" && espacio !== "topografia" && vistaModulo === "portal" && (
-        <ModuloPortal
-          key={espacio}
-          moduloId={espacio}
-          onVolverDashboard={() => setEspacio("dashboard")}
-          onAbrirTaller={(id) => abrirTaller(id)}
-        />
-      )}
+        {espacio === "estereografia" && (
+          <EspacioEstereografia
+            onVolverDashboard={() => setEspacio("dashboard")}
+            onVolverAlPortal={() => setEspacio("dashboard")}
+          />
+        )}
 
-      {espacio !== "dashboard" && espacio !== "topografia" && vistaModulo === "taller" && (
-        <>
-          {espacio === "malla" && (
-            <EspacioMalla
-              key={mallaActivaId}
-              proyectoId={mallaActivaId}
-              onVolverAlPortal={() => setVistaModulo("portal")}
-            />
-          )}
-          {espacio === "geomecanica" && <EspacioGeomecanica />}
-          {espacio === "estereografia" && (
-            <EspacioEstereografia onVolverAlPortal={() => setVistaModulo("portal")} />
-          )}
-          {espacio === "acarreo" && <EspacioAcarreo />}
-          {espacio === "modeloBloques" && <EspacioModeloBloques />}
-          {espacio === "modelo3d" && (
-            <EspacioModelo3D
-              key={proyectoModelo3DId}
-              proyectoId={proyectoModelo3DId}
-              onVolverAlPortal={() => setVistaModulo("portal")}
-            />
-          )}
-        </>
-      )}
-    </div>
+        {espacio !== "dashboard" && espacio !== "topografia" && espacio !== "estereografia" && vistaModulo === "portal" && (
+          <ModuloPortal
+            key={espacio}
+            moduloId={espacio}
+            onVolverDashboard={() => setEspacio("dashboard")}
+            onAbrirTaller={(id) => abrirTaller(id)}
+          />
+        )}
+
+        {espacio !== "dashboard" && espacio !== "topografia" && espacio !== "estereografia" && vistaModulo === "taller" && (
+          <>
+            {espacio === "malla" && (
+              <EspacioMalla
+                key={mallaActivaId}
+                proyectoId={mallaActivaId}
+                onVolverAlPortal={() => setVistaModulo("portal")}
+              />
+            )}
+            {espacio === "geomecanica" && <EspacioGeomecanica />}
+            {espacio === "acarreo" && <EspacioAcarreo />}
+            {espacio === "modeloBloques" && <EspacioModeloBloques />}
+            {espacio === "modelo3d" && (
+              <EspacioModelo3D
+                key={proyectoModelo3DId}
+                proyectoId={proyectoModelo3DId}
+                onVolverAlPortal={() => setVistaModulo("portal")}
+              />
+            )}
+          </>
+        )}
+      </div>
+    </ErrorBoundary>
   );
 }
+
