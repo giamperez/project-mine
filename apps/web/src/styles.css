@@ -12528,7 +12528,7 @@ table.tabla-taladros td:first-child {
   width: 100%;
   height: 100%;
   min-height: 100dvh;
-  background: radial-gradient(circle at 50% 10%, #170924 0%, #0c0712 60%, #060309 100%);
+  background: radial-gradient(circle at 50% 0%, #08283b 0%, #061824 45%, #030a10 100%);
   color: #f1f5f9;
   display: flex;
   flex-direction: column;
@@ -12543,10 +12543,10 @@ table.tabla-taladros td:first-child {
   width: 6px;
 }
 .espacio-topografia-shell::-webkit-scrollbar-track {
-  background: rgba(12, 7, 18, 0.8);
+  background: rgba(3, 10, 16, 0.85);
 }
 .espacio-topografia-shell::-webkit-scrollbar-thumb {
-  background: #331f47;
+  background: #0891b2;
   border-radius: 4px;
 }
 
@@ -12599,23 +12599,24 @@ table.tabla-taladros td:first-child {
   width: 42px;
   height: 42px;
   border-radius: 50%;
-  background: rgba(14, 30, 38, 0.85);
-  border: 1.5px solid rgba(6, 182, 212, 0.35);
-  color: #f1f5f9;
+  background: rgba(8, 28, 40, 0.9);
+  border: 1.5px solid rgba(6, 182, 212, 0.4);
+  color: #38bdf8;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
   flex-shrink: 0;
 }
 
 .topo-btn-back:hover {
-  border-color: #06b6d4;
-  transform: scale(1.05);
-  background: rgba(6, 182, 212, 0.15);
-  box-shadow: 0 0 16px rgba(6, 182, 212, 0.35);
+  border-color: #22d3ee;
+  transform: scale(1.06);
+  background: rgba(6, 182, 212, 0.22);
+  color: #ffffff;
+  box-shadow: 0 0 20px rgba(6, 182, 212, 0.45);
 }
 
 .topo-header-text {
@@ -12627,15 +12628,17 @@ table.tabla-taladros td:first-child {
   font-size: 22px;
   font-weight: 800;
   letter-spacing: -0.02em;
-  color: #ffffff;
+  background: linear-gradient(135deg, #ffffff 20%, #38bdf8 70%, #06b6d4 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
   line-height: 1.2;
 }
 
 .topo-header-subtitle {
-  margin: 2px 0 0 0;
+  margin: 3px 0 0 0;
   font-size: 12px;
-  color: #94a3b8;
-  font-weight: 400;
+  color: #7dd3fc;
+  font-weight: 500;
   letter-spacing: -0.01em;
 }
 
@@ -12645,12 +12648,13 @@ table.tabla-taladros td:first-child {
   font-size: 10.5px;
   font-weight: 700;
   letter-spacing: 0.05em;
-  color: #34d399;
-  background: rgba(52, 211, 153, 0.12);
-  border: 1px solid rgba(52, 211, 153, 0.4);
+  color: #22d3ee;
+  background: rgba(6, 182, 212, 0.14);
+  border: 1px solid rgba(6, 182, 212, 0.45);
   display: flex;
   align-items: center;
   gap: 6px;
+  box-shadow: 0 0 12px rgba(6, 182, 212, 0.2);
 }
 
 .topo-status-dot {
@@ -12659,8 +12663,8 @@ table.tabla-taladros td:first-child {
 }
 
 @keyframes topoPulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
 }
 
 /* Toast flotante */
@@ -12669,14 +12673,14 @@ table.tabla-taladros td:first-child {
   top: 18px;
   left: 50%;
   transform: translateX(-50%);
-  background: #1e1330;
-  border: 1px solid #38bdf8;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 16px rgba(56, 189, 248, 0.3);
+  background: #081d2a;
+  border: 1px solid #06b6d4;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.7), 0 0 20px rgba(6, 182, 212, 0.4);
   color: #e0f2fe;
-  padding: 8px 16px;
+  padding: 8px 18px;
   border-radius: 999px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   z-index: 9999;
   animation: topoSlideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -12686,22 +12690,22 @@ table.tabla-taladros td:first-child {
   to { opacity: 1; transform: translate(-50%, 0); }
 }
 
-/* Tarjetas base con diseño oscuro refinado */
 /* ==========================================================================
-   MÓDULO DE TOPOGRAFÍA (NAMICAD TOPO) - TEMA MONOCROMO CAD INDUSTRIAL
+   MÓDULO DE TOPOGRAFÍA (NAMICAD TOPO) - TEMA DE INGENIERÍA MINERA TURQUESA
    ========================================================================== */
 
 /* Tarjetas base con diseño oscuro refinado y bordes de precisión */
 .topo-card {
-  background: #0f141d;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: linear-gradient(145deg, rgba(8, 24, 36, 0.88) 0%, rgba(4, 13, 20, 0.95) 100%);
+  border: 1px solid rgba(6, 182, 212, 0.22);
   border-radius: 18px;
   padding: 20px 22px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.55);
+  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(6, 182, 212, 0.14);
   position: relative;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  backdrop-filter: blur(14px);
 }
 
 .topo-card-header-row {
@@ -12727,64 +12731,66 @@ table.tabla-taladros td:first-child {
 }
 
 .topo-card-tag.cyan {
-  color: #38bdf8;
-  background: rgba(56, 189, 248, 0.12);
-  border: 1px solid rgba(56, 189, 248, 0.35);
+  color: #22d3ee;
+  background: rgba(6, 182, 212, 0.15);
+  border: 1px solid rgba(6, 182, 212, 0.4);
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.15);
 }
 
 .topo-card-tag.green {
   color: #34d399;
-  background: rgba(52, 211, 153, 0.12);
-  border: 1px solid rgba(52, 211, 153, 0.35);
+  background: rgba(52, 211, 153, 0.15);
+  border: 1px solid rgba(52, 211, 153, 0.4);
 }
 
 .topo-card-tag.pink {
   color: #fb7185;
-  background: rgba(251, 113, 133, 0.12);
-  border: 1px solid rgba(251, 113, 133, 0.35);
+  background: rgba(251, 113, 133, 0.15);
+  border: 1px solid rgba(251, 113, 133, 0.4);
 }
 
 .topo-card-tag.purple {
   color: #c084fc;
-  background: rgba(192, 132, 252, 0.12);
-  border: 1px solid rgba(192, 132, 252, 0.35);
+  background: rgba(192, 132, 252, 0.15);
+  border: 1px solid rgba(192, 132, 252, 0.4);
 }
 
 .topo-card-tag.yellow {
   color: #fbbf24;
-  background: rgba(251, 191, 36, 0.12);
-  border: 1px solid rgba(251, 191, 36, 0.35);
+  background: rgba(251, 191, 36, 0.15);
+  border: 1px solid rgba(251, 191, 36, 0.4);
 }
 
 .topo-card-tag.monochrome {
-  color: #f1f5f9;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #7dd3fc;
+  background: rgba(6, 182, 212, 0.1);
+  border: 1px solid rgba(6, 182, 212, 0.25);
 }
 
 .topo-card-title {
   margin: 0 0 4px 0;
   font-size: 18px;
   font-weight: 800;
-  color: #ffffff;
+  color: #38bdf8;
   letter-spacing: -0.01em;
 }
 
 .topo-card-desc {
   margin: 0 0 16px 0;
-  font-size: 12px;
+  font-size: 12.5px;
   color: #94a3b8;
   line-height: 1.45;
 }
 
 /* HERO CARD TOPOGRAFÍA */
 .topo-hero-card {
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(6, 182, 212, 0.3);
   padding: 24px 26px;
   min-height: 220px;
   justify-content: space-between;
-  background: linear-gradient(135deg, #131a24 0%, #0d121a 100%);
+  background: linear-gradient(135deg, #091f2e 0%, #05131d 100%);
   border-radius: 18px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6), 0 0 24px rgba(6, 182, 212, 0.15);
 }
 
 @media (min-width: 800px) {
@@ -12803,7 +12809,7 @@ table.tabla-taladros td:first-child {
   width: 190px;
   height: 190px;
   pointer-events: none;
-  opacity: 0.75;
+  opacity: 0.85;
 }
 
 @media (min-width: 800px) {
@@ -12855,14 +12861,16 @@ table.tabla-taladros td:first-child {
   margin: 0 0 6px 0;
   font-size: 22px;
   font-weight: 800;
-  color: #ffffff;
+  background: linear-gradient(135deg, #ffffff 30%, #38bdf8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
   line-height: 1.25;
 }
 
 .topo-hero-desc {
   margin: 0 0 16px 0;
   font-size: 13px;
-  color: #cbd5e1;
+  color: #bae6fd;
   max-width: 650px;
   line-height: 1.45;
 }
@@ -12885,31 +12893,30 @@ table.tabla-taladros td:first-child {
   font-weight: 900;
   line-height: 1.1;
   letter-spacing: -0.02em;
-  color: #ffffff;
+  color: #22d3ee;
+  text-shadow: 0 0 12px rgba(6, 182, 212, 0.4);
 }
 
-.topo-hero-stat-num.pink,
-.topo-hero-stat-num.green,
-.topo-hero-stat-num.purple,
-.topo-hero-stat-num.monochrome {
-  color: #ffffff;
-}
+.topo-hero-stat-num.pink { color: #fda4af; }
+.topo-hero-stat-num.green { color: #86efac; }
+.topo-hero-stat-num.purple { color: #d8b4fe; }
+.topo-hero-stat-num.monochrome { color: #7dd3fc; }
 
 .topo-hero-stat-label {
   font-size: 10px;
   font-weight: 700;
-  color: #94a3b8;
+  color: #7dd3fc;
   letter-spacing: 0.06em;
   margin-top: 3px;
 }
 
 .topo-btn-crear-proyecto-hero {
-  background: #ffffff;
-  border: 1px solid #ffffff;
+  background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+  border: 1px solid #22d3ee;
   border-radius: 999px;
-  color: #0b0f14;
+  color: #081b22;
   font-size: 14px;
-  font-weight: 800;
+  font-weight: 900;
   letter-spacing: 0.04em;
   padding: 14px 24px;
   cursor: pointer;
@@ -12918,15 +12925,15 @@ table.tabla-taladros td:first-child {
   justify-content: center;
   gap: 8px;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 20px rgba(255, 255, 255, 0.18);
+  box-shadow: 0 4px 20px rgba(6, 182, 212, 0.35);
   width: 100%;
   max-width: 380px;
 }
 
 .topo-btn-crear-proyecto-hero:hover {
-  transform: translateY(-1.5px);
-  background: #e2e8f0;
-  box-shadow: 0 6px 24px rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px);
+  background: linear-gradient(135deg, #22d3ee 0%, #06b6d4 100%);
+  box-shadow: 0 8px 28px rgba(6, 182, 212, 0.5);
 }
 
 .topo-btn-sparkle {
@@ -12952,24 +12959,31 @@ table.tabla-taladros td:first-child {
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #ffffff;
+  color: #38bdf8;
 }
 
-.topo-section-tag.pink,
+.topo-section-tag.cyan {
+  color: #22d3ee;
+}
+
+.topo-section-tag.pink {
+  color: #fb7185;
+}
+
 .topo-section-tag.monochrome {
-  color: #ffffff;
+  color: #38bdf8;
 }
 
 .topo-section-recientes-count {
   margin: 2px 0 0 0;
   font-size: 11.5px;
-  color: #94a3b8;
+  color: #7dd3fc;
 }
 
 .topo-pill-base-independiente {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  color: #e2e8f0;
+  background: rgba(6, 182, 212, 0.12);
+  border: 1px solid rgba(6, 182, 212, 0.35);
+  color: #e0f2fe;
   font-size: 10px;
   font-weight: 700;
   padding: 4px 12px;
@@ -12993,8 +13007,8 @@ table.tabla-taladros td:first-child {
 }
 
 .topo-project-item-card {
-  background: #0f141d;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(145deg, rgba(8, 24, 36, 0.85) 0%, rgba(4, 13, 20, 0.95) 100%);
+  border: 1px solid rgba(6, 182, 212, 0.2);
   border-radius: 16px;
   padding: 18px 20px;
   cursor: pointer;
@@ -13002,18 +13016,18 @@ table.tabla-taladros td:first-child {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
 }
 
 .topo-project-item-card.border-cyan,
 .topo-project-item-card.border-pink {
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(6, 182, 212, 0.3);
 }
 
 .topo-project-item-card:hover {
   transform: translateY(-2px);
-  border-color: rgba(255, 255, 255, 0.35);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.6), 0 0 16px rgba(255, 255, 255, 0.06);
+  border-color: #06b6d4;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.6), 0 0 16px rgba(6, 182, 212, 0.25);
 }
 
 .topo-project-item-main {
@@ -13026,13 +13040,14 @@ table.tabla-taladros td:first-child {
   width: 48px;
   height: 48px;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  color: #ffffff;
+  background: rgba(6, 182, 212, 0.12);
+  border: 1px solid rgba(6, 182, 212, 0.35);
+  color: #22d3ee;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  box-shadow: 0 0 12px rgba(6, 182, 212, 0.2);
 }
 
 .topo-project-info {
@@ -13046,18 +13061,18 @@ table.tabla-taladros td:first-child {
   margin: 0;
   font-size: 16px;
   font-weight: 800;
-  color: #ffffff;
+  color: #f1f5f9;
 }
 
 .topo-project-sub {
   margin: 0;
   font-size: 12.5px;
   font-weight: 600;
-  color: #cbd5e1;
+  color: #7dd3fc;
 }
 
 .topo-project-sub.cyan {
-  color: #cbd5e1;
+  color: #38bdf8;
 }
 
 .topo-project-datum {
@@ -13067,7 +13082,7 @@ table.tabla-taladros td:first-child {
 }
 
 .topo-project-chevron {
-  color: #94a3b8;
+  color: #38bdf8;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -13077,13 +13092,13 @@ table.tabla-taladros td:first-child {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid rgba(6, 182, 212, 0.12);
   padding-top: 10px;
 }
 
 .topo-project-date {
   font-size: 11px;
-  color: #94a3b8;
+  color: #7dd3fc;
   font-family: ui-monospace, monospace;
 }
 
@@ -13102,12 +13117,12 @@ table.tabla-taladros td:first-child {
   cursor: pointer;
   padding: 2px 4px;
   transition: opacity 0.15s;
-  color: #cbd5e1;
+  color: #38bdf8;
 }
 
 .topo-action-link.cyan,
 .topo-action-link.pink {
-  color: #cbd5e1;
+  color: #22d3ee;
 }
 
 .topo-action-link:hover {
@@ -13117,8 +13132,8 @@ table.tabla-taladros td:first-child {
 
 /* DISCLAIMER / ADVERTENCIA INFERIOR */
 .topo-disclaimer-card {
-  background: #0d121a;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(6, 20, 30, 0.85);
+  border: 1px solid rgba(6, 182, 212, 0.25);
   border-radius: 12px;
   padding: 12px 14px;
   display: flex;
@@ -13131,8 +13146,8 @@ table.tabla-taladros td:first-child {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.15);
-  color: #ffffff;
+  background: rgba(6, 182, 212, 0.2);
+  color: #22d3ee;
   font-weight: 800;
   font-size: 11px;
   display: flex;
@@ -13161,7 +13176,7 @@ table.tabla-taladros td:first-child {
 }
 
 .topo-card-identificacion {
-  border-color: rgba(255, 255, 255, 0.14);
+  border-color: rgba(6, 182, 212, 0.25);
 }
 
 .topo-field-group {
@@ -13171,24 +13186,27 @@ table.tabla-taladros td:first-child {
 }
 
 .topo-input-text {
-  background: #090d14;
-  border: 1.5px solid rgba(255, 255, 255, 0.16);
+  background: #040e17;
+  border: 1.5px solid rgba(6, 182, 212, 0.25);
   border-radius: 12px;
   padding: 12px 14px;
-  color: #ffffff;
+  color: #38bdf8;
   font-size: 14px;
   outline: none;
   transition: all 0.2s;
+  font-weight: 600;
 }
 
 .topo-input-text:focus {
-  border-color: #ffffff;
-  box-shadow: 0 0 12px rgba(255, 255, 255, 0.15);
+  border-color: #06b6d4;
+  box-shadow: 0 0 16px rgba(6, 182, 212, 0.35);
+  background: #061523;
+  color: #ffffff;
 }
 
 .topo-field-hint {
   font-size: 10.5px;
-  color: #94a3b8;
+  color: #7dd3fc;
   font-style: italic;
 }
 
@@ -13208,7 +13226,7 @@ table.tabla-taladros td:first-child {
   margin: 0;
   font-size: 17px;
   font-weight: 800;
-  color: #ffffff;
+  color: #38bdf8;
 }
 
 .topo-section-header .topo-section-desc {
@@ -13232,8 +13250,8 @@ table.tabla-taladros td:first-child {
 }
 
 .topo-motor-card {
-  background: #0f141d;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(145deg, rgba(8, 24, 36, 0.8) 0%, rgba(4, 13, 20, 0.9) 100%);
+  border: 1px solid rgba(6, 182, 212, 0.18);
   border-radius: 16px;
   padding: 16px 14px 14px 14px;
   display: flex;
@@ -13245,15 +13263,16 @@ table.tabla-taladros td:first-child {
 }
 
 .topo-motor-card:hover {
-  border-color: rgba(255, 255, 255, 0.3);
+  border-color: #06b6d4;
   transform: translateY(-2px);
-  background: #141b26;
+  background: linear-gradient(145deg, rgba(12, 36, 54, 0.9) 0%, rgba(6, 18, 28, 0.95) 100%);
+  box-shadow: 0 8px 24px rgba(6, 182, 212, 0.25);
 }
 
 .topo-motor-card.selected {
-  border: 1.5px solid #ffffff;
-  background: #16202c;
-  box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+  border: 1.5px solid #06b6d4;
+  background: linear-gradient(145deg, rgba(8, 38, 54, 0.95) 0%, rgba(4, 20, 30, 0.98) 100%);
+  box-shadow: 0 0 24px rgba(6, 182, 212, 0.35);
 }
 
 .topo-motor-card-header {
@@ -13264,13 +13283,13 @@ table.tabla-taladros td:first-child {
 }
 
 .topo-motor-icon-wrap {
-  color: #cbd5e1;
+  color: #38bdf8;
   display: flex;
   align-items: center;
 }
 
 .topo-motor-card.selected .topo-motor-icon-wrap {
-  color: #ffffff;
+  color: #22d3ee;
 }
 
 .topo-motor-badge {
@@ -13278,16 +13297,17 @@ table.tabla-taladros td:first-child {
   font-weight: 800;
   padding: 3px 7px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
-  color: #94a3b8;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(6, 182, 212, 0.12);
+  color: #7dd3fc;
+  border: 1px solid rgba(6, 182, 212, 0.25);
 }
 
 .topo-motor-badge.active {
-  background: #ffffff;
-  color: #0b0f14;
-  border-color: #ffffff;
-  font-weight: 800;
+  background: #06b6d4;
+  color: #081b22;
+  border-color: #22d3ee;
+  font-weight: 900;
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.4);
 }
 
 .topo-motor-name {
@@ -13314,8 +13334,9 @@ table.tabla-taladros td:first-child {
 }
 
 .topo-motor-status-selected {
-  color: #ffffff;
+  color: #22d3ee;
   font-weight: 800;
+  text-shadow: 0 0 8px rgba(6, 182, 212, 0.5);
 }
 
 .topo-motor-status-action {
@@ -13323,8 +13344,8 @@ table.tabla-taladros td:first-child {
 }
 
 .topo-bottom-action-card {
-  background: #0f141d;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: linear-gradient(145deg, rgba(8, 24, 36, 0.88) 0%, rgba(4, 13, 20, 0.95) 100%);
+  border: 1px solid rgba(6, 182, 212, 0.25);
   border-radius: 18px;
   padding: 16px;
   display: flex;
@@ -13342,8 +13363,9 @@ table.tabla-taladros td:first-child {
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.08);
-  color: #ffffff;
+  background: rgba(6, 182, 212, 0.15);
+  border: 1px solid rgba(6, 182, 212, 0.4);
+  color: #22d3ee;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -13354,7 +13376,7 @@ table.tabla-taladros td:first-child {
   margin: 0;
   font-size: 14px;
   font-weight: 800;
-  color: #ffffff;
+  color: #38bdf8;
 }
 
 .topo-bottom-text p {
@@ -13364,12 +13386,12 @@ table.tabla-taladros td:first-child {
 }
 
 .topo-btn-crear-abrir {
-  background: #ffffff;
-  border: 1px solid #ffffff;
+  background: linear-gradient(135deg, #06b6d4, #0891b2);
+  border: 1px solid #22d3ee;
   border-radius: 999px;
-  color: #0b0f14;
+  color: #081b22;
   font-size: 14px;
-  font-weight: 800;
+  font-weight: 900;
   letter-spacing: 0.04em;
   padding: 13px 20px;
   cursor: pointer;
@@ -13377,13 +13399,14 @@ table.tabla-taladros td:first-child {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  box-shadow: 0 4px 16px rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 18px rgba(6, 182, 212, 0.38);
   transition: all 0.2s;
 }
 
 .topo-btn-crear-abrir:hover {
   transform: translateY(-1.5px);
-  background: #e2e8f0;
+  background: linear-gradient(135deg, #22d3ee, #06b6d4);
+  box-shadow: 0 6px 24px rgba(6, 182, 212, 0.5);
 }
 
 /* ==========================================================================
@@ -13413,17 +13436,18 @@ table.tabla-taladros td:first-child {
 }
 
 .topo-card-proyecto-activo {
-  border-color: rgba(255, 255, 255, 0.14);
+  border-color: rgba(6, 182, 212, 0.25);
 }
 
 .topo-motor-pill-badge {
   font-size: 10px;
   font-weight: 900;
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  padding: 2px 8px;
+  color: #081b22;
+  background: #06b6d4;
+  border: 1px solid #22d3ee;
+  padding: 2px 10px;
   border-radius: 999px;
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.4);
 }
 
 .topo-form-grid {
@@ -13444,18 +13468,19 @@ table.tabla-taladros td:first-child {
 }
 
 .topo-label-float {
-  font-size: 10.5px;
-  color: #94a3b8;
+  font-size: 11px;
+  color: #7dd3fc;
   margin-bottom: 5px;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 .topo-input-control {
-  background: #090d14;
-  border: 1.5px solid rgba(255, 255, 255, 0.15);
+  background: #040e17;
+  border: 1.5px solid rgba(6, 182, 212, 0.25);
   border-radius: 10px;
   padding: 10px 12px;
-  color: #ffffff;
+  color: #38bdf8;
   font-size: 14px;
   font-family: ui-monospace, monospace;
   font-weight: 700;
@@ -13464,8 +13489,10 @@ table.tabla-taladros td:first-child {
 }
 
 .topo-input-control:focus {
-  border-color: #ffffff;
-  box-shadow: 0 0 12px rgba(255, 255, 255, 0.15);
+  border-color: #06b6d4;
+  box-shadow: 0 0 14px rgba(6, 182, 212, 0.4);
+  background: #061523;
+  color: #ffffff;
 }
 
 .topo-input-wrapper.has-unit .topo-input-control {
@@ -13479,10 +13506,10 @@ table.tabla-taladros td:first-child {
   font-size: 12px;
   font-weight: 700;
   pointer-events: none;
-  color: #94a3b8;
+  color: #38bdf8;
 }
 
-.topo-unit.cyan { color: #cbd5e1; }
+.topo-unit.cyan { color: #22d3ee; }
 
 .topo-input-subhint {
   font-size: 9.5px;
@@ -13500,9 +13527,9 @@ table.tabla-taladros td:first-child {
 }
 
 .topo-btn-action {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  color: #e2e8f0;
+  background: rgba(6, 182, 212, 0.08);
+  border: 1px solid rgba(6, 182, 212, 0.3);
+  color: #7dd3fc;
   border-radius: 8px;
   padding: 9px 8px;
   font-size: 11px;
@@ -13521,25 +13548,26 @@ table.tabla-taladros td:first-child {
 .topo-btn-action.purple:hover,
 .topo-btn-action.green:hover,
 .topo-btn-action.cyan:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(6, 182, 212, 0.22);
   color: #ffffff;
-  border-color: rgba(255, 255, 255, 0.35);
+  border-color: #06b6d4;
+  box-shadow: 0 0 14px rgba(6, 182, 212, 0.35);
 }
 
 .topo-btn-action.purple,
 .topo-btn-action.green,
 .topo-btn-action.cyan {
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  color: #e2e8f0;
+  border: 1px solid rgba(6, 182, 212, 0.3);
+  color: #7dd3fc;
 }
 
 /* Segmented Control para Modos (Compacto, ultra-refinado y responsivo) */
 .topo-segmented-control {
   display: inline-flex;
   align-items: center;
-  background: #090d14;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 7px;
+  background: #040e17;
+  border: 1px solid rgba(6, 182, 212, 0.25);
+  border-radius: 8px;
   padding: 2.5px;
   gap: 3px;
   flex-shrink: 0;
@@ -13553,11 +13581,11 @@ table.tabla-taladros td:first-child {
   white-space: nowrap !important;
   background: transparent;
   border: none;
-  color: #94a3b8;
+  color: #7dd3fc;
   font-size: 10.5px;
   font-weight: 700;
   padding: 4px 9px;
-  border-radius: 5px;
+  border-radius: 6px;
   cursor: pointer;
   transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
   display: inline-flex;
@@ -13570,29 +13598,30 @@ table.tabla-taladros td:first-child {
 .topo-seg-btn:hover,
 .topo-segmented-control button:hover {
   color: #ffffff;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(6, 182, 212, 0.15);
 }
 
 .topo-seg-btn.active,
 .topo-segmented-control button.active {
-  background: #ffffff;
-  color: #0b0f14;
-  font-weight: 800;
-  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
+  background: linear-gradient(135deg, #06b6d4, #0891b2);
+  color: #081b22;
+  font-weight: 900;
+  box-shadow: 0 2px 8px rgba(6, 182, 212, 0.4);
 }
 
 /* Card Visualización Gráfica SVG */
 .topo-card-grafico {
-  border-color: rgba(255, 255, 255, 0.14);
+  border-color: rgba(6, 182, 212, 0.25);
 }
 
 .topo-svg-canvas-wrapper {
   width: 100%;
-  background: #090d14;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: radial-gradient(circle at 50% 50%, #061926 0%, #030d14 100%);
+  border: 1px solid rgba(6, 182, 212, 0.25);
   border-radius: 12px;
   overflow: hidden;
   position: relative;
+  box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.6);
 }
 
 .topo-svg-canvas {
@@ -13615,8 +13644,8 @@ table.tabla-taladros td:first-child {
 }
 
 .topo-kpi-card {
-  background: #0d121b;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(135deg, rgba(6, 24, 36, 0.8) 0%, rgba(3, 12, 20, 0.9) 100%);
+  border: 1px solid rgba(6, 182, 212, 0.2);
   border-radius: 12px;
   padding: 10px 14px;
   display: flex;
@@ -13626,36 +13655,36 @@ table.tabla-taladros td:first-child {
 }
 
 .topo-kpi-card.cyan {
-  border-color: rgba(56, 189, 248, 0.3);
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.08) 0%, #0d121b 100%);
+  border-color: rgba(6, 182, 212, 0.45);
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.14) 0%, #041420 100%);
 }
 .topo-kpi-card.cyan .topo-kpi-label { color: #38bdf8; }
-.topo-kpi-card.cyan .topo-kpi-val { color: #7dd3fc; }
+.topo-kpi-card.cyan .topo-kpi-val { color: #22d3ee; text-shadow: 0 0 8px rgba(6, 182, 212, 0.35); }
 
 .topo-kpi-card.green {
-  border-color: rgba(52, 211, 153, 0.3);
-  background: linear-gradient(135deg, rgba(52, 211, 153, 0.08) 0%, #0d121b 100%);
+  border-color: rgba(52, 211, 153, 0.4);
+  background: linear-gradient(135deg, rgba(52, 211, 153, 0.12) 0%, #04181c 100%);
 }
 .topo-kpi-card.green .topo-kpi-label { color: #34d399; }
 .topo-kpi-card.green .topo-kpi-val { color: #86efac; }
 
 .topo-kpi-card.pink {
-  border-color: rgba(251, 113, 133, 0.3);
-  background: linear-gradient(135deg, rgba(251, 113, 133, 0.08) 0%, #0d121b 100%);
+  border-color: rgba(251, 113, 133, 0.4);
+  background: linear-gradient(135deg, rgba(251, 113, 133, 0.12) 0%, #1a0b14 100%);
 }
 .topo-kpi-card.pink .topo-kpi-label { color: #fb7185; }
 .topo-kpi-card.pink .topo-kpi-val { color: #fda4af; }
 
 .topo-kpi-card.purple {
-  border-color: rgba(192, 132, 252, 0.3);
-  background: linear-gradient(135deg, rgba(192, 132, 252, 0.08) 0%, #0d121b 100%);
+  border-color: rgba(192, 132, 252, 0.4);
+  background: linear-gradient(135deg, rgba(192, 132, 252, 0.12) 0%, #150924 100%);
 }
 .topo-kpi-card.purple .topo-kpi-label { color: #c084fc; }
 .topo-kpi-card.purple .topo-kpi-val { color: #d8b4fe; }
 
 .topo-kpi-card.yellow {
-  border-color: rgba(251, 191, 36, 0.3);
-  background: linear-gradient(135deg, rgba(251, 191, 36, 0.08) 0%, #0d121b 100%);
+  border-color: rgba(251, 191, 36, 0.4);
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.12) 0%, #1c1404 100%);
 }
 .topo-kpi-card.yellow .topo-kpi-label { color: #fbbf24; }
 .topo-kpi-card.yellow .topo-kpi-val { color: #fde047; }
@@ -13675,7 +13704,7 @@ table.tabla-taladros td:first-child {
 
 /* Tabla Técnica de Replanteo */
 .topo-card-tabla {
-  border-color: rgba(255, 255, 255, 0.14);
+  border-color: rgba(6, 182, 212, 0.25);
 }
 
 .topo-table-responsive-container {
@@ -13691,40 +13720,41 @@ table.tabla-taladros td:first-child {
 }
 
 .topo-data-table th {
-  color: #cbd5e1;
+  color: #38bdf8;
   font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   text-align: left;
-  padding: 8px 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 10px 12px;
+  border-bottom: 1.5px solid rgba(6, 182, 212, 0.3);
   white-space: nowrap;
+  background: rgba(6, 182, 212, 0.08);
 }
 
 .topo-data-table td {
-  padding: 8px 10px;
-  color: #e2e8f0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  padding: 9px 12px;
+  color: #e0f2fe;
+  border-bottom: 1px solid rgba(6, 182, 212, 0.08);
   white-space: nowrap;
 }
 
 .topo-data-table tr.highlight-row {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(6, 182, 212, 0.14);
 }
 
 .topo-tag-badge {
-  background: #ffffff;
-  color: #0b0f14;
-  font-size: 9px;
-  font-weight: 800;
-  padding: 1px 5px;
+  background: #06b6d4;
+  color: #081b22;
+  font-size: 9.5px;
+  font-weight: 900;
+  padding: 2px 6px;
   border-radius: 4px;
   margin-left: 6px;
 }
 
 .topo-empty-hint {
   font-size: 12px;
-  color: #94a3b8;
+  color: #7dd3fc;
   font-style: italic;
   margin: 8px 0;
 }
@@ -13741,13 +13771,13 @@ table.tabla-taladros td:first-child {
 .topo-libreta-count {
   margin: 2px 0 0 0;
   font-size: 11px;
-  color: #94a3b8;
+  color: #7dd3fc;
 }
 
 .topo-btn-agregar-fila {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1.5px solid rgba(255, 255, 255, 0.2);
-  color: #ffffff;
+  background: rgba(6, 182, 212, 0.12);
+  border: 1.5px solid rgba(6, 182, 212, 0.4);
+  color: #38bdf8;
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.04em;
@@ -13762,9 +13792,10 @@ table.tabla-taladros td:first-child {
 }
 
 .topo-btn-agregar-fila:hover {
-  background: rgba(255, 255, 255, 0.14);
-  border-color: #ffffff;
-  box-shadow: 0 0 12px rgba(255, 255, 255, 0.15);
+  background: rgba(6, 182, 212, 0.25);
+  border-color: #06b6d4;
+  color: #ffffff;
+  box-shadow: 0 0 14px rgba(6, 182, 212, 0.35);
 }
 
 .topo-registros-list {
@@ -13774,8 +13805,8 @@ table.tabla-taladros td:first-child {
 }
 
 .topo-registro-card {
-  background: #090d14;
-  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  background: #040e17;
+  border: 1.5px solid rgba(6, 182, 212, 0.2);
   border-radius: 14px;
   padding: 14px 16px;
 }
@@ -13791,13 +13822,13 @@ table.tabla-taladros td:first-child {
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.06em;
-  color: #cbd5e1;
+  color: #38bdf8;
 }
 
 .topo-btn-quitar {
   background: transparent;
   border: none;
-  color: #94a3b8;
+  color: #7dd3fc;
   font-size: 10.5px;
   font-weight: 800;
   letter-spacing: 0.05em;
@@ -13806,15 +13837,15 @@ table.tabla-taladros td:first-child {
 }
 
 .topo-btn-quitar:hover {
-  color: #ffffff;
+  color: #f43f5e;
   text-decoration: underline;
 }
 
 /* Toggle Plano 2D / Vista 3D */
 .topo-view-toggle {
   display: flex;
-  background: #090d14;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #040e17;
+  border: 1px solid rgba(6, 182, 212, 0.25);
   border-radius: 8px;
   padding: 3px;
   gap: 4px;
@@ -13825,7 +13856,7 @@ table.tabla-taladros td:first-child {
   flex: 1;
   background: transparent;
   border: none;
-  color: #94a3b8;
+  color: #7dd3fc;
   font-size: 10.5px;
   font-weight: 800;
   letter-spacing: 0.04em;
@@ -13836,8 +13867,10 @@ table.tabla-taladros td:first-child {
 }
 
 .topo-view-tab.active {
-  background: #ffffff;
-  color: #0b0f14;
+  background: linear-gradient(135deg, #06b6d4, #0891b2);
+  color: #081b22;
+  font-weight: 900;
+  box-shadow: 0 2px 10px rgba(6, 182, 212, 0.4);
 }
 
 .topo-3d-canvas-wrapper {
@@ -13862,9 +13895,9 @@ table.tabla-taladros td:first-child {
 .topo-card-resultados-pendiente,
 .topo-card-resultados-area,
 .topo-card-resultados-buzones {
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
-  background: #0f141d !important;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.55) !important;
+  border: 1px solid rgba(6, 182, 212, 0.25) !important;
+  background: linear-gradient(145deg, rgba(8, 24, 36, 0.9) 0%, rgba(4, 13, 20, 0.95) 100%) !important;
+  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(6, 182, 212, 0.15) !important;
 }
 
 .topo-direccion-curva-wrapper {
@@ -13880,8 +13913,8 @@ table.tabla-taladros td:first-child {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(234, 179, 8, 0.1);
+  border: 1px solid rgba(234, 179, 8, 0.35);
   border-radius: 10px;
   padding: 10px 14px;
   margin-bottom: 14px;
@@ -13894,8 +13927,8 @@ table.tabla-taladros td:first-child {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.15);
-  color: #ffffff;
+  background: rgba(234, 179, 8, 0.25);
+  color: #fde047;
   font-weight: 800;
   font-size: 11px;
   flex-shrink: 0;
@@ -13904,8 +13937,8 @@ table.tabla-taladros td:first-child {
 .topo-aviso-text {
   font-size: 11.5px;
   line-height: 1.4;
-  color: #cbd5e1;
-  font-weight: 500;
+  color: #fef08a;
+  font-weight: 600;
 }
 
 .topo-gauge-circle-wrap {
@@ -13928,9 +13961,9 @@ table.tabla-taladros td:first-child {
 }
 
 .topo-btn-add-row-green {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1.5px solid rgba(255, 255, 255, 0.25);
-  color: #ffffff;
+  background: rgba(52, 211, 153, 0.12);
+  border: 1.5px solid rgba(52, 211, 153, 0.4);
+  color: #86efac;
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.06em;
@@ -13945,14 +13978,16 @@ table.tabla-taladros td:first-child {
 }
 
 .topo-btn-add-row-green:hover {
-  background: rgba(255, 255, 255, 0.14);
-  border-color: #ffffff;
+  background: rgba(52, 211, 153, 0.25);
+  border-color: #34d399;
+  color: #ffffff;
   transform: translateY(-1px);
+  box-shadow: 0 0 14px rgba(52, 211, 153, 0.35);
 }
 
 .topo-registro-card-item {
-  background: #090d14;
-  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  background: #040e17;
+  border: 1.5px solid rgba(6, 182, 212, 0.2);
   border-radius: 12px;
   padding: 14px 16px;
   margin-bottom: 12px;
@@ -13960,21 +13995,21 @@ table.tabla-taladros td:first-child {
 }
 
 .topo-registro-card-item:hover {
-  border-color: rgba(255, 255, 255, 0.3);
+  border-color: #06b6d4;
 }
 
 .topo-registro-title-pink {
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.06em;
-  color: #cbd5e1;
+  color: #38bdf8;
   text-transform: uppercase;
 }
 
 .topo-btn-quitar-row {
   background: transparent;
   border: none;
-  color: #94a3b8;
+  color: #7dd3fc;
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.06em;
@@ -13985,8 +14020,8 @@ table.tabla-taladros td:first-child {
 }
 
 .topo-btn-quitar-row:hover {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.08);
+  color: #f43f5e;
+  background: rgba(244, 63, 94, 0.12);
 }
 
 /* Leyenda del gráfico */
@@ -14003,8 +14038,9 @@ table.tabla-taladros td:first-child {
   justify-content: center;
   gap: 24px;
   padding: 8px 12px;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(6, 182, 212, 0.06);
   border-radius: 8px;
+  border: 1px solid rgba(6, 182, 212, 0.15);
 }
 
 .topo-chart-legend-item {
@@ -14013,7 +14049,7 @@ table.tabla-taladros td:first-child {
   gap: 6px;
   font-size: 11.5px;
   font-weight: 600;
-  color: #cbd5e1;
+  color: #e0f2fe;
 }
 
 .topo-legend-dot {
@@ -14023,7 +14059,7 @@ table.tabla-taladros td:first-child {
   flex-shrink: 0;
 }
 
-.topo-legend-dot.white { background: #ffffff; }
+.topo-legend-dot.white { background: #22d3ee; box-shadow: 0 0 6px #06b6d4; }
 .topo-legend-dot.cyan { background: #38bdf8; }
 .topo-legend-dot.green { background: #34d399; }
 .topo-legend-dot.pink { background: #fb7185; }
@@ -14032,11 +14068,11 @@ table.tabla-taladros td:first-child {
 
 .topo-legend-dot.dashed {
   background: transparent;
-  border: 1.5px dashed #94a3b8;
+  border: 1.5px dashed #38bdf8;
 }
 
 .topo-legend-dot.silver {
-  background: #94a3b8;
+  background: #38bdf8;
 }
 
 .topo-legend-dot.slate {
@@ -14044,7 +14080,7 @@ table.tabla-taladros td:first-child {
 }
 
 /* Helpers de color para texto técnico y métricas */
-.text-cyan { color: #38bdf8 !important; }
+.text-cyan { color: #22d3ee !important; }
 .text-pink { color: #fb7185 !important; }
 .text-green { color: #34d399 !important; }
 .text-yellow { color: #fbbf24 !important; }
@@ -14070,9 +14106,9 @@ table.tabla-taladros td:first-child {
 }
 
 .topo-btn-action-pill {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: #e2e8f0;
+  background: rgba(6, 182, 212, 0.1);
+  border: 1px solid rgba(6, 182, 212, 0.28);
+  color: #e0f2fe;
   font-size: 10.5px;
   font-weight: 700;
   padding: 4px 9px;
@@ -14087,17 +14123,18 @@ table.tabla-taladros td:first-child {
 }
 
 .topo-btn-action-pill:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(6, 182, 212, 0.22);
   color: #ffffff;
-  border-color: rgba(255, 255, 255, 0.3);
+  border-color: #06b6d4;
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.3);
 }
 
 .topo-btn-action-pill.active {
-  background: rgba(52, 211, 153, 0.16);
-  border-color: #34d399;
-  color: #34d399;
+  background: rgba(6, 182, 212, 0.25);
+  border-color: #22d3ee;
+  color: #22d3ee;
   font-weight: 800;
-  box-shadow: 0 0 10px rgba(52, 211, 153, 0.2);
+  box-shadow: 0 0 12px rgba(6, 182, 212, 0.4);
 }
 
 .topo-btn-action-pill.active-pink {
@@ -14311,4 +14348,494 @@ table.tabla-taladros td:first-child {
   text-align: center;
   font-weight: 600;
   letter-spacing: 0.03em;
+}
+
+/* ==========================================================================
+   ESTEREOGRAFÍA ESTRUCTURAL - DISEÑO PREMIUM ESMERALDA Y RESPONSIVO
+   ========================================================================== */
+
+.estereo-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background: radial-gradient(ellipse at 50% 0%, #08241e 0%, #051411 60%, #030a08 100%);
+  color: #f1f5f9;
+  font-family: inherit;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Header superior con botón volver */
+.estereo-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: rgba(4, 15, 12, 0.96);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(16, 185, 129, 0.22);
+  gap: 10px;
+  flex-shrink: 0;
+  z-index: 50;
+  min-height: 48px;
+  box-sizing: border-box;
+}
+
+.estereo-btn-volver {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(6, 26, 20, 0.85);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #34d399;
+  padding: 6px 12px;
+  border-radius: 9px;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.estereo-btn-volver:hover {
+  background: rgba(16, 185, 129, 0.22);
+  border-color: #10b981;
+  color: #ffffff;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);
+}
+
+/* Main workspace layout */
+.estereo-workspace {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Side panels */
+.estereo-panel-left,
+.estereo-panel-right {
+  overflow-y: auto;
+  padding: 16px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(16, 185, 129, 0.25) transparent;
+}
+
+.estereo-panel-left {
+  width: 370px;
+  flex: 0 0 370px;
+  border-right: 1px solid rgba(16, 185, 129, 0.15);
+  background: linear-gradient(180deg, rgba(8, 28, 22, 0.88) 0%, rgba(5, 16, 13, 0.95) 100%);
+}
+
+.estereo-panel-right {
+  width: 390px;
+  flex: 0 0 390px;
+  border-left: 1px solid rgba(16, 185, 129, 0.15);
+  background: linear-gradient(180deg, rgba(8, 28, 22, 0.88) 0%, rgba(5, 16, 13, 0.95) 100%);
+}
+
+.estereo-panel-left::-webkit-scrollbar,
+.estereo-panel-right::-webkit-scrollbar {
+  width: 5px;
+}
+.estereo-panel-left::-webkit-scrollbar-thumb,
+.estereo-panel-right::-webkit-scrollbar-thumb {
+  background: rgba(16, 185, 129, 0.25);
+  border-radius: 4px;
+}
+
+/* Central stereonet viewport */
+.estereo-viewport {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: radial-gradient(circle at 50% 45%, #08221b 0%, #040e0b 80%);
+  overflow: hidden;
+}
+
+.estereo-viewport-toolbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: rgba(4, 15, 12, 0.9);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(16, 185, 129, 0.15);
+  gap: 8px;
+  flex-wrap: wrap;
+  z-index: 10;
+}
+
+.estereo-mode-pill {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(6, 24, 19, 0.7);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: 10px;
+  padding: 3px;
+  gap: 4px;
+}
+
+.estereo-mode-btn {
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.estereo-mode-btn.activo {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.3), rgba(5, 150, 105, 0.25));
+  border: 1px solid #10b981;
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+}
+
+.estereo-canvas-container {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+  box-sizing: border-box;
+  overflow: hidden;
+  position: relative;
+}
+
+.estereo-radar-frame {
+  position: relative;
+  background: radial-gradient(circle at 50% 50%, #09261f 0%, #051411 75%, #020806 100%);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 28px;
+  padding: 14px;
+  box-shadow: 0 0 40px rgba(16, 185, 129, 0.12), inset 0 0 24px rgba(16, 185, 129, 0.05);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 530px;
+  transition: all 0.2s ease;
+}
+
+/* Floating HUD on bottom of stereonet */
+.estereo-hud-banner {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(4, 16, 13, 0.94);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  border-radius: 30px;
+  padding: 6px 14px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6), 0 0 15px rgba(16, 185, 129, 0.2);
+  z-index: 20;
+  max-width: 90%;
+  box-sizing: border-box;
+  animation: estereoFadeIn 0.3s ease-out;
+}
+
+@keyframes estereoFadeIn {
+  from { opacity: 0; transform: translate(-50%, 10px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* Card aesthetics */
+.estereo-card {
+  background: linear-gradient(145deg, rgba(8, 28, 22, 0.84) 0%, rgba(4, 15, 12, 0.94) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.18);
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.estereo-card:hover {
+  border-color: rgba(16, 185, 129, 0.35);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45), 0 0 16px rgba(16, 185, 129, 0.1);
+}
+
+.estereo-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.estereo-card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  font-weight: 800;
+  color: #f1f5f9;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.estereo-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: rgba(16, 185, 129, 0.16);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #34d399;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+/* Stepper Input Component for touch responsiveness */
+.estereo-stepper {
+  display: flex;
+  align-items: center;
+  background: rgba(4, 16, 13, 0.85);
+  border: 1px solid rgba(16, 185, 129, 0.22);
+  border-radius: 10px;
+  overflow: hidden;
+  transition: all 0.15s ease;
+}
+
+.estereo-stepper:focus-within {
+  border-color: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+}
+
+.estereo-stepper-btn {
+  background: transparent;
+  border: none;
+  color: #34d399;
+  width: 32px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+  transition: background 0.15s ease;
+}
+
+.estereo-stepper-btn:hover {
+  background: rgba(16, 185, 129, 0.18);
+  color: #ffffff;
+}
+
+.estereo-stepper-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  padding: 6px 4px;
+  outline: none;
+}
+
+/* Discontinuity Table */
+.estereo-table-wrap {
+  overflow-x: auto;
+  border-radius: 10px;
+  border: 1px solid rgba(16, 185, 129, 0.12);
+  background: rgba(4, 15, 12, 0.6);
+}
+
+.estereo-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  text-align: left;
+}
+
+.estereo-table th {
+  background: rgba(6, 24, 19, 0.85);
+  padding: 9px 10px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #34d399;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border-bottom: 1px solid rgba(16, 185, 129, 0.15);
+}
+
+.estereo-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: #e2e8f0;
+}
+
+.estereo-table tr:last-child td {
+  border-bottom: none;
+}
+
+.estereo-table tr:hover td {
+  background: rgba(16, 185, 129, 0.08);
+}
+
+/* SMR Meter Bar */
+.estereo-smr-bar {
+  display: flex;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  margin: 10px 0;
+  background: #061511;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.estereo-smr-segment {
+  flex: 1;
+  height: 100%;
+  opacity: 0.35;
+  transition: opacity 0.2s ease;
+}
+
+.estereo-smr-segment.activo {
+  opacity: 1;
+  box-shadow: 0 0 10px currentColor;
+}
+
+/* Barra de navegación inferior fija (Dock) */
+.estereo-bottom-nav {
+  display: none;
+  background: rgba(4, 15, 12, 0.97);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(16, 185, 129, 0.28);
+  padding: 6px 12px calc(8px + env(safe-area-inset-bottom, 8px));
+  z-index: 60;
+  flex-shrink: 0;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.7);
+}
+
+.estereo-bottom-tabs-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  max-width: 500px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.estereo-bottom-tab-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 6px 4px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  user-select: none;
+  min-height: 48px;
+  box-sizing: border-box;
+}
+
+.estereo-bottom-tab-btn.activo {
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.22) 0%, rgba(5, 150, 105, 0.14) 100%);
+  border-color: rgba(16, 185, 129, 0.45);
+  color: #34d399;
+  font-weight: 800;
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.2);
+}
+
+/* Responsive queries */
+@media (max-width: 1024px) {
+  .estereo-panel-left {
+    width: 320px;
+    flex: 0 0 320px;
+  }
+  .estereo-panel-right {
+    width: 340px;
+    flex: 0 0 340px;
+  }
+}
+
+@media (max-width: 860px) {
+  .estereo-bottom-nav {
+    display: block;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+  }
+
+  .estereo-workspace {
+    flex-direction: column;
+    padding-bottom: 74px; /* Essential: prevents cards from being occluded */
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .estereo-panel-left,
+  .estereo-panel-right {
+    padding: 12px 10px 84px !important;
+    overflow-y: visible;
+    width: 100% !important;
+    flex: 1 1 auto;
+    border: none !important;
+  }
+
+  .estereo-viewport {
+    width: 100% !important;
+    flex: 1 1 auto;
+    border: none !important;
+    padding-bottom: 74px;
+  }
+
+  .estereo-panel-left[data-oculto="true"],
+  .estereo-panel-right[data-oculto="true"],
+  .estereo-viewport[data-oculto="true"] {
+    display: none !important;
+  }
+
+  .estereo-radar-frame {
+    padding: 8px;
+    border-radius: 20px;
+    max-width: 100%;
+  }
+
+  .estereo-canvas-container {
+    padding: 10px 8px;
+  }
+
+  .estereo-header {
+    padding: 8px 12px;
+  }
 }

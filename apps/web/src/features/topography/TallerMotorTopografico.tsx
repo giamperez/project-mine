@@ -2220,28 +2220,28 @@ function VisorDinamicoSVG({
           {/* Grilla de fondo */}
           <defs>
             <pattern id="topoGridCV" width="30" height="30" patternUnits="userSpaceOnUse">
-              <path d="M 30 0 L 0 0 0 30" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+              <path d="M 30 0 L 0 0 0 30" fill="none" stroke="rgba(6,182,212,0.08)" strokeWidth="1" />
             </pattern>
           </defs>
           <rect width={W} height={H} fill="url(#topoGridCV)" rx="8" />
 
           {/* Ejes y Etiquetas */}
-          <text x="20" y="28" fill="#94a3b8" fontSize="10.5" fontWeight="700" letterSpacing="0.05em">
+          <text x="20" y="28" fill="#38bdf8" fontSize="10.5" fontWeight="700" letterSpacing="0.05em">
             COTA
           </text>
-          <text x="20" y={H - 14} fill="#94a3b8" fontSize="10.5" fontWeight="700" letterSpacing="0.05em">
+          <text x="20" y={H - 14} fill="#38bdf8" fontSize="10.5" fontWeight="700" letterSpacing="0.05em">
             PROGRESIVA
           </text>
-          <text x={W - 35} y="28" fill="#94a3b8" fontSize="13" fontWeight="bold">
+          <text x={W - 35} y="28" fill="#22d3ee" fontSize="13" fontWeight="bold">
             ↑ N
           </text>
 
-          {/* Líneas tangentes en trazo discontinuo slate */}
-          <line x1={xPVC} y1={yPVC} x2={xPVI} y2={yPVI} stroke="#64748b" strokeWidth="1.5" strokeDasharray="4 4" />
-          <line x1={xPVI} y1={yPVI} x2={xPVT} y2={yPVT} stroke="#64748b" strokeWidth="1.5" strokeDasharray="4 4" />
+          {/* Líneas tangentes en trazo discontinuo cian translúcido */}
+          <line x1={xPVC} y1={yPVC} x2={xPVI} y2={yPVI} stroke="rgba(6,182,212,0.4)" strokeWidth="1.5" strokeDasharray="4 4" />
+          <line x1={xPVI} y1={yPVI} x2={xPVT} y2={yPVT} stroke="rgba(6,182,212,0.4)" strokeWidth="1.5" strokeDasharray="4 4" />
 
-          {/* Curva Parabólica en blanco de alto contraste */}
-          <path d={pathCurva} fill="none" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" />
+          {/* Curva Parabólica en turquesa brillante */}
+          <path d={pathCurva} fill="none" stroke="#06b6d4" strokeWidth="2.8" strokeLinecap="round" />
 
           {/* Puntos de muestreo sobre la curva */}
           {tabla.map((t: any, i: number) => {
@@ -2255,8 +2255,8 @@ function VisorDinamicoSVG({
                   cx={px}
                   cy={py}
                   r={isCrit ? 5 : (isEndpoint ? 4.5 : 3.5)}
-                  fill={isCrit ? "#ffffff" : (isEndpoint ? "#ffffff" : "#94a3b8")}
-                  stroke="#0f141d"
+                  fill={isCrit ? "#fbbf24" : (isEndpoint ? "#22d3ee" : "#38bdf8")}
+                  stroke="#040e17"
                   strokeWidth="1.5"
                 />
               </g>
@@ -2264,13 +2264,13 @@ function VisorDinamicoSVG({
           })}
 
           {/* Labels PVC, PVI, PVT */}
-          <text x={xPVC} y={yPVC - 8} fill="#ffffff" fontSize="10" textAnchor="middle" fontWeight="bold">
+          <text x={xPVC} y={yPVC - 8} fill="#22d3ee" fontSize="10" textAnchor="middle" fontWeight="bold">
             PVC
           </text>
-          <text x={xPVI} y={yPVI - 10} fill="#cbd5e1" fontSize="10" textAnchor="middle" fontWeight="bold">
+          <text x={xPVI} y={yPVI - 10} fill="#38bdf8" fontSize="10" textAnchor="middle" fontWeight="bold">
             PVI
           </text>
-          <text x={xPVT} y={yPVT - 8} fill="#ffffff" fontSize="10" textAnchor="middle" fontWeight="bold">
+          <text x={xPVT} y={yPVT - 8} fill="#22d3ee" fontSize="10" textAnchor="middle" fontWeight="bold">
             PVT
           </text>
         </svg>
@@ -2286,7 +2286,7 @@ function VisorDinamicoSVG({
             <span>Tangentes de entrada/salida</span>
           </div>
           <div className="topo-chart-legend-item">
-            <span className="topo-legend-dot silver" />
+            <span className="topo-legend-dot cyan" />
             <span>Estaciones y cotas</span>
           </div>
         </div>
@@ -2338,42 +2338,42 @@ function VisorDinamicoSVG({
         <svg viewBox={`0 0 ${W} ${H}`} className="topo-svg-canvas">
           <defs>
             <pattern id="topoGridCH" width="30" height="30" patternUnits="userSpaceOnUse">
-              <path d="M 30 0 L 0 0 0 30" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+              <path d="M 30 0 L 0 0 0 30" fill="none" stroke="rgba(6,182,212,0.08)" strokeWidth="1" />
             </pattern>
           </defs>
           <rect width={W} height={H} fill="url(#topoGridCH)" rx="8" />
 
           {/* Ejes y Etiquetas */}
-          <text x="20" y="28" fill="#94a3b8" fontSize="10.5" fontWeight="700" letterSpacing="0.05em">
+          <text x="20" y="28" fill="#38bdf8" fontSize="10.5" fontWeight="700" letterSpacing="0.05em">
             NORTE
           </text>
-          <text x={W - 48} y={H - 14} fill="#94a3b8" fontSize="10.5" fontWeight="700" letterSpacing="0.05em">
+          <text x={W - 48} y={H - 14} fill="#38bdf8" fontSize="10.5" fontWeight="700" letterSpacing="0.05em">
             ESTE
           </text>
-          <text x={W - 35} y="28" fill="#94a3b8" fontSize="13" fontWeight="bold">
+          <text x={W - 35} y="28" fill="#22d3ee" fontSize="13" fontWeight="bold">
             ↑ N
           </text>
 
           {/* Radios desde el Centro hacia PC y PT */}
-          <line x1={ptCentro.x} y1={ptCentro.y} x2={ptPC.x} y2={ptPC.y} stroke="rgba(255, 255, 255, 0.25)" strokeWidth="1.5" strokeDasharray="3 3" />
-          <line x1={ptCentro.x} y1={ptCentro.y} x2={ptPT.x} y2={ptPT.y} stroke="rgba(255, 255, 255, 0.25)" strokeWidth="1.5" strokeDasharray="3 3" />
+          <line x1={ptCentro.x} y1={ptCentro.y} x2={ptPC.x} y2={ptPC.y} stroke="rgba(6, 182, 212, 0.45)" strokeWidth="1.5" strokeDasharray="3 3" />
+          <line x1={ptCentro.x} y1={ptCentro.y} x2={ptPT.x} y2={ptPT.y} stroke="rgba(6, 182, 212, 0.45)" strokeWidth="1.5" strokeDasharray="3 3" />
 
-          {/* Tangentes PC -> PI y PI -> PT en trazo discontinuo slate */}
-          <line x1={ptPC.x} y1={ptPC.y} x2={ptPI.x} y2={ptPI.y} stroke="#64748b" strokeWidth="1.5" strokeDasharray="4 4" />
-          <line x1={ptPI.x} y1={ptPI.y} x2={ptPT.x} y2={ptPT.y} stroke="#64748b" strokeWidth="1.5" strokeDasharray="4 4" />
+          {/* Tangentes PC -> PI y PI -> PT en trazo discontinuo cian */}
+          <line x1={ptPC.x} y1={ptPC.y} x2={ptPI.x} y2={ptPI.y} stroke="rgba(6, 182, 212, 0.4)" strokeWidth="1.5" strokeDasharray="4 4" />
+          <line x1={ptPI.x} y1={ptPI.y} x2={ptPT.x} y2={ptPT.y} stroke="rgba(6, 182, 212, 0.4)" strokeWidth="1.5" strokeDasharray="4 4" />
 
-          {/* Curva circular en blanco de alto contraste */}
-          <path d={pathArco} fill="none" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" />
+          {/* Curva circular en turquesa */}
+          <path d={pathArco} fill="none" stroke="#06b6d4" strokeWidth="2.8" strokeLinecap="round" />
 
           {/* Vértice Centro */}
-          <circle cx={ptCentro.x} cy={ptCentro.y} r="4" fill="#94a3b8" stroke="#0f141d" strokeWidth="1.5" />
-          <text x={ptCentro.x + 8} y={ptCentro.y + 4} fill="#cbd5e1" fontSize="9.5" fontWeight="bold">
+          <circle cx={ptCentro.x} cy={ptCentro.y} r="4.5" fill="#fbbf24" stroke="#040e17" strokeWidth="1.5" />
+          <text x={ptCentro.x + 8} y={ptCentro.y + 4} fill="#fde047" fontSize="9.5" fontWeight="bold">
             CENTRO
           </text>
 
           {/* Vértice PI */}
-          <circle cx={ptPI.x} cy={ptPI.y} r="4.5" fill="#ffffff" stroke="#0f141d" strokeWidth="1.5" />
-          <text x={ptPI.x} y={ptPI.y - 8} fill="#ffffff" fontSize="10" textAnchor="middle" fontWeight="bold">
+          <circle cx={ptPI.x} cy={ptPI.y} r="4.5" fill="#22d3ee" stroke="#040e17" strokeWidth="1.5" />
+          <text x={ptPI.x} y={ptPI.y - 8} fill="#38bdf8" fontSize="10" textAnchor="middle" fontWeight="bold">
             PI
           </text>
 
@@ -2388,14 +2388,14 @@ function VisorDinamicoSVG({
                   cx={px}
                   cy={py}
                   r={isEndpoint ? 4.5 : 3}
-                  fill={isEndpoint ? "#ffffff" : "#94a3b8"}
-                  stroke="#0f141d"
+                  fill={isEndpoint ? "#22d3ee" : "#38bdf8"}
+                  stroke="#040e17"
                   strokeWidth="1.5"
                 />
                 <text
                   x={px}
                   y={py - 7}
-                  fill={isEndpoint ? "#ffffff" : "#cbd5e1"}
+                  fill={isEndpoint ? "#22d3ee" : "#7dd3fc"}
                   fontSize={isEndpoint ? "9.5" : "8"}
                   textAnchor="middle"
                   fontWeight="bold"
@@ -2418,7 +2418,7 @@ function VisorDinamicoSVG({
             <span>Tangentes y radios</span>
           </div>
           <div className="topo-chart-legend-item">
-            <span className="topo-legend-dot silver" />
+            <span className="topo-legend-dot cyan" />
             <span>Estaciones PC / PT</span>
           </div>
         </div>
@@ -2464,20 +2464,20 @@ function VisorDinamicoSVG({
       <svg viewBox={`0 0 ${W} ${H}`} className="topo-svg-canvas">
         <defs>
           <pattern id="topoGridPol" width="30" height="30" patternUnits="userSpaceOnUse">
-            <path d="M 30 0 L 0 0 0 30" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
+            <path d="M 30 0 L 0 0 0 30" fill="none" stroke="rgba(6,182,212,0.08)" strokeWidth="1" />
           </pattern>
         </defs>
         <rect width={W} height={H} fill="url(#topoGridPol)" rx="8" />
 
-        <text x="20" y="25" fill="#cbd5e1" fontSize="11" fontWeight="700">
+        <text x="20" y="25" fill="#38bdf8" fontSize="11" fontWeight="700">
           PLANTA (E, N)
         </text>
-        <text x={W - 35} y="30" fill="#94a3b8" fontSize="13" fontWeight="bold">
+        <text x={W - 35} y="30" fill="#22d3ee" fontSize="13" fontWeight="bold">
           ↑ N
         </text>
 
         {/* Área encerrada */}
-        <path d={pathPoligono} fill="rgba(255, 255, 255, 0.05)" stroke="#ffffff" strokeWidth="2.2" strokeLinejoin="round" />
+        <path d={pathPoligono} fill="rgba(6, 182, 212, 0.12)" stroke="#06b6d4" strokeWidth="2.8" strokeLinejoin="round" />
 
         {/* Etiquetas de distancia por lado */}
         {Array.from({ length: n }).map((_, idx) => {
@@ -2486,7 +2486,7 @@ function VisorDinamicoSVG({
           const mid = { x: (p1.px + p2.px) / 2, y: (p1.py + p2.py) / 2 };
           const dist = tabla[idx]?.distancia;
           return (
-            <text key={`d-${idx}`} x={mid.x} y={mid.y - 4} fill="#94a3b8" fontSize="9.5" textAnchor="middle" fontWeight="600">
+            <text key={`d-${idx}`} x={mid.x} y={mid.y - 4} fill="#7dd3fc" fontSize="9.5" textAnchor="middle" fontWeight="600">
               {dist !== undefined ? `${dist.toFixed(2)} m` : ""}
             </text>
           );
@@ -2497,8 +2497,8 @@ function VisorDinamicoSVG({
           const p = screenPts[idx];
           return (
             <g key={`v-${idx}`}>
-              <circle cx={p.px} cy={p.py} r="4.5" fill="#ffffff" stroke="#0f141d" strokeWidth="1.5" />
-              <text x={p.px} y={p.py - 10} fill="#ffffff" fontSize="10" textAnchor="middle" fontWeight="bold">
+              <circle cx={p.px} cy={p.py} r="4.5" fill="#22d3ee" stroke="#040e17" strokeWidth="1.5" />
+              <text x={p.px} y={p.py - 10} fill="#38bdf8" fontSize="10" textAnchor="middle" fontWeight="bold">
                 E-{idx + 1}
               </text>
             </g>
@@ -2550,36 +2550,36 @@ function VisorDinamicoSVG({
         <svg viewBox={`0 0 ${W} ${H}`} className="topo-svg-canvas">
           <defs>
             <pattern id="topoGridNiv" width="30" height="30" patternUnits="userSpaceOnUse">
-              <path d="M 30 0 L 0 0 0 30" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+              <path d="M 30 0 L 0 0 0 30" fill="none" stroke="rgba(6,182,212,0.08)" strokeWidth="1" />
             </pattern>
           </defs>
           <rect width={W} height={H} fill="url(#topoGridNiv)" rx="8" />
 
           {/* Ejes y Etiquetas */}
-          <text x="20" y="28" fill="#94a3b8" fontSize="10.5" fontWeight="700" letterSpacing="0.05em">
+          <text x="20" y="28" fill="#38bdf8" fontSize="10.5" fontWeight="700" letterSpacing="0.05em">
             COTA
           </text>
-          <text x="20" y={H - 14} fill="#94a3b8" fontSize="10.5" fontWeight="700" letterSpacing="0.05em">
+          <text x="20" y={H - 14} fill="#38bdf8" fontSize="10.5" fontWeight="700" letterSpacing="0.05em">
             PROGRESIVA
           </text>
-          <text x={W - 35} y="28" fill="#94a3b8" fontSize="13" fontWeight="bold">
+          <text x={W - 35} y="28" fill="#22d3ee" fontSize="13" fontWeight="bold">
             ↑ N
           </text>
 
-          {/* Línea Geometría (Blanco alto contraste) */}
-          <path d={pathGeometria} fill="none" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+          {/* Línea Geometría (Turquesa brillante) */}
+          <path d={pathGeometria} fill="none" stroke="#06b6d4" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
 
-          {/* Línea Control (Discontinua slate) */}
-          <path d={pathControl} fill="none" stroke="#64748b" strokeWidth="1.5" strokeDasharray="5 3" strokeLinecap="round" strokeLinejoin="round" />
+          {/* Línea Control (Esmeralda compensada) */}
+          <path d={pathControl} fill="none" stroke="#34d399" strokeWidth="1.8" strokeDasharray="5 3" strokeLinecap="round" strokeLinejoin="round" />
 
-          {/* Puntos (Blanco con borde oscuro) */}
+          {/* Puntos (Cian con borde oscuro) */}
           {puntosPerfil.map((p, idx) => {
             const px = mapX(p.dist);
             const py = mapY(p.cota);
             return (
               <g key={idx}>
-                <circle cx={px} cy={py} r="4.5" fill="#ffffff" stroke="#0f141d" strokeWidth="1.5" />
-                <text x={px} y={py - 10} fill="#f8fafc" fontSize="9.5" textAnchor="middle" fontWeight="bold">
+                <circle cx={px} cy={py} r="4.5" fill="#22d3ee" stroke="#040e17" strokeWidth="1.5" />
+                <text x={px} y={py - 10} fill="#38bdf8" fontSize="9.5" textAnchor="middle" fontWeight="bold">
                   {p.punto}
                 </text>
               </g>
@@ -2594,11 +2594,11 @@ function VisorDinamicoSVG({
             <span>Perfil geométrico</span>
           </div>
           <div className="topo-chart-legend-item">
-            <span className="topo-legend-dot dashed" />
+            <span className="topo-legend-dot green" />
             <span>Cota compensada</span>
           </div>
           <div className="topo-chart-legend-item">
-            <span className="topo-legend-dot silver" />
+            <span className="topo-legend-dot cyan" />
             <span>Puntos de cambio / BM</span>
           </div>
         </div>
@@ -2637,41 +2637,41 @@ function VisorDinamicoSVG({
         <svg viewBox={`0 0 ${W} ${H}`} className="topo-svg-canvas">
           <defs>
             <pattern id="topoGridCoo" width="30" height="30" patternUnits="userSpaceOnUse">
-              <path d="M 30 0 L 0 0 0 30" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+              <path d="M 30 0 L 0 0 0 30" fill="none" stroke="rgba(6,182,212,0.08)" strokeWidth="1" />
             </pattern>
           </defs>
           <rect width={W} height={H} fill="url(#topoGridCoo)" rx="8" />
 
           {/* Ejes y Etiquetas */}
-          <text x="20" y="28" fill="#94a3b8" fontSize="10.5" fontWeight="700" letterSpacing="0.05em">
+          <text x="20" y="28" fill="#38bdf8" fontSize="10.5" fontWeight="700" letterSpacing="0.05em">
             NORTE
           </text>
-          <text x={W - 48} y={H - 14} fill="#94a3b8" fontSize="10.5" fontWeight="700" letterSpacing="0.05em">
+          <text x={W - 48} y={H - 14} fill="#38bdf8" fontSize="10.5" fontWeight="700" letterSpacing="0.05em">
             ESTE
           </text>
-          <text x={W - 35} y="28" fill="#94a3b8" fontSize="13" fontWeight="bold">
+          <text x={W - 35} y="28" fill="#22d3ee" fontSize="13" fontWeight="bold">
             ↑ N
           </text>
 
           {/* Línea Vector P1 -> P2 */}
-          <line x1={pt1.x} y1={pt1.y} x2={pt2Dir.x} y2={pt2Dir.y} stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" />
+          <line x1={pt1.x} y1={pt1.y} x2={pt2Dir.x} y2={pt2Dir.y} stroke="#06b6d4" strokeWidth="2.8" strokeLinecap="round" />
 
-          {/* P1 (Vértice base blanco) */}
-          <circle cx={pt1.x} cy={pt1.y} r="4.5" fill="#ffffff" stroke="#0f141d" strokeWidth="1.5" />
-          <text x={pt1.x + 8} y={pt1.y - 8} fill="#f8fafc" fontSize="10" fontWeight="bold">
+          {/* P1 (Vértice base cian) */}
+          <circle cx={pt1.x} cy={pt1.y} r="4.5" fill="#22d3ee" stroke="#040e17" strokeWidth="1.5" />
+          <text x={pt1.x + 8} y={pt1.y - 8} fill="#38bdf8" fontSize="10" fontWeight="bold">
             P1
           </text>
 
-          {/* P2 Directo (Titanio plata) */}
-          <circle cx={pt2Dir.x} cy={pt2Dir.y} r="4.5" fill="#cbd5e1" stroke="#0f141d" strokeWidth="1.5" />
-          <text x={pt2Dir.x + 8} y={pt2Dir.y - 8} fill="#cbd5e1" fontSize="9.5" fontWeight="bold">
+          {/* P2 Directo (Esmeralda) */}
+          <circle cx={pt2Dir.x} cy={pt2Dir.y} r="4.5" fill="#34d399" stroke="#040e17" strokeWidth="1.5" />
+          <text x={pt2Dir.x + 8} y={pt2Dir.y - 8} fill="#86efac" fontSize="9.5" fontWeight="bold">
             P2 directo
           </text>
 
           {/* P2 Inverso si difiere */}
           {Math.abs(pt2Dir.x - pt2Inv.x) > 1 || Math.abs(pt2Dir.y - pt2Inv.y) > 1 ? (
             <g>
-              <circle cx={pt2Inv.x} cy={pt2Inv.y} r="4" fill="#64748b" stroke="#0f141d" strokeWidth="1.5" />
+              <circle cx={pt2Inv.x} cy={pt2Inv.y} r="4" fill="#64748b" stroke="#040e17" strokeWidth="1.5" />
               <text x={pt2Inv.x + 8} y={pt2Inv.y + 12} fill="#94a3b8" fontSize="9.5" fontWeight="bold">
                 P2 ingresado
               </text>
@@ -2686,11 +2686,11 @@ function VisorDinamicoSVG({
             <span>Vector de radiación</span>
           </div>
           <div className="topo-chart-legend-item">
-            <span className="topo-legend-dot silver" />
+            <span className="topo-legend-dot cyan" />
             <span>Vértice base P1</span>
           </div>
           <div className="topo-chart-legend-item">
-            <span className="topo-legend-dot slate" />
+            <span className="topo-legend-dot green" />
             <span>Punto radiado P2</span>
           </div>
         </div>
@@ -2724,24 +2724,24 @@ function VisorDinamicoSVG({
         <svg viewBox={`0 0 ${W} ${H}`} className="topo-svg-canvas">
           <defs>
             <pattern id="topoGridPEN" width="30" height="30" patternUnits="userSpaceOnUse">
-              <path d="M 30 0 L 0 0 0 30" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+              <path d="M 30 0 L 0 0 0 30" fill="none" stroke="rgba(6,182,212,0.08)" strokeWidth="1" />
             </pattern>
           </defs>
           <rect width={W} height={H} fill="url(#topoGridPEN)" rx="8" />
 
           {/* Ejes y Etiquetas */}
-          <text x="20" y="28" fill="#94a3b8" fontSize="10.5" fontWeight="700" letterSpacing="0.05em">
+          <text x="20" y="28" fill="#38bdf8" fontSize="10.5" fontWeight="700" letterSpacing="0.05em">
             COTA
           </text>
-          <text x="20" y={H - 14} fill="#94a3b8" fontSize="10.5" fontWeight="700" letterSpacing="0.05em">
+          <text x="20" y={H - 14} fill="#38bdf8" fontSize="10.5" fontWeight="700" letterSpacing="0.05em">
             PROGRESIVA
           </text>
-          <text x={W - 35} y="28" fill="#94a3b8" fontSize="13" fontWeight="bold">
+          <text x={W - 35} y="28" fill="#22d3ee" fontSize="13" fontWeight="bold">
             ↑ N
           </text>
 
-          {/* Línea Geometría (Blanco alto contraste) */}
-          <line x1={xIni} y1={yIni} x2={xFin} y2={yFin} stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" />
+          {/* Línea Geometría (Turquesa brillante) */}
+          <line x1={xIni} y1={yIni} x2={xFin} y2={yFin} stroke="#06b6d4" strokeWidth="2.8" strokeLinecap="round" />
 
           {/* Puntos de muestreo sobre la rasante */}
           {tabla.map((t: any, idx: number) => {
@@ -2754,8 +2754,8 @@ function VisorDinamicoSVG({
                   cx={px}
                   cy={py}
                   r={isEndpoint ? 4.5 : 3.5}
-                  fill={isEndpoint ? "#ffffff" : "#94a3b8"}
-                  stroke="#0f141d"
+                  fill={isEndpoint ? "#22d3ee" : "#38bdf8"}
+                  stroke="#040e17"
                   strokeWidth="1.5"
                 />
               </g>
@@ -2770,7 +2770,7 @@ function VisorDinamicoSVG({
             <span>Rasante calculada</span>
           </div>
           <div className="topo-chart-legend-item">
-            <span className="topo-legend-dot silver" />
+            <span className="topo-legend-dot cyan" />
             <span>Estacas extremas</span>
           </div>
           <div className="topo-chart-legend-item">
@@ -2815,28 +2815,28 @@ function VisorDinamicoSVG({
         <svg viewBox={`0 0 ${W} ${H}`} className="topo-svg-canvas">
           <defs>
             <pattern id="topoGridArea" width="30" height="30" patternUnits="userSpaceOnUse">
-              <path d="M 30 0 L 0 0 0 30" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+              <path d="M 30 0 L 0 0 0 30" fill="none" stroke="rgba(6,182,212,0.08)" strokeWidth="1" />
             </pattern>
           </defs>
           <rect width={W} height={H} fill="url(#topoGridArea)" rx="8" />
 
           {/* Ejes y Etiquetas */}
-          <text x="20" y="28" fill="#94a3b8" fontSize="10.5" fontWeight="700" letterSpacing="0.05em">
+          <text x="20" y="28" fill="#38bdf8" fontSize="10.5" fontWeight="700" letterSpacing="0.05em">
             NORTE
           </text>
-          <text x={W - 48} y={H - 14} fill="#94a3b8" fontSize="10.5" fontWeight="700" letterSpacing="0.05em">
+          <text x={W - 48} y={H - 14} fill="#38bdf8" fontSize="10.5" fontWeight="700" letterSpacing="0.05em">
             ESTE
           </text>
-          <text x={W - 35} y="28" fill="#94a3b8" fontSize="13" fontWeight="bold">
+          <text x={W - 35} y="28" fill="#22d3ee" fontSize="13" fontWeight="bold">
             ↑ N
           </text>
 
-          {/* Polígono cerrado en blanco monocromo */}
+          {/* Polígono cerrado en turquesa */}
           <path
             d={pathPoligono}
-            fill="rgba(255, 255, 255, 0.05)"
-            stroke="#ffffff"
-            strokeWidth="2.2"
+            fill="rgba(6, 182, 212, 0.14)"
+            stroke="#06b6d4"
+            strokeWidth="2.8"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
@@ -2851,11 +2851,11 @@ function VisorDinamicoSVG({
 
             return (
               <g key={idx}>
-                <circle cx={px} cy={py} r="4.5" fill="#ffffff" stroke="#0f141d" strokeWidth="1.5" />
+                <circle cx={px} cy={py} r="4.5" fill="#22d3ee" stroke="#040e17" strokeWidth="1.5" />
                 <text
                   x={labelX}
                   y={labelY}
-                  fill="#f8fafc"
+                  fill="#38bdf8"
                   fontSize="10"
                   fontWeight="bold"
                   textAnchor={textAnchor}
@@ -2874,7 +2874,7 @@ function VisorDinamicoSVG({
             <span>Lindero perimetral</span>
           </div>
           <div className="topo-chart-legend-item">
-            <span className="topo-legend-dot silver" />
+            <span className="topo-legend-dot cyan" />
             <span>Vértices catastrales</span>
           </div>
           <div className="topo-chart-legend-item">
@@ -2914,24 +2914,24 @@ function VisorDinamicoSVG({
         <svg viewBox={`0 0 ${W} ${H}`} className="topo-svg-canvas">
           <defs>
             <pattern id="topoGridBUZ" width="30" height="30" patternUnits="userSpaceOnUse">
-              <path d="M 30 0 L 0 0 0 30" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+              <path d="M 30 0 L 0 0 0 30" fill="none" stroke="rgba(6,182,212,0.08)" strokeWidth="1" />
             </pattern>
           </defs>
           <rect width={W} height={H} fill="url(#topoGridBUZ)" rx="8" />
 
           {/* Ejes y Etiquetas */}
-          <text x="20" y="28" fill="#94a3b8" fontSize="10.5" fontWeight="700" letterSpacing="0.05em">
+          <text x="20" y="28" fill="#38bdf8" fontSize="10.5" fontWeight="700" letterSpacing="0.05em">
             COTA
           </text>
-          <text x="20" y={H - 14} fill="#94a3b8" fontSize="10.5" fontWeight="700" letterSpacing="0.05em">
+          <text x="20" y={H - 14} fill="#38bdf8" fontSize="10.5" fontWeight="700" letterSpacing="0.05em">
             PROGRESIVA
           </text>
-          <text x={W - 35} y="28" fill="#94a3b8" fontSize="13" fontWeight="bold">
+          <text x={W - 35} y="28" fill="#22d3ee" fontSize="13" fontWeight="bold">
             ↑ N
           </text>
 
-          {/* Línea rasante de fondo de buzones (Blanco) */}
-          <path d={pathPerfil} fill="none" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" />
+          {/* Línea rasante de fondo de buzones (Turquesa) */}
+          <path d={pathPerfil} fill="none" stroke="#06b6d4" strokeWidth="2.8" strokeLinecap="round" />
 
           {/* Puntos / Buzones sobre el perfil */}
           {perfil.map((p: any, idx: number) => {
@@ -2944,8 +2944,8 @@ function VisorDinamicoSVG({
                   cx={px}
                   cy={py}
                   r={isEndpoint ? 4.5 : 3.5}
-                  fill={isEndpoint ? "#ffffff" : "#94a3b8"}
-                  stroke="#0c0712"
+                  fill={isEndpoint ? "#22d3ee" : "#38bdf8"}
+                  stroke="#040e17"
                   strokeWidth="1.5"
                 />
               </g>
@@ -2960,7 +2960,7 @@ function VisorDinamicoSVG({
             <span>Colector / Rasante de fondo</span>
           </div>
           <div className="topo-chart-legend-item">
-            <span className="topo-legend-dot silver" />
+            <span className="topo-legend-dot cyan" />
             <span>Buzón inicial/final</span>
           </div>
           <div className="topo-chart-legend-item">
@@ -2978,15 +2978,15 @@ function VisorDinamicoSVG({
       <svg viewBox="0 0 600 240" className="topo-svg-canvas">
         <defs>
           <pattern id="topoGridGen" width="30" height="30" patternUnits="userSpaceOnUse">
-            <path d="M 30 0 L 0 0 0 30" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
+            <path d="M 30 0 L 0 0 0 30" fill="none" stroke="rgba(6,182,212,0.08)" strokeWidth="1" />
           </pattern>
         </defs>
         <rect width="600" height="240" fill="url(#topoGridGen)" rx="8" />
-        <circle cx="300" cy="120" r="70" fill="none" stroke="#64748b" strokeWidth="1.5" strokeDasharray="3 3" />
-        <path d="M 230 120 A 70 70 0 0 1 370 120" fill="none" stroke="#ffffff" strokeWidth="2.2" />
-        <circle cx="230" cy="120" r="4" fill="#ffffff" />
-        <circle cx="370" cy="120" r="4" fill="#ffffff" />
-        <text x="300" y="160" fill="#94a3b8" fontSize="11" textAnchor="middle">
+        <circle cx="300" cy="120" r="70" fill="none" stroke="rgba(6,182,212,0.4)" strokeWidth="1.5" strokeDasharray="3 3" />
+        <path d="M 230 120 A 70 70 0 0 1 370 120" fill="none" stroke="#06b6d4" strokeWidth="2.8" />
+        <circle cx="230" cy="120" r="4.5" fill="#22d3ee" stroke="#040e17" strokeWidth="1.5" />
+        <circle cx="370" cy="120" r="4.5" fill="#22d3ee" stroke="#040e17" strokeWidth="1.5" />
+        <text x="300" y="160" fill="#38bdf8" fontSize="11" textAnchor="middle" fontWeight="bold">
           Geometría Vectorial Dinámica Activa
         </text>
       </svg>

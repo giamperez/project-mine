@@ -14,9 +14,9 @@ interface Visor3DTopograficoProps {
  */
 function crearEtiqueta3DSprite(
   texto: string,
-  colorTexto = "#ffffff",
+  colorTexto = "#06b6d4",
   colorFondo = "rgba(13, 17, 24, 0.92)",
-  colorBorde = "rgba(255, 255, 255, 0.22)"
+  colorBorde = "rgba(6, 182, 212, 0.4)"
 ): THREE.Sprite {
   const canvas = document.createElement("canvas");
   canvas.width = 320;

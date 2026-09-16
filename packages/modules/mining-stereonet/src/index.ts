@@ -1,5 +1,5 @@
 export { MODULO_ID } from "./etiquetas.js";
-export { importarDiscontinuidadesDesdeCSV, exportarDiscontinuidadesCSV } from "./io.js";
+export { importarDiscontinuidadesDesdeCSV, exportarDiscontinuidadesCSV, FORMATO_IMPORTACION_DISCONTINUIDADES } from "./io.js";
 
 export const METADATA_MODULO = {
   id: "mining.stereonet",

@@ -58,7 +58,9 @@ export default function App() {
             />
           )}
           {espacio === "geomecanica" && <EspacioGeomecanica />}
-          {espacio === "estereografia" && <EspacioEstereografia />}
+          {espacio === "estereografia" && (
+            <EspacioEstereografia onVolverAlPortal={() => setVistaModulo("portal")} />
+          )}
           {espacio === "acarreo" && <EspacioAcarreo />}
           {espacio === "modeloBloques" && <EspacioModeloBloques />}
           {espacio === "modelo3d" && (

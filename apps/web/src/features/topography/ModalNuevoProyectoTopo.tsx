@@ -36,7 +36,7 @@ export default function ModalNuevoProyectoTopo({ onVolver, onCrearProyecto }: Mo
       <div className="topo-modal-content">
         {/* Card Identificación */}
         <section className="topo-card topo-card-identificacion">
-          <div className="topo-card-tag monochrome">IDENTIFICACIÓN</div>
+          <div className="topo-card-tag cyan">IDENTIFICACIÓN</div>
           <h2 className="topo-card-title">Datos del proyecto</h2>
           <p className="topo-card-desc">El nombre puede modificarse en cualquier momento. El cálculo y geometría se preservan en tiempo real.</p>
 
@@ -56,7 +56,7 @@ export default function ModalNuevoProyectoTopo({ onVolver, onCrearProyecto }: Mo
         {/* Sección Motores Disponibles */}
         <section className="topo-section-motores">
           <div className="topo-section-header">
-            <span className="topo-section-tag monochrome">MOTORES TOPOGRÁFICOS</span>
+            <span className="topo-section-tag cyan">MOTORES TOPOGRÁFICOS</span>
             <h2 className="topo-section-title">Módulo de cálculo especializado</h2>
             <p className="topo-section-desc">Entradas paramétricas, tolerancias de campo, compensación rigurosa y visualización técnica 2D/3D.</p>
           </div>

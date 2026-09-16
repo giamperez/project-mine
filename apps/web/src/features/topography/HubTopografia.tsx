@@ -7,7 +7,7 @@ import {
 } from "./motoresTopograficos.js";
 import { IconoMotor, IconoPlus } from "./components/IconosTopograficos.js";
 
-const COLOR_TOPOGRAFIA = "#ffffff";
+const COLOR_TOPOGRAFIA = "#06b6d4";
 
 interface HubTopografiaProps {
   onVolverDashboard: () => void;
@@ -163,63 +163,74 @@ export default function HubTopografia({
           <div
             className="portal-module-icon-box"
             style={{
-              backgroundColor: "rgba(255, 255, 255, 0.04)",
-              borderColor: "rgba(255, 255, 255, 0.2)",
-              boxShadow: "0 0 24px rgba(255, 255, 255, 0.08), inset 0 0 16px rgba(255, 255, 255, 0.04)",
+              backgroundColor: "rgba(6, 182, 212, 0.08)",
+              borderColor: "rgba(6, 182, 212, 0.4)",
+              boxShadow: "0 0 24px rgba(6, 182, 212, 0.25), inset 0 0 16px rgba(6, 182, 212, 0.1)",
               cursor: "pointer",
             }}
             onClick={onNuevoProyecto}
             title="Tocar para crear un nuevo levantamiento"
           >
-            <AnimacionModulo3D moduloId="topografia" color="#ffffff" size={84} />
+            <AnimacionModulo3D moduloId="topografia" color={COLOR_TOPOGRAFIA} size={84} />
           </div>
 
           <div className="portal-module-titles">
-            <div className="portal-3d-active-tag" style={{ color: "#ffffff" }}>
-              <span className="tag-dot-pulse" style={{ backgroundColor: "#ffffff" }} />
+            <div className="portal-3d-active-tag" style={{ color: COLOR_TOPOGRAFIA }}>
+              <span className="tag-dot-pulse" style={{ backgroundColor: COLOR_TOPOGRAFIA }} />
               MODELO 3D EN VIVO
             </div>
-            <h1 className="portal-module-title">Topografía y Geodesia</h1>
-            <p className="portal-module-sub">Cálculo, control métrico y representación técnica</p>
+            <h1
+              className="portal-module-title"
+              style={{
+                background: "linear-gradient(135deg, #ffffff 30%, #38bdf8 80%, #06b6d4 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+              }}
+            >
+              Topografía y Geodesia
+            </h1>
+            <p className="portal-module-sub" style={{ color: "#7dd3fc" }}>
+              Cálculo, control métrico y representación técnica
+            </p>
           </div>
         </div>
 
         {/* Fila de 3 KPIs rápidos del Módulo */}
         <div className="portal-kpis-row">
           <div className="portal-kpi-pill">
-            <strong className="portal-kpi-num" style={{ color: "#ffffff" }}>
+            <strong className="portal-kpi-num" style={{ color: COLOR_TOPOGRAFIA }}>
               {proyectos.length}
             </strong>
             <span className="portal-kpi-lbl">PROYECTOS</span>
           </div>
 
           <div className="portal-kpi-pill">
-            <strong className="portal-kpi-num" style={{ color: "#ffffff" }}>
+            <strong className="portal-kpi-num" style={{ color: COLOR_TOPOGRAFIA }}>
               {ultimaFecha}
             </strong>
             <span className="portal-kpi-lbl">ÚLTIMO PROYECTO</span>
           </div>
 
           <div className="portal-kpi-pill">
-            <strong className="portal-kpi-num" style={{ color: "#ffffff" }}>
+            <strong className="portal-kpi-num" style={{ color: COLOR_TOPOGRAFIA }}>
               {MOTORES_TOPOGRAFICOS.length}
             </strong>
             <span className="portal-kpi-lbl">MOTORES</span>
           </div>
         </div>
 
-        {/* Botón principal de creación en monocromo puro */}
+        {/* Botón principal de creación en turquesa elegante */}
         <div style={{ display: "flex", flexDirection: "column", gap: "10px", margin: "14px 0 18px 0" }}>
           <button
             type="button"
             className="btn-portal-primary"
             style={{
               margin: 0,
-              background: "#ffffff",
-              color: "#0c1017",
+              background: `linear-gradient(135deg, ${COLOR_TOPOGRAFIA}, #0891b2)`,
+              color: "#081b22",
               fontWeight: 800,
-              border: "1px solid #ffffff",
-              boxShadow: "0 6px 20px rgba(255, 255, 255, 0.15)",
+              border: "1px solid #22d3ee",
+              boxShadow: "0 6px 20px rgba(6, 182, 212, 0.35)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -234,7 +245,7 @@ export default function HubTopografia({
         {/* Sección: Proyectos Recientes */}
         <section className="portal-recientes-section">
           <div className="portal-recientes-header">
-            <h2 className="portal-recientes-title">PROYECTOS RECIENTES ({proyectos.length})</h2>
+            <h2 className="portal-recientes-title" style={{ color: "#38bdf8" }}>PROYECTOS RECIENTES ({proyectos.length})</h2>
           </div>
 
           {proyectos.map((p) => {
@@ -243,25 +254,33 @@ export default function HubTopografia({
               <div
                 key={p.id}
                 className="portal-project-card"
+                style={{
+                  background: "linear-gradient(145deg, rgba(8, 24, 36, 0.9) 0%, rgba(4, 13, 20, 0.95) 100%)",
+                  borderColor: "rgba(6, 182, 212, 0.22)",
+                }}
                 onClick={() => onAbrirProyecto(p)}
                 title="Tocar para abrir en el taller"
               >
                 <div className="portal-project-card-header">
                   <div className="portal-project-name-wrap">
                     <div className="portal-project-title-clickable">
-                      <h3>{p.nombre}</h3>
+                      <h3 style={{ color: "#f0f9ff" }}>{p.nombre}</h3>
                     </div>
                   </div>
                   <span
                     className="portal-badge-active"
-                    style={{ color: "#ffffff", borderColor: "rgba(255, 255, 255, 0.25)", background: "rgba(255, 255, 255, 0.08)" }}
+                    style={{
+                      color: COLOR_TOPOGRAFIA,
+                      borderColor: "rgba(6, 182, 212, 0.4)",
+                      background: "rgba(6, 182, 212, 0.15)",
+                    }}
                   >
                     {motor.abreviatura}
                   </span>
                 </div>
 
                 <div className="portal-project-meta-row">
-                  <div className="portal-meta-item">
+                  <div className="portal-meta-item" style={{ color: "#7dd3fc" }}>
                     <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2">
                       <circle cx="12" cy="12" r="10" />
                       <polyline points="12 6 12 12 16 14" />
@@ -270,11 +289,11 @@ export default function HubTopografia({
                   </div>
                 </div>
 
-                <div className="portal-project-state-badge">
-                  <span className="state-icon" style={{ color: "#ffffff", display: "flex", alignItems: "center" }}>
+                <div className="portal-project-state-badge" style={{ background: "#061523", border: "1px solid rgba(6, 182, 212, 0.2)" }}>
+                  <span className="state-icon" style={{ color: COLOR_TOPOGRAFIA, display: "flex", alignItems: "center" }}>
                     <IconoMotor id={p.motorId} size={18} />
                   </span>
-                  <span className="state-mono">
+                  <span className="state-mono" style={{ color: "#bae6fd" }}>
                     {motor.nombre} · {p.datum} / Zona {p.zonaUtm}
                   </span>
                 </div>
