@@ -28,7 +28,6 @@ interface Props {
   densidadMaxima_pct: number;
   numeroFamilias: number;
   onCambiarNumeroFamilias: (v: number) => void;
-  oculto?: boolean;
 }
 
 let contadorId = 1000;
@@ -57,7 +56,6 @@ export default function PanelDatosEstereografia({
   densidadMaxima_pct,
   numeroFamilias,
   onCambiarNumeroFamilias,
-  oculto,
 }: Props) {
   const inputArchivoRef = useRef<HTMLInputElement>(null);
 
@@ -101,7 +99,7 @@ export default function PanelDatosEstereografia({
   }
 
   return (
-    <aside className="estereo-panel-left" data-oculto={oculto}>
+    <>
       {/* Botones de presets rápidos para pruebas instantáneas */}
       <div
         style={{
@@ -504,6 +502,6 @@ export default function PanelDatosEstereografia({
           {FORMATO_IMPORTACION_DISCONTINUIDADES}
         </p>
       </Tarjeta>
-    </aside>
+    </>
   );
 }

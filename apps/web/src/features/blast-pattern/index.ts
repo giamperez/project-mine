@@ -12,7 +12,6 @@ export { default as PanelDisenoMalla } from "./components/PanelDisenoMalla.js";
 export { default as PanelDisenoTunel } from "./components/PanelDisenoTunel.js";
 export { default as PanelMallaFinal } from "./components/PanelMallaFinal.js";
 export { default as PanelResultadosMalla } from "./components/PanelResultadosMalla.js";
-export { default as PanelVoladura } from "./components/PanelVoladura.js";
 export { default as TablaTaladros } from "./components/TablaTaladros.js";
 export {
   default as TarjetaTeoriaMalla,

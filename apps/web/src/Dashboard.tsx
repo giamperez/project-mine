@@ -11,7 +11,7 @@ import {
 import { exportarProyectoJSON, limpiarProyectoLocal } from "./utils/proyecto.js";
 import { descargarTexto } from "./utils/descargar.js";
 
-export type ModuloId = "malla" | "topografia" | "geomecanica" | "estereografia" | "acarreo" | "modeloBloques" | "modelo3d";
+export type ModuloId = "malla" | "voladura" | "topografia" | "geomecanica" | "estereografia" | "acarreo" | "modeloBloques" | "modelo3d";
 
 interface DashboardProps {
   onSeleccionarModulo: (modulo: ModuloId) => void;
@@ -38,6 +38,14 @@ function IconoMalla() {
       <circle cx="12" cy="12" r="6" strokeOpacity="0.7" />
       <circle cx="12" cy="12" r="2" fill="currentColor" />
       <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+    </svg>
+  );
+}
+
+function IconoVoladura() {
+  return (
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
     </svg>
   );
 }
@@ -229,6 +237,11 @@ export default function Dashboard({ onSeleccionarModulo }: DashboardProps) {
     const cantM3D = Array.isArray(proyectosModelo3D) ? proyectosModelo3D.length : 0;
     const modelo3dActivo = `${cantM3D} proyecto${cantM3D === 1 ? "" : "s"}`;
 
+    // Voladura
+    const proyectosVoladura = leerValorGuardado<any[]>("voladura.proyectosLista", []);
+    const cantVoladura = Array.isArray(proyectosVoladura) ? proyectosVoladura.length : 0;
+    const voladuraActivo = cantVoladura > 0 ? `${cantVoladura} voladura${cantVoladura === 1 ? "" : "s"} diseñada${cantVoladura === 1 ? "" : "s"}` : "0 voladuras diseñadas";
+
     return {
       taladrosNum,
       taladrosSub,
@@ -245,20 +258,32 @@ export default function Dashboard({ onSeleccionarModulo }: DashboardProps) {
       acarreoActivo,
       bloquesActivo,
       modelo3dActivo,
+      voladuraActivo,
     };
   }, []);
 
   const modulos = [
     {
       id: "malla" as ModuloId,
-      nombre: "Diseño de Malla y Voladura",
+      nombre: "Diseño de Malla",
       codigo: "ENG.MOD.v2.4",
       categoria: "operacion",
       Icono: IconoMalla,
       color: "#f97316",
-      descripcion: "Perforación y voladura para bancos a cielo abierto y frentes subterráneos.",
+      descripcion: "Malla de perforación para bancos a cielo abierto y frentes subterráneos.",
       metricaClave: metricas.taladrosActivo,
-      etiquetas: ["3D Interactivo", "DXF & CSV", "Simulación ms"],
+      etiquetas: ["3D Interactivo", "DXF & CSV", "Editor CAD"],
+    },
+    {
+      id: "voladura" as ModuloId,
+      nombre: "Diseño de Voladura",
+      codigo: "ENG.MOD.v2.4",
+      categoria: "operacion",
+      Icono: IconoVoladura,
+      color: "#f43f5e",
+      descripcion: "Carguío, retardos y simulación técnica a partir de una malla ya diseñada.",
+      metricaClave: metricas.voladuraActivo,
+      etiquetas: ["Carguío por rol", "Secuencia ms", "Simulación 2D/3D"],
     },
     {
       id: "topografia" as ModuloId,

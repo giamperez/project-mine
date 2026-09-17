@@ -1,14 +1,11 @@
 import { useEffect, useRef } from "react";
 import { SceneManager, LayerManager, type EstadoCapa } from "@suite/engine";
 import { construirEscenaMalla, type OpcionesEscenaMalla } from "@suite/mining-blast-pattern";
-import { construirEscenaSecuencia, SecuenciaAnimador } from "@suite/mining-blasting";
-import type { ResultadoMallaPerforacion, ResultadoVoladura } from "@suite/core";
+import type { ResultadoMallaPerforacion } from "@suite/core";
 
 interface Props {
   resultado: ResultadoMallaPerforacion;
   opciones: OpcionesEscenaMalla;
-  resultadoVoladura?: ResultadoVoladura;
-  tiempoAnimacion_ms?: number;
   onCapas?: (capas: EstadoCapa[]) => void;
 }
 
@@ -18,10 +15,9 @@ interface GestorEscena {
   encuadrado: boolean;
 }
 
-export default function Visor3D({ resultado, opciones, resultadoVoladura, tiempoAnimacion_ms, onCapas }: Props) {
+export default function Visor3D({ resultado, opciones, onCapas }: Props) {
   const contenedorRef = useRef<HTMLDivElement>(null);
   const managerRef = useRef<GestorEscena | null>(null);
-  const animadorRef = useRef<SecuenciaAnimador | null>(null);
 
   useEffect(() => {
     if (!contenedorRef.current) return;
@@ -32,7 +28,6 @@ export default function Visor3D({ resultado, opciones, resultadoVoladura, tiempo
     return () => {
       scene.destruir();
       managerRef.current = null;
-      animadorRef.current = null;
     };
   }, []);
 
@@ -50,18 +45,6 @@ export default function Visor3D({ resultado, opciones, resultadoVoladura, tiempo
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resultado, opciones]);
-
-  useEffect(() => {
-    const manager = managerRef.current;
-    if (!manager || !resultadoVoladura) return;
-    animadorRef.current = construirEscenaSecuencia(manager.layers, resultadoVoladura, resultado.taladros);
-    onCapas?.(manager.layers.listarCapas());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resultadoVoladura]);
-
-  useEffect(() => {
-    animadorRef.current?.actualizarTiempo(tiempoAnimacion_ms ?? 0);
-  }, [tiempoAnimacion_ms]);
 
   function encuadrar() {
     const manager = managerRef.current;

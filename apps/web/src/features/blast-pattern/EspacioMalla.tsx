@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  DEFAULTS_VOLADURA,
   calcularArranqueHolmberg,
   calcularGeometriaFrente,
   disenarMallaPerforacion,
-  disenarVoladura,
   type EntradaArranqueHolmberg,
   type EntradaMallaPerforacion,
   type GeometriaFrenteTunel,
@@ -12,7 +10,6 @@ import {
   type TaladroTunel,
 } from "@suite/core";
 import { exportarTaladrosCSV, exportarTaladrosDXF, importarCrestaBancoDesdeDXF } from "@suite/mining-blast-pattern";
-import { exportarSecuenciaCSV } from "@suite/mining-blasting";
 import type { EstadoCapa } from "@suite/engine";
 import EditorCadMalla from "./components/EditorCadMalla.js";
 import Visor3D from "./components/Visor3D.js";
@@ -21,19 +18,16 @@ import EditorTaladros from "./components/EditorTaladros.js";
 import EditorFrenteTunel from "./components/EditorFrenteTunel.js";
 import PanelDisenoMalla from "./components/PanelDisenoMalla.js";
 import PanelDisenoTunel from "./components/PanelDisenoTunel.js";
-import PanelDerecho, { type SubPestanaDerecha } from "./components/PanelDerecho.js";
+import PanelDerecho from "./components/PanelDerecho.js";
 import PanelDerechoTunel from "./components/PanelDerechoTunel.js";
-import type { EntradaVoladuraUI } from "./components/PanelVoladura.js";
 import { descargarTexto } from "../../utils/descargar.js";
 import { EXPLOSIVOS_PRESET } from "../../data/presets.js";
 import { usePersistedState } from "../../hooks/usePersistedState.js";
 import { useExplosivoGlobal } from "../../hooks/useExplosivoGlobal.js";
 
-type Pestana = "diseno" | "3d" | "tabla" | "voladura";
+type Pestana = "diseno" | "3d" | "tabla";
 type ModoVisor = "3d" | "editarCresta" | "editarTaladros";
 type ModoDiseno = "banco" | "tunel";
-
-const DURACION_VISUAL_ANIMACION_MS = 5000;
 
 function rectangulo(largo: number, ancho: number) {
   return [
@@ -73,7 +67,6 @@ export default function EspacioMalla({ proyectoId = "malla-1", onVolverAlPortal 
   const [anchoRectangulo, setAnchoRectangulo] = usePersistedState("malla.anchoRectangulo", 16);
   const [pestana, setPestana] = useState<Pestana>("diseno");
   const [modoVisor, setModoVisor] = useState<ModoVisor>("3d");
-  const [subPestanaDerecha, setSubPestanaDerecha] = useState<SubPestanaDerecha>("tabla");
   const [capas, setCapas] = useState<EstadoCapa[]>([]);
   const [mensaje, setMensaje] = useState<string | null>(null);
 
@@ -114,24 +107,6 @@ export default function EspacioMalla({ proyectoId = "malla-1", onVolverAlPortal 
     });
   }, [explosivoGlobal, propiedadesExplosivoCompat, setEntrada]);
 
-  const [entradaVoladura, setEntradaVoladura] = usePersistedState<EntradaVoladuraUI>("malla.entradaVoladura", {
-    patronIniciacion: modoDiseno === "tunel" ? "tunel_concentrico" : "echelon",
-    msPorMetroBurden: DEFAULTS_VOLADURA.msPorMetroBurden,
-    msPorMetroEspaciamiento: DEFAULTS_VOLADURA.msPorMetroEspaciamiento,
-  });
-
-  // Ajustar automáticamente el patrón por defecto al cambiar entre Túnel y Banco
-  useEffect(() => {
-    if (modoDiseno === "tunel" && !entradaVoladura.patronIniciacion.startsWith("tunel_")) {
-      setEntradaVoladura((prev) => ({ ...prev, patronIniciacion: "tunel_concentrico" }));
-    } else if (modoDiseno === "banco" && entradaVoladura.patronIniciacion.startsWith("tunel_")) {
-      setEntradaVoladura((prev) => ({ ...prev, patronIniciacion: "echelon" }));
-    }
-  }, [modoDiseno, entradaVoladura.patronIniciacion, setEntradaVoladura]);
-
-  const [reproduciendo, setReproduciendo] = useState(false);
-  const [tiempoActual_ms, setTiempoActual_ms] = useState(0);
-
   const [menuExportarAbierto, setMenuExportarAbierto] = useState(false);
   const menuExportarRef = useRef<HTMLDivElement>(null);
 
@@ -163,66 +138,6 @@ export default function EspacioMalla({ proyectoId = "malla-1", onVolverAlPortal 
     (entrada.poligonoCresta && entrada.poligonoCresta.length >= 3 ? resultado.taladros : []);
   const resultadoEfectivo = useMemo(() => ({ ...resultado, taladros: taladrosEfectivos }), [resultado, taladrosEfectivos]);
 
-  // Conversión técnica de taladros de túnel para el motor de voladura 3D y secuencia
-  const taladrosTunelConvertidos: Taladro[] = useMemo(() => {
-    if (taladrosTunel.length === 0) return [];
-    return taladrosTunel.map((t, idx) => ({
-      id: t.id,
-      fila: Math.floor(idx / 8),
-      columna: idx % 8,
-      collar: { x: t.x, y: t.y, z: 0 },
-      fondo: { x: t.x, y: t.y, z: entradaArranqueTunel.avance_m },
-      profundidad_m: entradaArranqueTunel.avance_m,
-      diametroMm: t.zona === "alivio" ? entradaArranqueTunel.diametroIndividualAlivio_mm : 45,
-      taco_m: t.zona === "alivio" ? 0 : 0.6,
-      longitudCarga_m: t.zona === "alivio" ? 0 : Math.max(0.5, entradaArranqueTunel.avance_m - 0.6),
-      zona: t.zona,
-    }));
-  }, [taladrosTunel, entradaArranqueTunel]);
-
-  const resultadoVoladura = useMemo(() => {
-    if (modoDiseno === "tunel") {
-      const taladrosUsar = taladrosTunelConvertidos.length > 0 ? taladrosTunelConvertidos : taladrosEfectivos;
-      const patron = entradaVoladura.patronIniciacion.startsWith("tunel_")
-        ? entradaVoladura.patronIniciacion
-        : "tunel_concentrico";
-
-      return disenarVoladura({
-        taladros: taladrosUsar,
-        burden_m: 0.8,
-        espaciamiento_m: 0.8,
-        alturaBanco_m: entradaArranqueTunel.avance_m,
-        explosivo: entrada.explosivo,
-        patronIniciacion: patron,
-        msPorMetroBurden: entradaVoladura.msPorMetroBurden,
-        msPorMetroEspaciamiento: entradaVoladura.msPorMetroEspaciamiento,
-        esTunel: true,
-      });
-    }
-
-    return disenarVoladura({
-      taladros: taladrosEfectivos,
-      burden_m: resultado.burdenDiseno_m,
-      espaciamiento_m: resultado.espaciamiento_m,
-      alturaBanco_m: entrada.alturaBanco_m,
-      explosivo: entrada.explosivo,
-      patronIniciacion: entradaVoladura.patronIniciacion,
-      msPorMetroBurden: entradaVoladura.msPorMetroBurden,
-      msPorMetroEspaciamiento: entradaVoladura.msPorMetroEspaciamiento,
-      esTunel: false,
-    });
-  }, [
-    modoDiseno,
-    taladrosTunelConvertidos,
-    taladrosEfectivos,
-    resultado.burdenDiseno_m,
-    resultado.espaciamiento_m,
-    entrada.alturaBanco_m,
-    entrada.explosivo,
-    entradaVoladura,
-    entradaArranqueTunel.avance_m,
-  ]);
-
   const opcionesEscena = useMemo(
     () => ({
       poligonoCresta: entrada.poligonoCresta,
@@ -231,30 +146,6 @@ export default function EspacioMalla({ proyectoId = "malla-1", onVolverAlPortal 
     }),
     [entrada.poligonoCresta, entrada.cotaCresta, entrada.alturaBanco_m]
   );
-
-  // Reproduccion de la secuencia de iniciacion: siempre dura ~5s en pantalla, sin importar los
-  // ms reales de la voladura (que suelen ser demasiado breves para percibirse).
-  useEffect(() => {
-    if (!reproduciendo) return;
-    const duracionReal_ms = Math.max(resultadoVoladura.duracionTotalSecuencia_ms, 1);
-    const escala = duracionReal_ms / DURACION_VISUAL_ANIMACION_MS;
-    let cuadro: number;
-    let inicio: number | null = null;
-
-    const tick = (t: number) => {
-      if (inicio === null) inicio = t;
-      const nuevo = (t - inicio) * escala;
-      if (nuevo >= duracionReal_ms + 200) {
-        setTiempoActual_ms(duracionReal_ms + 200);
-        setReproduciendo(false);
-        return;
-      }
-      setTiempoActual_ms(nuevo);
-      cuadro = requestAnimationFrame(tick);
-    };
-    cuadro = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(cuadro);
-  }, [reproduciendo, resultadoVoladura.duracionTotalSecuencia_ms]);
 
   function handleCambiarRectangulo(largo: number, ancho: number) {
     setLargoRectangulo(largo);
@@ -287,31 +178,12 @@ export default function EspacioMalla({ proyectoId = "malla-1", onVolverAlPortal 
 
   async function handleExportarPDF() {
     const { generarReporteMalla } = await import("../../utils/reportePdf.js");
-    const doc = generarReporteMalla(entrada, resultadoEfectivo, resultadoVoladura);
+    const doc = generarReporteMalla(entrada, resultadoEfectivo);
     doc.save("reporte-malla-perforacion.pdf");
-  }
-
-  function handleExportarSecuenciaCSV() {
-    descargarTexto("secuencia-voladura.csv", exportarSecuenciaCSV(resultadoVoladura), "text/csv");
-  }
-
-  function handlePlay() {
-    if (tiempoActual_ms >= resultadoVoladura.duracionTotalSecuencia_ms) setTiempoActual_ms(0);
-    setReproduciendo(true);
-  }
-
-  function handlePausar() {
-    setReproduciendo(false);
-  }
-
-  function handleReiniciar() {
-    setReproduciendo(false);
-    setTiempoActual_ms(0);
   }
 
   function irAPestana(nueva: Pestana) {
     setPestana(nueva);
-    if (nueva === "tabla" || nueva === "voladura") setSubPestanaDerecha(nueva);
   }
 
   if (vistaActual === "cad") {
@@ -518,22 +390,10 @@ export default function EspacioMalla({ proyectoId = "malla-1", onVolverAlPortal 
             </div>
 
             <PanelDerechoTunel
-              subPestana={subPestanaDerecha}
-              onCambiarSubPestana={setSubPestanaDerecha}
               taladros={taladrosTunel}
               resultadoGeometria={resultadoGeometriaTunel}
               entradaArranque={entradaArranqueTunel}
-              resultadoVoladura={resultadoVoladura}
-              entradaVoladura={entradaVoladura}
-              onCambiarEntradaVoladura={setEntradaVoladura}
-              taladrosFormateados={taladrosTunelConvertidos}
-              reproduciendo={reproduciendo}
-              tiempoActual_ms={tiempoActual_ms}
-              onPlay={handlePlay}
-              onPausar={handlePausar}
-              onReiniciar={handleReiniciar}
-              onExportarSecuenciaCSV={handleExportarSecuenciaCSV}
-              oculto={pestana !== "tabla" && pestana !== "voladura"}
+              oculto={pestana !== "tabla"}
             />
           </main>
 
@@ -573,12 +433,6 @@ export default function EspacioMalla({ proyectoId = "malla-1", onVolverAlPortal 
                 <path d="M3 9h18M9 21V9" />
               </svg>
               <span>Taladros</span>
-            </button>
-            <button type="button" data-activo={pestana === "voladura"} onClick={() => irAPestana("voladura")}>
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
-              </svg>
-              <span>Voladura</span>
             </button>
           </nav>
         </>
@@ -631,8 +485,6 @@ export default function EspacioMalla({ proyectoId = "malla-1", onVolverAlPortal 
               <Visor3D
                 resultado={resultadoEfectivo}
                 opciones={opcionesEscena}
-                resultadoVoladura={resultadoVoladura}
-                tiempoAnimacion_ms={tiempoActual_ms}
                 onCapas={setCapas}
               />
               <div className="capas-leyenda">
@@ -669,21 +521,7 @@ export default function EspacioMalla({ proyectoId = "malla-1", onVolverAlPortal 
           </div>
         </div>
 
-        <PanelDerecho
-          subPestana={subPestanaDerecha}
-          onCambiarSubPestana={setSubPestanaDerecha}
-          resultado={resultadoEfectivo}
-          resultadoVoladura={resultadoVoladura}
-          entradaVoladura={entradaVoladura}
-          onCambiarEntradaVoladura={setEntradaVoladura}
-          reproduciendo={reproduciendo}
-          tiempoActual_ms={tiempoActual_ms}
-          onPlay={handlePlay}
-          onPausar={handlePausar}
-          onReiniciar={handleReiniciar}
-          onExportarSecuenciaCSV={handleExportarSecuenciaCSV}
-          oculto={pestana !== "tabla" && pestana !== "voladura"}
-        />
+        <PanelDerecho resultado={resultadoEfectivo} oculto={pestana !== "tabla"} />
       </main>
 
       <nav className="tabs-inferior">
@@ -723,12 +561,6 @@ export default function EspacioMalla({ proyectoId = "malla-1", onVolverAlPortal 
             <path d="M3 9h18M9 21V9" />
           </svg>
           <span>Taladros</span>
-        </button>
-        <button type="button" data-activo={pestana === "voladura"} onClick={() => irAPestana("voladura")}>
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
-          </svg>
-          <span>Voladura</span>
         </button>
       </nav>
         </>

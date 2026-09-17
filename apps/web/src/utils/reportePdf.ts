@@ -99,10 +99,10 @@ function dibujarPlanoTaladros(
 export function generarReporteMalla(
   entrada: EntradaMallaPerforacion,
   resultado: ResultadoMallaPerforacion,
-  resultadoVoladura: ResultadoVoladura
+  resultadoVoladura?: ResultadoVoladura
 ): jsPDF {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
-  let y = encabezado(doc, "Diseño de Malla de Perforación y Voladura", "mining.blast-pattern · mining.blasting");
+  let y = encabezado(doc, "Diseño de Malla de Perforación", "mining.blast-pattern");
 
   y = tituloSeccion(doc, "Parámetros de entrada", y);
   autoTable(doc, {
@@ -165,25 +165,30 @@ export function generarReporteMalla(
   y = tituloSeccion(doc, "Plano de taladros (en planta)", y);
   y = dibujarPlanoTaladros(doc, resultado.taladros, y);
 
-  doc.addPage();
-  y = 20;
-  y = tituloSeccion(doc, "Voladura: carga y secuencia de iniciación", y);
-  autoTable(doc, {
-    startY: y,
-    theme: "grid",
-    styles: { fontSize: 8 },
-    head: [["Parámetro", "Valor"]],
-    body: [
-      ["Peso total de explosivo", `${resultadoVoladura.pesoExplosivoTotal_kg.toFixed(0)} kg`],
-      ["Volumen de roca total", `${resultadoVoladura.volumenRocaTotal_m3.toFixed(0)} m³`],
-      ["Factor de carga (powder factor)", `${resultadoVoladura.factorCarga_kgm3.toFixed(3)} kg/m³`],
-      ["Carga lineal", `${resultadoVoladura.cargaLineal_kgm.toFixed(2)} kg/m`],
-      ["Retardo entre filas", `${resultadoVoladura.retardoEntreFilas_ms.toFixed(1)} ms`],
-      ["Retardo entre taladros", `${resultadoVoladura.retardoEntreTaladros_ms.toFixed(1)} ms`],
-      ["Duración total de secuencia", `${resultadoVoladura.duracionTotalSecuencia_ms.toFixed(0)} ms`],
-    ],
-  });
-  y = finalYDeUltimaTabla(doc, y) + 10;
+  if (resultadoVoladura) {
+    doc.addPage();
+    y = 20;
+    y = tituloSeccion(doc, "Voladura: carga y secuencia de iniciación", y);
+    autoTable(doc, {
+      startY: y,
+      theme: "grid",
+      styles: { fontSize: 8 },
+      head: [["Parámetro", "Valor"]],
+      body: [
+        ["Peso total de explosivo", `${resultadoVoladura.pesoExplosivoTotal_kg.toFixed(0)} kg`],
+        ["Volumen de roca total", `${resultadoVoladura.volumenRocaTotal_m3.toFixed(0)} m³`],
+        ["Factor de carga (powder factor)", `${resultadoVoladura.factorCarga_kgm3.toFixed(3)} kg/m³`],
+        ["Carga lineal", `${resultadoVoladura.cargaLineal_kgm.toFixed(2)} kg/m`],
+        ["Retardo entre filas", `${resultadoVoladura.retardoEntreFilas_ms.toFixed(1)} ms`],
+        ["Retardo entre taladros", `${resultadoVoladura.retardoEntreTaladros_ms.toFixed(1)} ms`],
+        ["Duración total de secuencia", `${resultadoVoladura.duracionTotalSecuencia_ms.toFixed(0)} ms`],
+      ],
+    });
+    y = finalYDeUltimaTabla(doc, y) + 10;
+  } else {
+    doc.addPage();
+    y = 20;
+  }
 
   y = tituloSeccion(doc, "Tabla de taladros", y);
   autoTable(doc, {

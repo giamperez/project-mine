@@ -35,7 +35,6 @@ interface Props {
   onCambiarMetodoExcavacionSMR: (v: MetodoExcavacionSMR) => void;
   talud?: TaludEstereografia;
   anguloFriccion_grados?: number;
-  oculto?: boolean;
 }
 
 function nombreDe(discontinuidades: Discontinuidad[], id: string): string {
@@ -118,7 +117,6 @@ export default function PanelResultadosEstereografia({
   onCambiarMetodoExcavacionSMR,
   talud,
   anguloFriccion_grados = 30,
-  oculto,
 }: Props) {
   const cunasOrdenadas = [...resultado.analisisCunas].sort((a, b) => Number(b.factible) - Number(a.factible));
   const mecanismos = [cinematica.planar, cinematica.cuna, cinematica.volcamientoFlexural, cinematica.volcamientoDirecto];
@@ -130,7 +128,7 @@ export default function PanelResultadosEstereografia({
     resultado.resumen.cunasFactibles > 0;
 
   return (
-    <aside className="estereo-panel-right" data-oculto={oculto}>
+    <>
       {/* Banner de Diagnóstico Cinemático Rápido */}
       <div
         style={{
@@ -555,6 +553,6 @@ export default function PanelResultadosEstereografia({
         talud={talud ?? { dip_grados: 60, dipDirection_grados: 180 }}
         anguloFriccion_grados={anguloFriccion_grados}
       />
-    </aside>
+    </>
   );
 }

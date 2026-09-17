@@ -39,7 +39,7 @@ import {
 } from "./components/IconosEstereonet.js";
 import type { ProyectoEstereografico } from "./proyectosEstereografia.js";
 
-type Pestana = "datos" | "estereograma" | "resultados";
+type PanelAbierto = null | "datos" | "resultados";
 type VistaCentral = "estereograma" | "rosaRumbos";
 
 const NIVELES_CONTORNO_PCT = [10, 20, 30, 40, 50, 60, 70, 80, 90];
@@ -57,7 +57,7 @@ export default function TallerEstereografia({
   onVolver,
   onGuardarProyecto,
 }: TallerEstereografiaProps) {
-  const [pestana, setPestana] = useState<Pestana>("estereograma");
+  const [panelAbierto, setPanelAbierto] = useState<PanelAbierto>(null);
   const [vistaCentral, setVistaCentral] = useState<VistaCentral>("estereograma");
   const [mensaje, setMensaje] = useState<string | null>(null);
 
@@ -339,37 +339,74 @@ export default function TallerEstereografia({
       </header>
 
       {/* Workspace principal con 3 áreas de ingeniería */}
-      <main className="estereo-workspace">
+      <main className={`estereo-workspace ${panelAbierto ? `sheet-abierto-${panelAbierto}` : ""}`}>
         {/* Panel izquierdo: Entrada de datos, talud y discontinuidades */}
-        <PanelDatosEstereografia
-          discontinuidades={discontinuidadesValidas}
-          onCambiarDiscontinuidades={setDiscontinuidades}
-          talud={taludValido}
-          onCambiarTalud={setTalud}
-          anguloFriccion_grados={anguloFriccionValido}
-          onCambiarAnguloFriccion={setAnguloFriccion}
-          toleranciaDireccion_grados={toleranciaValida}
-          onCambiarTolerancia={setTolerancia}
-          onImportarCSV={handleImportarCSV}
-          onExportarCSV={handleExportarCSV}
-          proyeccion={proyeccion}
-          onCambiarProyeccion={setProyeccion}
-          hemisferio={hemisferio}
-          onCambiarHemisferio={setHemisferio}
-          elementos={elementos}
-          onCambiarElementos={setElementos}
-          modoDensidad={modoDensidad}
-          onCambiarModoDensidad={setModoDensidad}
-          radioConteo_grados={radioConteo_grados}
-          onCambiarRadioConteo={setRadioConteo}
-          densidadMaxima_pct={densidad?.densidadMaxima_pct ?? 0}
-          numeroFamilias={numeroFamilias}
-          onCambiarNumeroFamilias={setNumeroFamilias}
-          oculto={pestana !== "datos"}
-        />
+        <aside className="estereo-panel-left" data-panel="datos">
+          <div
+            className="estereo-sheet-handle estereo-only-mobile"
+            onTouchStart={(e) => {
+              const startY = e.touches[0].clientY;
+              const handleMove = (ev: TouchEvent) => {
+                if (ev.touches[0].clientY - startY > 100) {
+                  setPanelAbierto(null);
+                  cleanup();
+                }
+              };
+              const handleEnd = () => cleanup();
+              const cleanup = () => {
+                window.removeEventListener("touchmove", handleMove);
+                window.removeEventListener("touchend", handleEnd);
+              };
+              window.addEventListener("touchmove", handleMove, { passive: true });
+              window.addEventListener("touchend", handleEnd);
+            }}
+          >
+            <div className="estereo-sheet-handle-bar" />
+          </div>
+          <div className="estereo-sheet-header estereo-only-mobile">
+            <div className="estereo-sheet-title">
+              <IconoParametros width={18} height={18} />
+              <span>Entrada &amp; Talud</span>
+            </div>
+            <button
+              type="button"
+              className="estereo-sheet-close"
+              onClick={() => setPanelAbierto(null)}
+            >
+              ✕
+            </button>
+          </div>
+          <div className="estereo-sheet-content">
+            <PanelDatosEstereografia
+              discontinuidades={discontinuidadesValidas}
+              onCambiarDiscontinuidades={setDiscontinuidades}
+              talud={taludValido}
+              onCambiarTalud={setTalud}
+              anguloFriccion_grados={anguloFriccionValido}
+              onCambiarAnguloFriccion={setAnguloFriccion}
+              toleranciaDireccion_grados={toleranciaValida}
+              onCambiarTolerancia={setTolerancia}
+              onImportarCSV={handleImportarCSV}
+              onExportarCSV={handleExportarCSV}
+              proyeccion={proyeccion}
+              onCambiarProyeccion={setProyeccion}
+              hemisferio={hemisferio}
+              onCambiarHemisferio={setHemisferio}
+              elementos={elementos}
+              onCambiarElementos={setElementos}
+              modoDensidad={modoDensidad}
+              onCambiarModoDensidad={setModoDensidad}
+              radioConteo_grados={radioConteo_grados}
+              onCambiarRadioConteo={setRadioConteo}
+              densidadMaxima_pct={densidad?.densidadMaxima_pct ?? 0}
+              numeroFamilias={numeroFamilias}
+              onCambiarNumeroFamilias={setNumeroFamilias}
+            />
+          </div>
+        </aside>
 
         {/* Viewport central: Red estereográfica SVG / Rosa de rumbos */}
-        <div className="estereo-viewport" data-oculto={pestana !== "estereograma"}>
+        <div className="estereo-viewport">
           {/* Toast flotante discreto adentro del viewport */}
           {mensaje && (
             <div
@@ -471,7 +508,7 @@ export default function TallerEstereografia({
             {/* Pastilla flotante con telemetry resumida */}
             <div
               className="estereo-hud-banner"
-              onClick={() => setPestana("resultados")}
+              onClick={() => setPanelAbierto(panelAbierto === "resultados" ? null : "resultados")}
               title="Toca para ver el análisis detallado"
               style={{ cursor: "pointer" }}
             >
@@ -488,49 +525,94 @@ export default function TallerEstereografia({
         </div>
 
         {/* Panel derecho: Análisis cinemático, cuñas, familias, SMR y calculadora FOS */}
-        <PanelResultadosEstereografia
-          discontinuidades={discontinuidadesValidas}
-          resultado={resultado}
-          agrupamiento={agrupamiento}
-          cinematica={cinematica}
-          smr={smr}
-          rmrBasicoSMR={rmrBasicoSMR}
-          onCambiarRmrBasicoSMR={setRmrBasicoSMR}
-          discontinuidadSmrId={discontinuidadSmr?.id ?? null}
-          onCambiarDiscontinuidadSmrId={setDiscontinuidadSmrId}
-          tipoFallaSMR={tipoFallaSMR}
-          onCambiarTipoFallaSMR={setTipoFallaSMR}
-          metodoExcavacionSMR={metodoExcavacionSMR}
-          onCambiarMetodoExcavacionSMR={setMetodoExcavacionSMR}
-          talud={taludValido}
-          anguloFriccion_grados={anguloFriccionValido}
-          oculto={pestana !== "resultados"}
-        />
+        <aside className="estereo-panel-right" data-panel="resultados">
+          <div
+            className="estereo-sheet-handle estereo-only-mobile"
+            onTouchStart={(e) => {
+              const startY = e.touches[0].clientY;
+              const handleMove = (ev: TouchEvent) => {
+                if (ev.touches[0].clientY - startY > 100) {
+                  setPanelAbierto(null);
+                  cleanup();
+                }
+              };
+              const handleEnd = () => cleanup();
+              const cleanup = () => {
+                window.removeEventListener("touchmove", handleMove);
+                window.removeEventListener("touchend", handleEnd);
+              };
+              window.addEventListener("touchmove", handleMove, { passive: true });
+              window.addEventListener("touchend", handleEnd);
+            }}
+          >
+            <div className="estereo-sheet-handle-bar" />
+          </div>
+          <div className="estereo-sheet-header estereo-only-mobile">
+            <div className="estereo-sheet-title">
+              <IconoCinematica width={18} height={18} />
+              <span>Cinemática &amp; SMR</span>
+            </div>
+            <button
+              type="button"
+              className="estereo-sheet-close"
+              onClick={() => setPanelAbierto(null)}
+            >
+              ✕
+            </button>
+          </div>
+          <div className="estereo-sheet-content">
+            <PanelResultadosEstereografia
+              discontinuidades={discontinuidadesValidas}
+              resultado={resultado}
+              agrupamiento={agrupamiento}
+              cinematica={cinematica}
+              smr={smr}
+              rmrBasicoSMR={rmrBasicoSMR}
+              onCambiarRmrBasicoSMR={setRmrBasicoSMR}
+              discontinuidadSmrId={discontinuidadSmr?.id ?? null}
+              onCambiarDiscontinuidadSmrId={setDiscontinuidadSmrId}
+              tipoFallaSMR={tipoFallaSMR}
+              onCambiarTipoFallaSMR={setTipoFallaSMR}
+              metodoExcavacionSMR={metodoExcavacionSMR}
+              onCambiarMetodoExcavacionSMR={setMetodoExcavacionSMR}
+              talud={taludValido}
+              anguloFriccion_grados={anguloFriccionValido}
+            />
+          </div>
+        </aside>
       </main>
+
+      {/* Backdrop overlay para cerrar el panel al tocar fuera (solo móvil) */}
+      {panelAbierto && (
+        <div
+          className="estereo-sheet-overlay"
+          onClick={() => setPanelAbierto(null)}
+        />
+      )}
 
       {/* Dock de Navegación Inferior */}
       <nav className="estereo-bottom-nav">
         <div className="estereo-bottom-tabs-grid">
           <button
             type="button"
-            className={`estereo-bottom-tab-btn ${pestana === "estereograma" ? "activo" : ""}`}
-            onClick={() => setPestana("estereograma")}
+            className={`estereo-bottom-tab-btn ${panelAbierto === null ? "activo" : ""}`}
+            onClick={() => setPanelAbierto(null)}
           >
             <IconoRed2D width={19} height={19} />
             <span>Red 2D</span>
           </button>
           <button
             type="button"
-            className={`estereo-bottom-tab-btn ${pestana === "datos" ? "activo" : ""}`}
-            onClick={() => setPestana("datos")}
+            className={`estereo-bottom-tab-btn ${panelAbierto === "datos" ? "activo" : ""}`}
+            onClick={() => setPanelAbierto(panelAbierto === "datos" ? null : "datos")}
           >
             <IconoParametros width={19} height={19} />
             <span>Entrada &amp; Talud</span>
           </button>
           <button
             type="button"
-            className={`estereo-bottom-tab-btn ${pestana === "resultados" ? "activo" : ""}`}
-            onClick={() => setPestana("resultados")}
+            className={`estereo-bottom-tab-btn ${panelAbierto === "resultados" ? "activo" : ""}`}
+            onClick={() => setPanelAbierto(panelAbierto === "resultados" ? null : "resultados")}
           >
             <IconoCinematica width={19} height={19} />
             <span>Cinemática &amp; SMR</span>

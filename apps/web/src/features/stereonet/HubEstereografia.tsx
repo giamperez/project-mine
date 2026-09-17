@@ -242,7 +242,7 @@ export default function HubEstereografia({
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
-            + NUEVO ESTUDIO ESTRUCTURAL
+            NUEVO ESTUDIO ESTRUCTURAL
           </button>
         </div>
 
@@ -348,21 +348,7 @@ export default function HubEstereografia({
             </div>
           )}
 
-          {/* Tarjeta para Crear Nuevos Proyectos */}
-          <div
-            className="portal-placeholder-card"
-            onClick={onNuevoProyecto}
-            title="Toque para crear un nuevo estudio estructural"
-          >
-            <div className="placeholder-icon-circle">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8">
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-            </div>
-            <p>Tus próximos estudios estructurales aparecerán aquí</p>
-            <span className="placeholder-hint">+ Toque para agregar un estudio</span>
-          </div>
+
         </section>
 
         {/* Barra de Navegación Inferior Flotante */}

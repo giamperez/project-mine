@@ -12,6 +12,13 @@
   --ok: #4ade80;
   --radio: 10px;
   --barra-inferior-alto: 56px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;
 }
 
 * {
@@ -706,8 +713,9 @@ table.tabla-taladros td:first-child {
   padding: 12px 16px 120px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: var(--space-4);
   box-sizing: border-box;
+  min-width: 0;
 }
 
 /* En pantallas de escritorio amplias, permitir expandir armónicamente */
@@ -772,6 +780,7 @@ table.tabla-taladros td:first-child {
   color: #94a3b8;
   font-size: 13px;
   font-weight: 600;
+  gap: var(--space-2);
 }
 
 .mine-clock {
@@ -791,7 +800,8 @@ table.tabla-taladros td:first-child {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-3);
+  min-width: 0;
 }
 
 .mine-app-title {
@@ -884,8 +894,8 @@ table.tabla-taladros td:first-child {
 /* Cuadrícula de KPIs Rápidos (2x2 en móvil) */
 .mine-kpis-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
 }
 
 @media (min-width: 800px) {
@@ -953,7 +963,7 @@ table.tabla-taladros td:first-child {
 .mine-modules-section {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .mine-section-title-wrap {
@@ -979,10 +989,11 @@ table.tabla-taladros td:first-child {
 /* Filtros por Categoría Chips */
 .mine-category-chips {
   display: flex;
-  gap: 6px;
+  gap: var(--space-2);
   overflow-x: auto;
   padding-bottom: 2px;
   -webkit-overflow-scrolling: touch;
+  min-width: 0;
 }
 
 .mine-chip {
@@ -1014,7 +1025,8 @@ table.tabla-taladros td:first-child {
 .mine-cards-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
+  min-width: 0;
 }
 
 @media (min-width: 800px) {
@@ -1032,11 +1044,12 @@ table.tabla-taladros td:first-child {
   padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  min-width: 0;
 }
 
 .mine-module-card:hover {
@@ -1049,7 +1062,8 @@ table.tabla-taladros td:first-child {
 .mine-module-card-top {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
+  min-width: 0;
 }
 
 .mine-module-icon-box {
@@ -1167,13 +1181,15 @@ table.tabla-taladros td:first-child {
   padding: 14px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
+  min-width: 0;
 }
 
 .mine-plantillas-scroll {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+  min-width: 0;
 }
 
 @media (min-width: 700px) {
@@ -1189,8 +1205,9 @@ table.tabla-taladros td:first-child {
   padding: 10px 14px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   transition: all 0.2s ease;
+  min-width: 0;
 }
 
 .mine-plantilla-mini-card:hover {
@@ -1505,8 +1522,9 @@ table.tabla-taladros td:first-child {
   padding: 12px 16px 120px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
   box-sizing: border-box;
+  min-width: 0;
 }
 
 @media (min-width: 900px) {
@@ -1521,6 +1539,7 @@ table.tabla-taladros td:first-child {
   align-items: center;
   justify-content: space-between;
   padding-bottom: 2px;
+  gap: var(--space-2);
 }
 
 .btn-portal-back {
@@ -1577,8 +1596,9 @@ table.tabla-taladros td:first-child {
 .portal-module-identity {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: var(--space-3);
   margin-top: 2px;
+  min-width: 0;
 }
 
 .portal-module-icon-box {
@@ -1637,8 +1657,8 @@ table.tabla-taladros td:first-child {
 /* Fila de 3 KPIs rápidos */
 .portal-kpis-row {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
 }
 
 .portal-kpi-pill {
@@ -1693,7 +1713,7 @@ table.tabla-taladros td:first-child {
 .portal-3d-section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .portal-3d-header {
@@ -1762,7 +1782,7 @@ table.tabla-taladros td:first-child {
 .portal-recientes-section {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .portal-recientes-header {
@@ -1810,10 +1830,11 @@ table.tabla-taladros td:first-child {
   padding: 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-3);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
   cursor: pointer;
   transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+  min-width: 0;
 }
 
 .portal-project-card:hover {
@@ -15083,5 +15104,230 @@ table.tabla-taladros td:first-child {
 
   .estereo-header {
     padding: 8px 12px;
+  }
+}
+
+/* ========== Bottom Sheet / Panel deslizante desde abajo ========== */
+
+/* Ocultar elementos mobile-only en desktop */
+.estereo-only-mobile {
+  display: none !important;
+}
+
+/* Overlay / Backdrop cuando un panel esta abierto */
+.estereo-sheet-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0);
+  z-index: 70;
+  transition: background 0.3s ease;
+  pointer-events: none;
+}
+
+/* Handle superior del bottom sheet (agarradera para deslizar) */
+.estereo-sheet-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 0 4px;
+  cursor: grab;
+  flex-shrink: 0;
+  touch-action: none;
+}
+
+.estereo-sheet-handle-bar {
+  width: 40px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.4);
+}
+
+/* Header del sheet con titulo y boton de cerrar */
+.estereo-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 16px 10px;
+  border-bottom: 1px solid rgba(16, 185, 129, 0.12);
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.estereo-sheet-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #e2e8f0;
+  letter-spacing: 0.02em;
+}
+
+.estereo-sheet-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.estereo-sheet-close:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+}
+
+.estereo-sheet-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0 0 8px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(16, 185, 129, 0.25) transparent;
+}
+
+.estereo-sheet-content::-webkit-scrollbar {
+  width: 5px;
+}
+
+.estereo-sheet-content::-webkit-scrollbar-thumb {
+  background: rgba(16, 185, 129, 0.25);
+  border-radius: 4px;
+}
+
+/* ========== RESPONSIVE: Bottom sheets en MÓVIL (≤860px) ========== */
+@media (max-width: 860px) {
+  /* Mostrar elementos mobile-only */
+  .estereo-only-mobile {
+    display: flex !important;
+  }
+
+  /* Overlay visible en móvil cuando un panel está abierto */
+  .estereo-sheet-overlay {
+    display: block;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(4px);
+    pointer-events: auto;
+    animation: estereoOverlayFadeIn 0.25s ease-out;
+  }
+
+  @keyframes estereoOverlayFadeIn {
+    from { background: rgba(0, 0, 0, 0); }
+    to { background: rgba(0, 0, 0, 0.55); }
+  }
+
+  /* Workspace en móvil: viewport ocupa todo el espacio disponible */
+  .estereo-workspace {
+    padding-bottom: 74px;
+    overflow: hidden;
+  }
+
+  /* Viewport central SIEMPRE visible en móvil */
+  .estereo-viewport {
+    display: flex !important;
+    width: 100% !important;
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    padding-bottom: 74px;
+  }
+
+  /* Paneles izquierdo y derecho como bottom sheets en móvil */
+  .estereo-panel-left,
+  .estereo-panel-right {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 80;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 82vh;
+    max-height: 82vh;
+    flex: 0 0 auto;
+    border: none !important;
+    border-top: 1px solid rgba(16, 185, 129, 0.28) !important;
+    border-radius: 24px 24px 0 0 !important;
+    padding: 0 0 calc(16px + env(safe-area-inset-bottom, 8px)) !important;
+    background: linear-gradient(180deg, rgba(7, 24, 19, 0.98) 0%, rgba(4, 14, 11, 0.99) 100%) !important;
+    box-shadow: 0 -18px 56px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(16, 185, 129, 0.1);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transform: translateY(100%);
+    transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+    will-change: transform;
+  }
+
+  /* Estado ABIERTO del sheet de datos (Entrada & Talud) */
+  .estereo-workspace.sheet-abierto-datos ~ .estereo-sheet-overlay + nav + * { /* selector fallback */ }
+  .estereo-workspace.sheet-abierto-datos ~ * + .estereo-panel-left, /* no match por estructura */
+  .estereo-container { /* reset scope */ }
+
+  /* Por estructura DOM: los paneles estan DENTRO del workspace, no hermanos. */
+  /* Abrir panel izquierdo (datos) */
+  .estereo-workspace.sheet-abierto-datos .estereo-panel-left {
+    transform: translateY(0%);
+    animation: estereoSheetSlideUp 0.38s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  /* Abrir panel derecho (resultados / cinematica & SMR) */
+  .estereo-workspace.sheet-abierto-resultados .estereo-panel-right {
+    transform: translateY(0%);
+    animation: estereoSheetSlideUp 0.38s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  @keyframes estereoSheetSlideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0%); }
+  }
+
+  /* Área scrolleable dentro del sheet (el componente de panel) */
+  .estereo-panel-left > aside,
+  .estereo-panel-left > [class*="Panel"],
+  .estereo-panel-right > aside,
+  .estereo-panel-right > [class*="Panel"] {
+    overflow-y: auto;
+  }
+
+  /* El componente PanelDatos/PanelResultados ya trae su propio overflow-y:auto;
+     en móvil lo hacemos ocupar el espacio restante después del handle y header */
+  .estereo-panel-left > .estereo-sheet-content,
+  .estereo-panel-right > .estereo-sheet-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    overflow-y: auto;
+    padding: 12px 14px 10px !important;
+    height: auto;
+    max-height: none;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  /* En móvil, no ocultar NUNCA el viewport por data-oculto */
+  .estereo-panel-left[data-oculto="true"],
+  .estereo-panel-right[data-oculto="true"],
+  .estereo-viewport[data-oculto="true"] {
+    display: flex !important;
+  }
+
+  /* Ajustes estéticos para el sheet */
+  .estereo-workspace {
+    position: relative;
   }
 }

@@ -2,6 +2,7 @@ import { useState } from "react";
 import Dashboard, { type ModuloId } from "./Dashboard.js";
 import { ModuloPortal, ErrorBoundary } from "./components/shared/index.js";
 import { EspacioMalla } from "./features/blast-pattern/index.js";
+import { EspacioVoladura } from "./features/blast-design/index.js";
 import { EspacioTopografia } from "./features/topography/index.js";
 import { EspacioGeomecanica } from "./features/geomechanics/index.js";
 import { EspacioEstereografia } from "./features/stereonet/index.js";
@@ -47,16 +48,26 @@ export default function App() {
           />
         )}
 
-        {espacio !== "dashboard" && espacio !== "topografia" && espacio !== "estereografia" && vistaModulo === "portal" && (
-          <ModuloPortal
-            key={espacio}
-            moduloId={espacio}
-            onVolverDashboard={() => setEspacio("dashboard")}
-            onAbrirTaller={(id) => abrirTaller(id)}
-          />
-        )}
+        {espacio === "voladura" && <EspacioVoladura onVolverDashboard={() => setEspacio("dashboard")} />}
 
-        {espacio !== "dashboard" && espacio !== "topografia" && espacio !== "estereografia" && vistaModulo === "taller" && (
+        {espacio !== "dashboard" &&
+          espacio !== "topografia" &&
+          espacio !== "estereografia" &&
+          espacio !== "voladura" &&
+          vistaModulo === "portal" && (
+            <ModuloPortal
+              key={espacio}
+              moduloId={espacio}
+              onVolverDashboard={() => setEspacio("dashboard")}
+              onAbrirTaller={(id) => abrirTaller(id)}
+            />
+          )}
+
+        {espacio !== "dashboard" &&
+          espacio !== "topografia" &&
+          espacio !== "estereografia" &&
+          espacio !== "voladura" &&
+          vistaModulo === "taller" && (
           <>
             {espacio === "malla" && (
               <EspacioMalla
